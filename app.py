@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify
-from logic import fetch_and_process
+from logic import fetch_and_process, fetch_imbalance
 import threading
 import uuid
 import time
@@ -268,6 +268,30 @@ def get_results(job_id):
     if job and job['status'] == 'completed':
         return jsonify(job['results'])
     return jsonify([])
+
+@app.route('/find_imbalance', methods=['POST'])
+def find_imbalance():
+    raw_text = request.form.get('tickers', '')
+    if not raw_text:
+        return jsonify({'error': 'No tickers provided'}), 400
+    
+    tickers = [t.strip() for t in raw_text.replace('\n', ',').split(',') if t.strip()]
+    
+    job_id = str(uuid.uuid4())
+    jobs[job_id] = {'status': 'processing', 'progress': 0, 'total': len(tickers), 'results': [], 'type': 'imbalance'}
+    
+    thread = threading.Thread(target=process_imbalance_job, args=(job_id, tickers))
+    thread.start()
+    
+    return jsonify({'job_id': job_id})
+
+def process_imbalance_job(job_id, tickers):
+    def update_progress(current, total):
+        jobs[job_id]['progress'] = current
+        
+    results = fetch_imbalance(tickers, progress_callback=update_progress)
+    jobs[job_id]['results'] = results
+    jobs[job_id]['status'] = 'completed'
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

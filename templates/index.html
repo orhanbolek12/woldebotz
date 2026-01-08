@@ -331,10 +331,29 @@ JBK
                     <small id="imbalanceStatus" style="color:var(--text-muted)">Loading status...</small>
                 </div>
                 <button class="btn" onclick="refreshImbalance()"
-                    style="width:auto; padding:0.5rem 1rem; font-size:0.9rem;">Refresh Imbalance</button>
+                    style="width:auto; padding:0.5rem 1rem; font-size:0.9rem;">Refresh List</button>
             </div>
-            <p style="color:var(--text-muted); margin-bottom:1rem;">
-                Analyzes 20d candles for Long/Short imbalance patterns (Wick &le; 0.05).
+
+            <div id="imbalanceInputArea" style="margin-top:2rem; border-top:1px solid #334155; padding-top:2rem;">
+                <label for="imbalanceTickers" style="display:block; margin-bottom: 0.5rem; font-weight:600;">Custom
+                    Imbalance Search</label>
+                <textarea id="imbalanceTickers" placeholder="Enter tickers to check for 20d patterns..."></textarea>
+                <button id="analyzeImbalanceBtn" class="btn" onclick="startImbalanceAnalysis()">Analyze for
+                    Imbalance</button>
+            </div>
+
+            <div class="progress-container" id="imbProgressContainer">
+                <div class="progress-label">
+                    <span id="imbProgressText">Processing...</span>
+                    <span id="imbProgressPercent">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="imbProgressFill"></div>
+                </div>
+            </div>
+
+            <p style="color:var(--text-muted); margin-top:1rem; font-size:0.9rem;">
+                Analyzes 20d candles for Long/Short patterns (Wick &le; 0.05).
             </p>
         </div>
 
@@ -610,6 +629,73 @@ JBK
             });
         }
 
+        async function startImbalanceAnalysis() {
+            const tickers = document.getElementById('imbalanceTickers').value;
+            if (!tickers.trim()) {
+                alert("Please enter at least one ticker.");
+                return;
+            }
+
+            // Reset UI
+            document.getElementById('analyzeImbalanceBtn').disabled = true;
+            document.getElementById('analyzeImbalanceBtn').innerText = "Analyzing...";
+            document.getElementById('imbProgressContainer').style.display = 'block';
+            document.getElementById('resultsCard').style.display = 'none';
+            document.querySelector('#resultsTable tbody').innerHTML = '';
+            document.getElementById('foundLabel').style.display = 'none';
+            updateImbProgress(0, "Starting...");
+            foundTickers = [];
+
+            try {
+                const formData = new FormData();
+                formData.append('tickers', tickers);
+
+                const response = await fetch('/find_imbalance', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                if (data.error) throw new Error(data.error);
+
+                jobId = data.job_id;
+                pollInterval = setInterval(imbPollStatus, 2000);
+
+            } catch (e) {
+                alert("Error: " + e.message);
+                resetUI();
+            }
+        }
+
+        async function imbPollStatus() {
+            if (!jobId) return;
+
+            try {
+                const response = await fetch(`/status/${jobId}`);
+                const job = await response.json();
+
+                if (job.status === 'processing') {
+                    const percent = Math.round((job.progress / job.total) * 100);
+                    updateImbProgress(percent, `Processed ${job.progress} of ${job.total}`);
+                } else if (job.status === 'completed') {
+                    clearInterval(pollInterval);
+                    updateImbProgress(100, "Completed!");
+                    foundTickers = job.results.map(r => r.ticker).sort();
+                    displayResults(job.results, true);
+                    resetUI();
+                }
+
+            } catch (e) {
+                console.error("Polling error:", e);
+            }
+        }
+
+        function updateImbProgress(percent, text) {
+            document.getElementById('imbProgressFill').style.width = percent + '%';
+            document.getElementById('imbProgressPercent').innerText = percent + '%';
+            document.getElementById('imbProgressText').innerText = text;
+        }
+
         function copyToClipboard() {
             const text = foundTickers.join(', ');
             navigator.clipboard.writeText(text).then(() => {
@@ -622,6 +708,8 @@ JBK
         function resetUI() {
             document.getElementById('analyzeBtn').disabled = false;
             document.getElementById('analyzeBtn').innerText = "Analyze Tickers";
+            document.getElementById('analyzeImbalanceBtn').disabled = false;
+            document.getElementById('analyzeImbalanceBtn').innerText = "Analyze for Imbalance";
         }
     </script>
 

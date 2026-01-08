@@ -109,6 +109,61 @@ def parse_ticker_tv(raw_ticker):
             return f"{base}/P{suffix}"
     return raw_ticker
 
-if __name__ == "__main__":
-    sample = ["ABR-D", "PCG-G", "PRIF-L"]
-    print(fetch_and_process(sample))
+def fetch_imbalance(tickers, progress_callback=None):
+    """
+    Analyzes tickers for Imbalance patterns (Long/Short).
+    Long: >= 12 green bars in last 20, for green bars Open-Low <= 0.05
+    Short: >= 12 red bars in last 20, for red bars High-Open <= 0.05
+    """
+    results = []
+    total = len(tickers)
+    
+    for i, raw_ticker in enumerate(tickers):
+        if progress_callback:
+            progress_callback(i + 1, total)
+            
+        yf_symbol = parse_ticker_yf(raw_ticker)
+        tv_symbol = parse_ticker_tv(raw_ticker)
+        
+        try:
+            ticker_obj = yf.Ticker(yf_symbol)
+            df = ticker_obj.history(period="1mo", interval="1d", auto_adjust=True)
+            
+            if df.empty or len(df) < 15: 
+                continue
+                
+            df = df.tail(20).copy()
+            
+            green_bars = df[df['Close'] > df['Open']]
+            red_bars = df[df['Close'] < df['Open']]
+            
+            pattern = None
+            
+            # Long Pattern Check: >= 12 green, wicks <= 0.05
+            if len(green_bars) >= 12:
+                # Open - Low should be small for green bars
+                wick_check = (green_bars['Open'] - green_bars['Low']) <= 0.051
+                if wick_check.all():
+                    pattern = "Long"
+            
+            # Short Pattern Check: >= 12 red, wicks <= 0.05
+            if not pattern and len(red_bars) >= 12:
+                # High - Open should be small for red bars
+                wick_check = (red_bars['High'] - red_bars['Open']) <= 0.051
+                if wick_check.all():
+                    pattern = "Short"
+            
+            if pattern:
+                results.append({
+                    'ticker': raw_ticker,
+                    'type': pattern,
+                    'green_count': len(green_bars),
+                    'red_count': len(red_bars),
+                    'tv_symbol': tv_symbol,
+                    'yf_symbol': yf_symbol
+                })
+                
+        except Exception as e:
+            logging.error(f"Error processing imbalance for {raw_ticker}: {e}")
+            
+    return results
