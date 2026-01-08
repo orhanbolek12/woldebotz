@@ -282,7 +282,8 @@
 
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('custom')">Custom Search</button>
-            <button class="tab-btn" onclick="switchTab('prefs')">Saved Prefs</button>
+            <button class="tab-btn" onclick="switchTab('prefs')">Saved Watchlist</button>
+            <button class="tab-btn" onclick="switchTab('imbalance')">Imbalance Search</button>
         </div>
 
         <!-- Custom Search Section -->
@@ -363,20 +364,53 @@ JBK
         function switchTab(tab) {
             currentTab = tab;
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            // Find the button that was clicked. In this case, we can use the tab name or event.target
-            // But better to use the one that matches the tab name if called from onclick
-            const targetBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.innerText.toLowerCase().includes(tab));
+            const targetBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.innerText.toLowerCase().includes(tab.toLowerCase()));
             if (targetBtn) targetBtn.classList.add('active');
+
+            // Initial UI reset
+            document.getElementById('customSection').style.display = 'none';
+            document.getElementById('prefsSection').style.display = 'none';
+            document.getElementById('imbalanceSection').style.display = 'none';
+            document.getElementById('resultsCard').style.display = 'none';
 
             if (tab === 'custom') {
                 document.getElementById('customSection').style.display = 'block';
-                document.getElementById('prefsSection').style.display = 'none';
-                document.getElementById('resultsCard').style.display = 'none';
-            } else {
-                document.getElementById('customSection').style.display = 'none';
+            } else if (tab === 'prefs') {
                 document.getElementById('prefsSection').style.display = 'block';
                 loadPrefs();
+            } else if (tab === 'imbalance') {
+                document.getElementById('imbalanceSection').style.display = 'block';
+                loadImbalance();
             }
+        }
+
+        async function loadImbalance() {
+            try {
+                const response = await fetch('/imbalance');
+                const data = await response.json();
+
+                const statusEl = document.getElementById('imbalanceStatus');
+                if (data.status === 'processing') {
+                    const percent = data.total > 0 ? Math.round((data.progress / data.total) * 100) : 0;
+                    statusEl.innerText = `Analyzing Imbalance... ${percent}% (${data.progress}/${data.total})`;
+                    if (data.results && data.results.length > 0) {
+                        foundTickers = data.results.map(r => r.ticker).sort();
+                        displayResults(data.results, true);
+                    }
+                    setTimeout(loadImbalance, 3000);
+                } else if (data.status === 'completed') {
+                    statusEl.innerText = `Last Updated: ${data.last_updated}`;
+                    foundTickers = data.results.map(r => r.ticker).sort();
+                    displayResults(data.results, true);
+                } else {
+                    statusEl.innerText = "Status: " + data.status;
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function refreshImbalance() {
+            await fetch('/refresh_imbalance', { method: 'POST' });
+            loadImbalance();
         }
 
         async function loadPrefs() {
@@ -480,15 +514,16 @@ JBK
             document.getElementById('progressText').innerText = text;
         }
 
-        function displayResults(results) {
+        function displayResults(results, isImbalance = false) {
             document.getElementById('resultsCard').style.display = 'block';
             const tbody = document.querySelector('#resultsTable tbody');
+            const thead = document.querySelector('#resultsTable thead');
             const noResults = document.getElementById('noResults');
             const table = document.getElementById('resultsTable');
             const foundLabel = document.getElementById('foundLabel');
             const matchCount = document.getElementById('matchCount');
 
-            // Clear the table first to avoid duplicates or issues when reloading
+            // Clear the table first
             tbody.innerHTML = '';
 
             if (results.length === 0) {
@@ -503,23 +538,59 @@ JBK
                 matchCount.innerText = results.length;
             }
 
-            // Sort for table display too
+            // Update Headers for Imbalance
+            if (isImbalance) {
+                thead.innerHTML = `
+                    <tr>
+                        <th>Ticker</th>
+                        <th>Pattern</th>
+                        <th>Green Bars</th>
+                        <th>Red Bars</th>
+                        <th>Link</th>
+                    </tr>
+                `;
+            } else {
+                thead.innerHTML = `
+                    <tr>
+                        <th>Ticker</th>
+                        <th>Min Price</th>
+                        <th>Max Price</th>
+                        <th>Range</th>
+                        <th>Link</th>
+                    </tr>
+                `;
+            }
+
             results.sort((a, b) => a.ticker.localeCompare(b.ticker));
 
             results.forEach(item => {
                 const tr = document.createElement('tr');
                 const tvUrl = `https://www.tradingview.com/chart/?symbol=${item.tv_symbol}`;
 
-                tr.innerHTML = `
-                <td>
-                    <strong>${item.ticker}</strong>
-                    ${item.is_new ? '<span class="new-badge">NEW</span>' : ''}
-                </td>
-                <td>$${item.min}</td>
-                <td>$${item.max}</td>
-                <td><span class="spread-badge">${item.spread}</span></td>
-                <td><a href="${tvUrl}" target="_blank" class="tv-link">View Chart</a></td>
-            `;
+                if (isImbalance) {
+                    const typeClass = item.type === 'Long' ? 'spread-badge' : 'spread-badge'; // Can differentiate later
+                    tr.innerHTML = `
+                        <td>
+                            <strong>${item.ticker}</strong>
+                            ${item.is_new ? '<span class="new-badge">NEW</span>' : ''}
+                        </td>
+                        <td><span class="spread-badge" style="background: ${item.type === 'Long' ? '#2ecc71' : '#e74c3c'}">${item.type}</span></td>
+                        <td>${item.green_count}</td>
+                        <td>${item.red_count}</td>
+                        <td><a href="${tvUrl}" target="_blank" class="tv-link">View Chart</a></td>
+                    `;
+                } else {
+                    tr.innerHTML = `
+                        <td>
+                            <strong>${item.ticker}</strong>
+                            ${item.is_new ? '<span class="new-badge">NEW</span>' : ''}
+                        </td>
+                        <td>$${item.min}</td>
+                        <td>$${item.max}</td>
+                        <td><span class="spread-badge">${item.spread}</span></td>
+                        <td><a href="${tvUrl}" target="_blank" class="tv-link">View Chart</a></td>
+                    `;
+                }
                 tbody.appendChild(tr);
             });
         }
