@@ -469,42 +469,60 @@
                         <button type="button" class="btn-outline" style="padding:0.4rem 0.8rem; font-size:0.8rem;"
                             onclick="event.stopPropagation(); resetImbalanceDefaults()">Reset Defaults</button>
                     </div>
-                    <div id="advancedSettings"
-                        style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:1rem;">
-                        <div>
+                    <div id="advancedSettings" style="margin-top:1rem;">
+                        <!-- Shared Settings -->
+                        <div style="margin-bottom:1.5rem;">
                             <label
                                 style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.3rem;">Days
                                 to Analyze</label>
                             <input type="number" id="imbDays" value="20" min="5" max="90"
                                 style="width:100%; padding:0.6rem; background:rgba(0,0,0,0.2); border:1px solid var(--glass-border); border-radius:8px; color:white; font-size:0.9rem;">
                         </div>
-                        <div>
-                            <label
-                                style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.3rem;">Min
-                                Green Bars (Long)</label>
-                            <input type="number" id="imbMinGreen" value="12" min="1" max="50"
-                                style="width:100%; padding:0.6rem; background:rgba(0,0,0,0.2); border:1px solid var(--glass-border); border-radius:8px; color:white; font-size:0.9rem;">
+
+                        <!-- Long Pattern Section -->
+                        <div
+                            style="margin-bottom:1.5rem; padding:1rem; background:rgba(16,185,129,0.05); border:1px solid rgba(16,185,129,0.2); border-radius:8px;">
+                            <h4 style="margin:0 0 1rem 0; color:var(--success); font-size:0.9rem; font-weight:700;">LONG
+                                PATTERN</h4>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                                <div>
+                                    <label
+                                        style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.3rem;">Min
+                                        Green Bars</label>
+                                    <input type="number" id="imbMinGreen" value="12" min="1" max="50"
+                                        style="width:100%; padding:0.6rem; background:rgba(0,0,0,0.2); border:1px solid var(--glass-border); border-radius:8px; color:white; font-size:0.9rem;">
+                                </div>
+                                <div>
+                                    <label
+                                        style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.3rem;">Long
+                                        Wick Size (Open-Low)</label>
+                                    <input type="number" id="imbLongWick" value="0.05" min="0.01" max="1" step="0.01"
+                                        style="width:100%; padding:0.6rem; background:rgba(0,0,0,0.2); border:1px solid var(--glass-border); border-radius:8px; color:white; font-size:0.9rem;">
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <label
-                                style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.3rem;">Min
-                                Red Bars (Short)</label>
-                            <input type="number" id="imbMinRed" value="12" min="1" max="50"
-                                style="width:100%; padding:0.6rem; background:rgba(0,0,0,0.2); border:1px solid var(--glass-border); border-radius:8px; color:white; font-size:0.9rem;">
-                        </div>
-                        <div>
-                            <label
-                                style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.3rem;">Long
-                                Wick Size (Open-Low)</label>
-                            <input type="number" id="imbLongWick" value="0.05" min="0.01" max="1" step="0.01"
-                                style="width:100%; padding:0.6rem; background:rgba(0,0,0,0.2); border:1px solid var(--glass-border); border-radius:8px; color:white; font-size:0.9rem;">
-                        </div>
-                        <div>
-                            <label
-                                style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.3rem;">Short
-                                Wick Size (High-Open)</label>
-                            <input type="number" id="imbShortWick" value="0.05" min="0.01" max="1" step="0.01"
-                                style="width:100%; padding:0.6rem; background:rgba(0,0,0,0.2); border:1px solid var(--glass-border); border-radius:8px; color:white; font-size:0.9rem;">
+
+                        <!-- Short Pattern Section -->
+                        <div
+                            style="padding:1rem; background:rgba(239,68,68,0.05); border:1px solid rgba(239,68,68,0.2); border-radius:8px;">
+                            <h4 style="margin:0 0 1rem 0; color:var(--error); font-size:0.9rem; font-weight:700;">SHORT
+                                PATTERN</h4>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                                <div>
+                                    <label
+                                        style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.3rem;">Min
+                                        Red Bars</label>
+                                    <input type="number" id="imbMinRed" value="12" min="1" max="50"
+                                        style="width:100%; padding:0.6rem; background:rgba(0,0,0,0.2); border:1px solid var(--glass-border); border-radius:8px; color:white; font-size:0.9rem;">
+                                </div>
+                                <div>
+                                    <label
+                                        style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.3rem;">Short
+                                        Wick Size (High-Open)</label>
+                                    <input type="number" id="imbShortWick" value="0.05" min="0.01" max="1" step="0.01"
+                                        style="width:100%; padding:0.6rem; background:rgba(0,0,0,0.2); border:1px solid var(--glass-border); border-radius:8px; color:white; font-size:0.9rem;">
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -512,10 +530,27 @@
                 <div
                     style="margin-top:2.5rem; margin-bottom: 2rem; border-top: 1px solid var(--glass-border); padding-top:2rem;">
                     <label
-                        style="display:block; font-size:0.85rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; margin-bottom:1rem;">Manual
+                        style="display:block; font-size:0.85rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; margin-bottom:1.5rem;">Manual
                         AI Override</label>
-                    <textarea id="imbalanceTickers"
-                        placeholder="Batch symbols for 20d pattern recognition..."></textarea>
+
+                    <!-- Long Pattern Textarea -->
+                    <div style="margin-bottom:1.5rem;">
+                        <label
+                            style="display:block; font-size:0.8rem; color:var(--success); margin-bottom:0.5rem; font-weight:600;">Long
+                            Pattern</label>
+                        <textarea id="imbalanceTickers" placeholder="Find your tickers for buy pattern..."
+                            style="width:100%; min-height:100px; padding:1rem; background:rgba(0,0,0,0.2); border:1px solid var(--glass-border); border-radius:8px; color:white; font-family:monospace; font-size:0.9rem; resize:vertical;"></textarea>
+                    </div>
+
+                    <!-- Short Pattern Textarea -->
+                    <div style="margin-bottom:1.5rem;">
+                        <label
+                            style="display:block; font-size:0.8rem; color:var(--error); margin-bottom:0.5rem; font-weight:600;">Short
+                            Pattern</label>
+                        <textarea id="imbalanceTickersShort" placeholder="Find your tickers for short pattern..."
+                            style="width:100%; min-height:100px; padding:1rem; background:rgba(0,0,0,0.2); border:1px solid var(--glass-border); border-radius:8px; color:white; font-family:monospace; font-size:0.9rem; resize:vertical;"></textarea>
+                    </div>
+
                     <button id="analyzeImbalanceBtn" class="btn-primary" onclick="startImbalanceAnalysis()">Identify
                         Imbalance Patterns</button>
                 </div>
