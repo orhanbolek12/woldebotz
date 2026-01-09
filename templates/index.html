@@ -530,26 +530,12 @@
                 <div
                     style="margin-top:2.5rem; margin-bottom: 2rem; border-top: 1px solid var(--glass-border); padding-top:2rem;">
                     <label
-                        style="display:block; font-size:0.85rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; margin-bottom:1.5rem;">Manual
+                        style="display:block; font-size:0.85rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; margin-bottom:1rem;">Manual
                         AI Override</label>
 
-                    <!-- Long Pattern Textarea -->
-                    <div style="margin-bottom:1.5rem;">
-                        <label
-                            style="display:block; font-size:0.8rem; color:var(--success); margin-bottom:0.5rem; font-weight:600;">Long
-                            Pattern</label>
-                        <textarea id="imbalanceTickers" placeholder="Find your tickers for buy pattern..."
-                            style="width:100%; min-height:100px; padding:1rem; background:rgba(0,0,0,0.2); border:1px solid var(--glass-border); border-radius:8px; color:white; font-family:monospace; font-size:0.9rem; resize:vertical;"></textarea>
-                    </div>
-
-                    <!-- Short Pattern Textarea -->
-                    <div style="margin-bottom:1.5rem;">
-                        <label
-                            style="display:block; font-size:0.8rem; color:var(--error); margin-bottom:0.5rem; font-weight:600;">Short
-                            Pattern</label>
-                        <textarea id="imbalanceTickersShort" placeholder="Find your tickers for short pattern..."
-                            style="width:100%; min-height:100px; padding:1rem; background:rgba(0,0,0,0.2); border:1px solid var(--glass-border); border-radius:8px; color:white; font-family:monospace; font-size:0.9rem; resize:vertical;"></textarea>
-                    </div>
+                    <textarea id="imbalanceTickers"
+                        placeholder="Enter tickers to analyze for Long and Short patterns..."
+                        style="width:100%; min-height:120px; padding:1rem; background:rgba(0,0,0,0.2); border:1px solid var(--glass-border); border-radius:8px; color:white; font-family:monospace; font-size:0.9rem; resize:vertical;"></textarea>
 
                     <button id="analyzeImbalanceBtn" class="btn-primary" onclick="startImbalanceAnalysis()">Identify
                         Imbalance Patterns</button>
@@ -619,17 +605,42 @@
                 </div>
             </section>
 
-            <!-- Imbalance Results Area -->
-            <section id="imbalanceResultsCard" class="glass-card" style="display:none;">
+            <!-- Long Pattern Results Area -->
+            <section id="imbalanceLongResultsCard" class="glass-card" style="display:none;">
                 <div class="results-header">
-                    <h3 class="results-title">Imbalance AI Detections</h3>
+                    <h3 class="results-title" style="color:var(--success);">Long Pattern Results</h3>
                     <div style="display:flex; align-items:center; gap:1.5rem;">
-                        <span id="imbMatchCount" class="badge-count">0 Matches</span>
-                        <button class="btn-outline" onclick="copyToClipboard('imbalance')">Copy Symbols</button>
+                        <span id="imbLongMatchCount" class="badge-count">0 Matches</span>
+                        <button class="btn-outline" onclick="copyToClipboard('imbalanceLong')">Copy Symbols</button>
                     </div>
                 </div>
                 <div class="table-responsive">
-                    <table id="imbalanceResultsTable">
+                    <table id="imbalanceLongResultsTable">
+                        <thead>
+                            <tr>
+                                <th>Ticker</th>
+                                <th>Pattern</th>
+                                <th>Green</th>
+                                <th>Red</th>
+                                <th>Intelligence</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Short Pattern Results Area -->
+            <section id="imbalanceShortResultsCard" class="glass-card" style="display:none;">
+                <div class="results-header">
+                    <h3 class="results-title" style="color:var(--error);">Short Pattern Results</h3>
+                    <div style="display:flex; align-items:center; gap:1.5rem;">
+                        <span id="imbShortMatchCount" class="badge-count">0 Matches</span>
+                        <button class="btn-outline" onclick="copyToClipboard('imbalanceShort')">Copy Symbols</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table id="imbalanceShortResultsTable">
                         <thead>
                             <tr>
                                 <th>Ticker</th>
@@ -690,7 +701,12 @@
             // Hide sections and result cards
             ['custom', 'prefs', 'imbalance'].forEach(t => {
                 document.getElementById(`${t}Section`).style.display = 'none';
-                document.getElementById(`${t}ResultsCard`).style.display = 'none';
+                if (t === 'imbalance') {
+                    document.getElementById('imbalanceLongResultsCard').style.display = 'none';
+                    document.getElementById('imbalanceShortResultsCard').style.display = 'none';
+                } else {
+                    document.getElementById(`${t}ResultsCard`).style.display = 'none';
+                }
             });
             document.getElementById('noResults').style.display = 'none';
 
@@ -707,8 +723,10 @@
                 loadPrefs();
             } else if (tab === 'imbalance') {
                 document.getElementById('imbalanceSection').style.display = 'block';
-                if (dataStore.imbalance.length > 0) {
-                    renderResults('imbalance', dataStore.imbalance);
+                if (dataStore.imbalanceLong && dataStore.imbalanceLong.length > 0) {
+                    const longResults = dataStore.imbalanceLong;
+                    const shortResults = dataStore.imbalanceShort || [];
+                    renderImbalanceResults([...longResults, ...shortResults]);
                 }
                 loadImbalance();
             }
@@ -779,7 +797,9 @@
                     dot.className = 'status-dot';
                     statusEl.innerText = data.last_updated ? `Last Updated: ${data.last_updated}` : 'Operational';
                     document.getElementById('stopImbalanceBtn').disabled = true;
-                    renderResults('imbalance', data.results);
+                    if (data.results && data.results.length > 0) {
+                        renderImbalanceResults(data.results);
+                    }
                 }
             } catch (e) { console.error(e); }
         }
@@ -910,11 +930,11 @@
                 if (job.status === 'processing') {
                     const percent = Math.round((job.progress / job.total) * 100);
                     updateImbProgress(percent, `Synthesizing ${job.progress}/${job.total} Data Points`);
-                    if (job.results && job.results.length > 0) renderResults('imbalance', job.results);
+                    if (job.results && job.results.length > 0) renderImbalanceResults(job.results);
                 } else if (job.status === 'completed') {
                     clearInterval(pollInterval);
                     updateImbProgress(100, "Inference Completed");
-                    renderResults('imbalance', job.results);
+                    renderImbalanceResults(job.results);
                     resetUI();
                     jobId = null;
                 }
@@ -925,6 +945,69 @@
             document.getElementById('imbProgressFill').style.width = percent + '%';
             document.getElementById('imbProgressPercent').innerText = percent + '%';
             document.getElementById('imbProgressText').innerText = text;
+        }
+
+        function renderImbalanceResults(results) {
+            if (!results || results.length === 0) {
+                document.getElementById('imbalanceLongResultsCard').style.display = 'none';
+                document.getElementById('imbalanceShortResultsCard').style.display = 'none';
+                document.getElementById('noResults').style.display = 'block';
+                return;
+            }
+
+            // Split results by pattern type
+            const longResults = results.filter(r => r.type === 'Long');
+            const shortResults = results.filter(r => r.type === 'Short');
+
+            // Store in dataStore
+            dataStore.imbalanceLong = longResults;
+            dataStore.imbalanceShort = shortResults;
+
+            // Render Long Pattern Results
+            if (longResults.length > 0) {
+                document.getElementById('imbalanceLongResultsCard').style.display = 'block';
+                document.getElementById('imbLongMatchCount').innerText = `${longResults.length} Matches`;
+                const tbody = document.querySelector('#imbalanceLongResultsTable tbody');
+                tbody.innerHTML = '';
+                longResults.sort((a, b) => a.ticker.localeCompare(b.ticker)).forEach(item => {
+                    const tr = document.createElement('tr');
+                    const tvUrl = `https://www.tradingview.com/chart/?symbol=${item.tv_symbol}`;
+                    tr.innerHTML = `
+                        <td><span class="ticker-name">${item.ticker}</span>${item.is_new ? '<span class="new-indicator">New</span>' : ''}</td>
+                        <td><span class="spread-val" style="background:rgba(16,185,129,0.1); color:var(--success)">${item.type}</span></td>
+                        <td>${item.green_count}</td>
+                        <td>${item.red_count}</td>
+                        <td><a href="${tvUrl}" target="_blank" class="tv-btn">View Nodes</a></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } else {
+                document.getElementById('imbalanceLongResultsCard').style.display = 'none';
+            }
+
+            // Render Short Pattern Results
+            if (shortResults.length > 0) {
+                document.getElementById('imbalanceShortResultsCard').style.display = 'block';
+                document.getElementById('imbShortMatchCount').innerText = `${shortResults.length} Matches`;
+                const tbody = document.querySelector('#imbalanceShortResultsTable tbody');
+                tbody.innerHTML = '';
+                shortResults.sort((a, b) => a.ticker.localeCompare(b.ticker)).forEach(item => {
+                    const tr = document.createElement('tr');
+                    const tvUrl = `https://www.tradingview.com/chart/?symbol=${item.tv_symbol}`;
+                    tr.innerHTML = `
+                        <td><span class="ticker-name">${item.ticker}</span>${item.is_new ? '<span class="new-indicator">New</span>' : ''}</td>
+                        <td><span class="spread-val" style="background:rgba(239,68,68,0.1); color:var(--error)">${item.type}</span></td>
+                        <td>${item.green_count}</td>
+                        <td>${item.red_count}</td>
+                        <td><a href="${tvUrl}" target="_blank" class="tv-btn">View Nodes</a></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } else {
+                document.getElementById('imbalanceShortResultsCard').style.display = 'none';
+            }
+
+            document.getElementById('noResults').style.display = 'none';
         }
         function renderResults(type, results) {
             if (!results) return;
@@ -990,11 +1073,19 @@
         }
 
         function copyToClipboard(type) {
-            const results = dataStore[type];
+            let results = [];
+            if (type === 'imbalanceLong') {
+                results = dataStore.imbalanceLong || [];
+            } else if (type === 'imbalanceShort') {
+                results = dataStore.imbalanceShort || [];
+            } else {
+                results = dataStore[type];
+            }
+
             if (!results || results.length === 0) return;
             const text = results.map(r => r.ticker).sort().join(', ');
             navigator.clipboard.writeText(text).then(() => {
-                const btn = document.querySelector(`#${type}ResultsCard .btn-outline`);
+                const btn = event.target;
                 const oldText = btn.innerText;
                 btn.innerText = "Copied!";
                 setTimeout(() => btn.innerText = oldText, 2000);
