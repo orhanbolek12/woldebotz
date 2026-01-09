@@ -972,11 +972,16 @@
                 longResults.sort((a, b) => a.ticker.localeCompare(b.ticker)).forEach(item => {
                     const tr = document.createElement('tr');
                     const tvUrl = `https://www.tradingview.com/chart/?symbol=${item.tv_symbol}`;
-                    const wickInfo = (item.long_wick === item.short_wick) ?
-                        `${item.long_wick} WICK` :
-                        `L:${item.long_wick} S:${item.short_wick} WICK`;
 
-                    const detailStr = `(LAST ${item.days} DAYS ${wickInfo})`;
+                    const days = item.days || 20;
+                    const lWick = item.long_wick || 0.05;
+                    const sWick = item.short_wick || 0.05;
+
+                    const wickInfo = (lWick === sWick) ?
+                        `${lWick} WICK` :
+                        `L:${lWick} S:${sWick} WICK`;
+
+                    const detailStr = `(LAST ${days} DAYS ${wickInfo})`;
 
                     tr.innerHTML = `
                         <td>
@@ -984,7 +989,7 @@
                                 <span class="ticker-name">${item.ticker}</span>
                                 ${item.is_new ? '<span class="new-indicator">New</span>' : ''}
                             </div>
-                            <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px; font-weight:600;">
+                            <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">
                                 ${detailStr}
                             </div>
                         </td>
@@ -1008,11 +1013,16 @@
                 shortResults.sort((a, b) => a.ticker.localeCompare(b.ticker)).forEach(item => {
                     const tr = document.createElement('tr');
                     const tvUrl = `https://www.tradingview.com/chart/?symbol=${item.tv_symbol}`;
-                    const wickInfo = (item.long_wick === item.short_wick) ?
-                        `${item.long_wick} WICK` :
-                        `L:${item.long_wick} S:${item.short_wick} WICK`;
 
-                    const detailStr = `(LAST ${item.days} DAYS ${wickInfo})`;
+                    const days = item.days || 20;
+                    const lWick = item.long_wick || 0.05;
+                    const sWick = item.short_wick || 0.05;
+
+                    const wickInfo = (lWick === sWick) ?
+                        `${lWick} WICK` :
+                        `L:${lWick} S:${sWick} WICK`;
+
+                    const detailStr = `(LAST ${days} DAYS ${wickInfo})`;
 
                     tr.innerHTML = `
                         <td>
@@ -1020,7 +1030,7 @@
                                 <span class="ticker-name">${item.ticker}</span>
                                 ${item.is_new ? '<span class="new-indicator">New</span>' : ''}
                             </div>
-                            <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px; font-weight:600;">
+                            <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">
                                 ${detailStr}
                             </div>
                         </td>
