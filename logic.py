@@ -132,15 +132,22 @@ def fetch_imbalance(tickers,
     if not all_yf_tickers:
         return []
 
-    CHUNK_SIZE = 50
+    CHUNK_SIZE = 10
     processed_count = 0
 
     for i in range(0, len(all_yf_tickers), CHUNK_SIZE):
+        # Check Stop before starting a new heavy download
+        if progress_callback:
+            if progress_callback(processed_count, total) == 'STOP':
+                logging.info(f"Stop signal received before chunk {i}.")
+                return results
+
         chunk = all_yf_tickers[i:i + CHUNK_SIZE]
         
         try:
             # Batch download for this chunk
             # 'threads=True' for parallel fetching within the chunk
+            # Reduced chunk size means this blocks for much less time
             data = yf.download(chunk, period="3mo", interval="1d", group_by='ticker', threads=True, progress=False)
             
             # Prepare data dict for processing
@@ -150,8 +157,6 @@ def fetch_imbalance(tickers,
             else:
                 for t in chunk:
                     try:
-                        # Handle MultiIndex
-                        # Check if 'ticker' level exists or if it's flat
                         if isinstance(data.columns, pd.MultiIndex):
                             try:
                                 df_t = data.xs(t, axis=1, level=0, drop_level=True)
@@ -159,20 +164,18 @@ def fetch_imbalance(tickers,
                             except KeyError:
                                 logging.warning(f"No data for {t} in chunk")
                         else:
-                            # Fallback if structure is unexpected (shouldn't happen with group_by='ticker' and multiple tickers)
                              logging.warning(f"Unexpected data structure for {t}")
                     except Exception as e:
                          logging.warning(f"Error extracing data for {t}: {e}")
 
-            # Process each ticker in the chunk
+            # Process each ticker
             for yf_symbol in chunk:
                 processed_count += 1
                 
-                # Progress update
+                # Check Stop inside the loop for maximum responsiveness
                 if progress_callback:
                     if progress_callback(processed_count, total) == 'STOP':
-                        logging.info(f"Stop signal received.")
-                        return results # Return matches found so far
+                        return results
 
                 if yf_symbol not in data_dict:
                     continue
@@ -194,30 +197,19 @@ def fetch_imbalance(tickers,
                     if 'Close' not in df_slice.columns or 'Open' not in df_slice.columns:
                         continue
                     
-                    # Logic Refinement based on User Request:
-                    # Long Pattern: Count of days where (Close > Open) AND (Open - Low <= long_wick) >= min_green
-                    # Short Pattern: Count of days where (Close < Open) AND (High - Open <= short_wick) >= min_red
-                    
-                    # 1. Identify Green Bars (Close > Open)
-                    # 2. Check Wick Condition (Open - Low <= long_wick)
-                    # 3. Valid Green Bars = Green & Wick OK
-                    
-                    # Vectorized checks
+                    # Vectorized checks for Pattern Logic
                     is_green = df_slice['Close'] > df_slice['Open']
-                    long_wick_ok = (df_slice['Open'] - df_slice['Low']) <= (long_wick_size + 0.00001) # float tolerance
+                    # Ensure minimal wick size logic is applied correctly to green bars
+                    # (Open - Low) must be <= long_wick_size
+                    long_wick_ok = (df_slice['Open'] - df_slice['Low']) <= (long_wick_size + 0.00001)
                     valid_green_bars = df_slice[is_green & long_wick_ok]
                     
-                    # 1. Identify Red Bars (Close < Open)
-                    # 2. Check Wick Condition (High - Open <= short_wick)
-                    # 3. Valid Red Bars = Red & Wick OK
-                    
                     is_red = df_slice['Close'] < df_slice['Open']
+                    # (High - Open) must be <= short_wick_size
                     short_wick_ok = (df_slice['High'] - df_slice['Open']) <= (short_wick_size + 0.00001)
                     valid_red_bars = df_slice[is_red & short_wick_ok]
                     
                     pattern = None
-                    
-                    # Check Counts
                     if len(valid_green_bars) >= min_green_bars:
                         pattern = "Long"
                     elif len(valid_red_bars) >= min_red_bars:
@@ -227,8 +219,8 @@ def fetch_imbalance(tickers,
                         results.append({
                             'ticker': raw_ticker,
                             'type': pattern,
-                            'green_count': len(valid_green_bars), # Report valid count
-                            'red_count': len(valid_red_bars),     # Report valid count
+                            'green_count': len(valid_green_bars),
+                            'red_count': len(valid_red_bars),
                             'tv_symbol': tv_symbol,
                             'yf_symbol': yf_symbol
                         })
@@ -238,6 +230,11 @@ def fetch_imbalance(tickers,
 
         except Exception as e:
             logging.error(f"Error in chunk fetch: {e}")
+            # IMPORTANT: If chunk fails, we must still increment progress
+            # so the bar moves and we don't get stuck forever
+            processed_count += len(chunk) 
+            if progress_callback:
+                progress_callback(processed_count, total)
             continue
 
     return results
