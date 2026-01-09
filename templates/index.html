@@ -951,7 +951,20 @@
             if (!results || results.length === 0) {
                 document.getElementById('imbalanceLongResultsCard').style.display = 'none';
                 document.getElementById('imbalanceShortResultsCard').style.display = 'none';
-                document.getElementById('noResults').style.display = 'block';
+
+                // Show strict "No Results" message
+                const noRes = document.getElementById('noResults');
+                noRes.style.display = 'block';
+                noRes.innerHTML = `
+                    <div style="text-align:center; padding:2rem;">
+                        <span style="font-size:2rem;">🔍</span>
+                        <h3>No Matches Found</h3>
+                        <p style="color:var(--text-secondary)">
+                            The AI scanned all tickers but none matched your strict criteria.<br>
+                            Try reducing <b>Green/Red Bars</b> or increasing <b>Wick Size</b>.
+                        </p>
+                    </div>
+                `;
                 return;
             }
 
