@@ -120,172 +120,73 @@ def fetch_imbalance(tickers,
                    progress_callback=None):
     """
     Analyzes tickers for Imbalance patterns (Long/Short).
-    Optimized to use parallel downloading in CHUNKS to allow progress updates.
+    SEQUENTIAL PROCESSING: Fetches one by one to ensure reliability and correct data.
     """
     results = []
     total = len(tickers)
     
-    # Map raw tickers to YF tickers
-    ticker_map = {parse_ticker_yf(t): t for t in tickers}
-    all_yf_tickers = list(ticker_map.keys())
-    
-    if not all_yf_tickers:
-        return []
-
-    CHUNK_SIZE = 10
-    processed_count = 0
-
-    # OPTIMIZATION: If only 1 ticker, bypass batch download completely
-    # This prevents 'yf.download' overhead/hangs for simple requests
-    if len(all_yf_tickers) == 1:
-        yf_symbol = all_yf_tickers[0]
-        raw_ticker = ticker_map.get(yf_symbol, yf_symbol)
-        tv_symbol = parse_ticker_tv(raw_ticker)
-        
-        # Immediate progress update
-        if progress_callback: progress_callback(0, 1)
-
-        try:
-            logging.info(f"Single ticker mode for {yf_symbol}")
-            # Use specific Ticker history which is often more reliable for single items
-            df = yf.Ticker(yf_symbol).history(period="3mo", interval="1d", auto_adjust=True)
-            
-            if not df.empty and len(df) >= 15:
-                # Process single ticker result
-                df_slice = df.tail(days).copy()
-                
-                # ... reuse logic or call a helper? 
-                # For safety, I'll inline the core check to ensure it works identically
-                is_green = df_slice['Close'] > df_slice['Open']
-                long_wick_ok = (df_slice['Open'] - df_slice['Low']) <= (long_wick_size + 0.00001)
-                valid_green_bars = df_slice[is_green & long_wick_ok]
-                
-                is_red = df_slice['Close'] < df_slice['Open']
-                short_wick_ok = (df_slice['High'] - df_slice['Open']) <= (short_wick_size + 0.00001)
-                valid_red_bars = df_slice[is_red & short_wick_ok]
-                
-                pattern = None
-                if len(valid_green_bars) >= min_green_bars:
-                    pattern = "Long"
-                elif len(valid_red_bars) >= min_red_bars:
-                    pattern = "Short"
-                
-                if pattern:
-                    results.append({
-                        'ticker': raw_ticker,
-                        'type': pattern,
-                        'green_count': len(valid_green_bars),
-                        'red_count': len(valid_red_bars),
-                        'tv_symbol': tv_symbol,
-                        'yf_symbol': yf_symbol
-                    })
-            if progress_callback: progress_callback(1, 1)
-            return results
-        except Exception as e:
-            logging.error(f"Single ticker failed: {e}")
-            if progress_callback: progress_callback(1, 1)
-            return []
-
-    for i in range(0, len(all_yf_tickers), CHUNK_SIZE):
-        # Check Stop before starting a new heavy download
+    for i, raw_ticker in enumerate(tickers):
+        # Progress check at start of loop
         if progress_callback:
-            if progress_callback(processed_count, total) == 'STOP':
-                logging.info(f"Stop signal received before chunk {i}.")
+            if progress_callback(i, total) == 'STOP':
+                logging.info(f"Stop signal received at {raw_ticker}.")
                 return results
 
-        chunk = all_yf_tickers[i:i + CHUNK_SIZE]
+        yf_ticker = parse_ticker_yf(raw_ticker)
+        tv_symbol = parse_ticker_tv(raw_ticker)
         
         try:
-            # Batch download for this chunk
-            # 'threads=True' for parallel fetching within the chunk
-            # Reduced chunk size means this blocks for much less time
-            data = yf.download(chunk, period="3mo", interval="1d", group_by='ticker', threads=True, progress=False)
+            # Fetch data using Ticker().history()
+            # auto_adjust=True ensures we get split/dividend adjusted prices (comparable to TV adj close)
+            ticker_obj = yf.Ticker(yf_ticker)
+            df = ticker_obj.history(period="3mo", interval="1d", auto_adjust=True)
             
-            # Prepare data dict for processing
-            data_dict = {}
-            if len(chunk) == 1:
-                data_dict = {chunk[0]: data}
-            else:
-                for t in chunk:
-                    try:
-                        if isinstance(data.columns, pd.MultiIndex):
-                            try:
-                                df_t = data.xs(t, axis=1, level=0, drop_level=True)
-                                data_dict[t] = df_t
-                            except KeyError:
-                                logging.warning(f"No data for {t} in chunk")
-                        else:
-                             logging.warning(f"Unexpected data structure for {t}")
-                    except Exception as e:
-                         logging.warning(f"Error extracing data for {t}: {e}")
+            # If empty, try raw ticker as fallback
+            if df.empty and yf_ticker != raw_ticker:
+                 df = yf.Ticker(raw_ticker).history(period="3mo", interval="1d", auto_adjust=True)
 
-            # Process each ticker
-            for yf_symbol in chunk:
-                processed_count += 1
-                
-                # Check Stop inside the loop for maximum responsiveness
-                if progress_callback:
-                    if progress_callback(processed_count, total) == 'STOP':
-                        return results
+            # Clean and validate
+            df = df.dropna(how='all')
+            if df.empty or len(df) < 15:
+                continue
 
-                if yf_symbol not in data_dict:
-                    continue
-
-                df = data_dict[yf_symbol]
-                raw_ticker = ticker_map.get(yf_symbol, yf_symbol)
-                tv_symbol = parse_ticker_tv(raw_ticker)
-                
-                try:
-                    # Clean and validate
-                    df = df.dropna(how='all') 
-                    
-                    if df.empty or len(df) < 15: 
-                        continue
-                        
-                    # Slice the requested days
-                    df_slice = df.tail(days).copy()
-                    
-                    if 'Close' not in df_slice.columns or 'Open' not in df_slice.columns:
-                        continue
-                    
-                    # Vectorized checks for Pattern Logic
-                    is_green = df_slice['Close'] > df_slice['Open']
-                    # Ensure minimal wick size logic is applied correctly to green bars
-                    # (Open - Low) must be <= long_wick_size
-                    long_wick_ok = (df_slice['Open'] - df_slice['Low']) <= (long_wick_size + 0.00001)
-                    valid_green_bars = df_slice[is_green & long_wick_ok]
-                    
-                    is_red = df_slice['Close'] < df_slice['Open']
-                    # (High - Open) must be <= short_wick_size
-                    short_wick_ok = (df_slice['High'] - df_slice['Open']) <= (short_wick_size + 0.00001)
-                    valid_red_bars = df_slice[is_red & short_wick_ok]
-                    
-                    pattern = None
-                    if len(valid_green_bars) >= min_green_bars:
-                        pattern = "Long"
-                    elif len(valid_red_bars) >= min_red_bars:
-                        pattern = "Short"
-                    
-                    if pattern:
-                        results.append({
-                            'ticker': raw_ticker,
-                            'type': pattern,
-                            'green_count': len(valid_green_bars),
-                            'red_count': len(valid_red_bars),
-                            'tv_symbol': tv_symbol,
-                            'yf_symbol': yf_symbol
-                        })
-                        
-                except Exception as e:
-                    logging.error(f"Error processing {raw_ticker}: {e}")
+            # Slice the requested days
+            df_slice = df.tail(days).copy()
+            
+            if 'Close' not in df_slice.columns or 'Open' not in df_slice.columns:
+                continue
+            
+            # Pattern Logic
+            is_green = df_slice['Close'] > df_slice['Open']
+            # Wick check: (Open - Low) <= long_wick_size
+            long_wick_ok = (df_slice['Open'] - df_slice['Low']) <= (long_wick_size + 0.00001)
+            valid_green_bars = df_slice[is_green & long_wick_ok]
+            
+            is_red = df_slice['Close'] < df_slice['Open']
+            short_wick_ok = (df_slice['High'] - df_slice['Open']) <= (short_wick_size + 0.00001)
+            valid_red_bars = df_slice[is_red & short_wick_ok]
+            
+            pattern = None
+            if len(valid_green_bars) >= min_green_bars:
+                pattern = "Long"
+            elif len(valid_red_bars) >= min_red_bars:
+                pattern = "Short"
+            
+            if pattern:
+                results.append({
+                    'ticker': raw_ticker,
+                    'type': pattern,
+                    'green_count': len(valid_green_bars),
+                    'red_count': len(valid_red_bars),
+                    'tv_symbol': tv_symbol,
+                    'yf_symbol': yf_symbol
+                })
 
         except Exception as e:
-            logging.error(f"Error in chunk fetch: {e}")
-            # IMPORTANT: If chunk fails, we must still increment progress
-            # so the bar moves and we don't get stuck forever
-            processed_count += len(chunk) 
-            if progress_callback:
-                progress_callback(processed_count, total)
+            logging.error(f"Error processing {raw_ticker}: {e}")
             continue
-
+            
+    # Final progress update
+    if progress_callback: progress_callback(total, total)
+    
     return results
