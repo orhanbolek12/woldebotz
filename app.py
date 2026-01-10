@@ -198,10 +198,8 @@ def load_and_analyze_imbalance(force=False, days=20, min_green_bars=12, min_red_
         
         new_results = fetch_imbalance(unique_tickers, 
                                       days=days,
-                                      min_green_bars=min_green_bars,
-                                      min_red_bars=min_red_bars,
-                                      long_wick_size=long_wick,
-                                      short_wick_size=short_wick,
+                                      min_count=min_green_bars, # Reuse the min_green as general min_count for bg task
+                                      max_wick=long_wick,       # Reuse long_wick as general max_wick for bg task
                                       progress_callback=progress_wrapper)
         
         if imbalance_cache.get('stop_requested'):
@@ -214,8 +212,7 @@ def load_and_analyze_imbalance(force=False, days=20, min_green_bars=12, min_red_
             is_new = res['ticker'] not in baseline
             res['is_new'] = is_new
             res['days'] = days
-            res['long_wick'] = long_wick
-            res['short_wick'] = short_wick
+            res['max_wick'] = long_wick
             
         # Update cache and set current results as baseline for next scan
         imbalance_cache.update({
@@ -269,7 +266,7 @@ def refresh_imbalance():
     short_wick = float(request.form.get('short_wick_size', 0.05))
     
     threading.Thread(target=load_and_analyze_imbalance, 
-                    args=(True, days, min_green, min_red, long_wick, short_wick), 
+                    args=(True, days, min_green, min_green, long_wick, long_wick), 
                     daemon=True).start()
     return jsonify({'status': 'started'})
 
@@ -378,10 +375,8 @@ def process_imbalance_job(job_id, tickers):
         
     results = fetch_imbalance(tickers, 
                              days=days,
-                             min_green_bars=min_green,
-                             min_red_bars=min_red,
-                             long_wick_size=long_wick,
-                             short_wick_size=short_wick,
+                             min_count=min_green,
+                             max_wick=long_wick,
                              progress_callback=update_progress)
     
     # NEW logic for manual imbalance search
@@ -389,8 +384,7 @@ def process_imbalance_job(job_id, tickers):
     for res in results:
         res['is_new'] = res['ticker'] not in baseline
         res['days'] = days
-        res['long_wick'] = long_wick
-        res['short_wick'] = short_wick
+        res['max_wick'] = long_wick
         
     jobs[job_id]['results'] = results
     jobs[job_id]['results'] = results
@@ -419,7 +413,6 @@ def analyze_imbalance_batch():
         results = fetch_imbalance(tickers, 
                                  days=days,
                                  min_count=min_count,
-                                 candle_color=candle_color,
                                  max_wick=max_wick)
     except Exception as e:
         import traceback

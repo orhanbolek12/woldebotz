@@ -114,19 +114,18 @@ def parse_ticker_tv(raw_ticker):
 def fetch_imbalance(tickers, 
                    days=30, 
                    min_count=20,
-                   candle_color='Green', # 'Green' or 'Red'
                    max_wick=0.12,
                    progress_callback=None):
     """
-    Unified Filter Logic:
-    Analyzes tickers to find specific candle patterns based on color and wick size.
+    Automated Pattern Detection Logic:
+    Analyzes tickers to find both Green (Long) and Red (Short) patterns.
     
-    Logic:
-    1. Look at last 'days' candles.
-    2. Count how many candles match the target 'candle_color' AND have a wick <= 'max_wick'.
-       - For Green: Wick = Open - Low
-       - For Red: Wick = High - Open
-    3. If match_count >= min_count, return the ticker.
+    Wick Rules:
+    - Green Bars (Close > Open): Wick = Open - Low
+    - Red Bars (Open > Close): Wick = High - Open
+    
+    A ticker is returned if it has >= min_count occurrences of either pattern 
+    within the last 'days' with an average wick <= max_wick.
     """
     results = []
     total = len(tickers)
@@ -161,42 +160,49 @@ def fetch_imbalance(tickers,
             if 'Close' not in df_slice.columns or 'Open' not in df_slice.columns:
                 continue
             
-            # Unified Logic
-            if candle_color == 'Green':
-                # Green Candle: Close > Open
-                # Wick condition: (Open - Low) <= max_wick
-                is_color = df_slice['Close'] > df_slice['Open']
-                diffs = df_slice['Open'] - df_slice['Low']
-                is_wick_ok = diffs <= (max_wick + 0.00001)
-                
-            else: # Red
-                # Red Candle: Open > Close
-                # Wick condition: (High - Open) <= max_wick
-                is_color = df_slice['Open'] > df_slice['Close']
-                diffs = df_slice['High'] - df_slice['Open']
-                is_wick_ok = diffs <= (max_wick + 0.00001)
-
-            # Filter valid bars
-            valid_bars = df_slice[is_color & is_wick_ok]
-            match_count = len(valid_bars)
+            # 1. GREEN (Long) Detection
+            # Pattern: Close > Open, Wick: (Open - Low)
+            is_green = df_slice['Close'] > df_slice['Open']
+            green_wicks = df_slice['Open'] - df_slice['Low']
+            green_wick_ok = green_wicks <= (max_wick + 0.00001)
+            valid_green = df_slice[is_green & green_wick_ok]
             
-            # Calculate Average Wick Size for the MATCHING bars
-            avg_diff = 0.0
-            if match_count > 0:
-                # We need to re-calculate diffs for only the valid bars
-                # Luckily pandas index alignment handles this if we use the mask
-                valid_diffs = diffs[is_color & is_wick_ok]
-                avg_diff = valid_diffs.mean()
+            # 2. RED (Short) Detection
+            # Pattern: Open > Close, Wick: (High - Open)
+            is_red = df_slice['Open'] > df_slice['Close']
+            red_wicks = df_slice['High'] - df_slice['Open']
+            red_wick_ok = red_wicks <= (max_wick + 0.00001)
+            valid_red = df_slice[is_red & red_wick_ok]
 
-            if match_count >= min_count:
+            # Check counts
+            # If both hit, we add both (rare) or prioritize. User said "son 30 günde 20 tane yeşil bar varsa... eğer 20 tane kırmızı bar varsa..."
+            # Let's add all matching patterns.
+            
+            patterns_found = []
+            if len(valid_green) >= min_count:
+                patterns_found.append({
+                    'type': 'Long',
+                    'count': len(valid_green),
+                    'avg_wick': round(green_wicks[is_green & green_wick_ok].mean(), 4)
+                })
+            
+            if len(valid_red) >= min_count:
+                patterns_found.append({
+                    'type': 'Short',
+                    'count': len(valid_red),
+                    'avg_wick': round(red_wicks[is_red & red_wick_ok].mean(), 4)
+                })
+
+            for p in patterns_found:
                 results.append({
                     'ticker': raw_ticker,
                     'yf_symbol': yf_ticker,
                     'tv_symbol': tv_symbol,
-                    'match_count': match_count,
-                    'avg_diff': round(avg_diff, 4),
+                    'type': p['type'],
+                    'match_count': p['count'],
+                    'avg_diff': p['avg_wick'],
                     'total_days': days,
-                    'target_color': candle_color
+                    'target_color': 'Green' if p['type'] == 'Long' else 'Red'
                 })
 
         except Exception as e:

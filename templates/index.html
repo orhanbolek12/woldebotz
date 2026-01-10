@@ -473,16 +473,7 @@
                                 bars)</small>
                         </div>
 
-                        <!-- Candle Color -->
-                        <div class="form-group">
-                            <label>Target Candle Color</label>
-                            <select id="imbColor" class="form-control"
-                                style="background:var(--card-bg); color:var(--text-primary); border:1px solid var(--border-color);">
-                                <option value="Green">Green (Close > Open)</option>
-                                <option value="Red">Red (Open > Close)</option>
-                            </select>
-                            <small style="color:var(--text-secondary);">Which candle type to count?</small>
-                        </div>
+
 
                         <!-- Min Count -->
                         <div class="form-group">
@@ -773,16 +764,14 @@
 
         async function startImbalanceAnalysis() {
             const tickersElement = document.getElementById('imbalanceTickers');
-            const tickers = tickersElement.value
-                .replace(/\n/g, ',')
-                .split(',')
-                .map(t => t.trim())
-                .filter(t => t.length > 0);
+            const rawTickers = tickersElement.value;
+            if (!rawTickers.trim()) return;
 
+            const tickers = rawTickers.replace(/\n/g, ',').split(',').map(t => t.trim()).filter(t => t);
             if (tickers.length === 0) return;
 
             document.getElementById('analyzeImbalanceBtn').disabled = true;
-            document.getElementById('analyzeImbalanceBtn').innerText = "AI Scan Running...";
+            document.getElementById('analyzeImbalanceBtn').innerText = "Analyzing Patterns...";
             document.getElementById('imbProgressContainer').style.display = 'block';
 
             // Clear Results
@@ -802,7 +791,6 @@
             // NEW PARAMS
             const days = document.getElementById('imbDays').value;
             const minCount = document.getElementById('imbMinCount').value;
-            const candleColor = document.getElementById('imbColor').value;
             const maxWick = document.getElementById('imbMaxWick').value;
 
             try {
@@ -814,7 +802,6 @@
                     formData.append('tickers', batchStr);
                     formData.append('days', days);
                     formData.append('min_count', minCount);
-                    formData.append('candle_color', candleColor);
                     formData.append('max_wick', maxWick);
 
                     updateImbProgress(Math.round((completed / total) * 100), `Analyzing ${batch.join(', ')}...`);
@@ -897,7 +884,9 @@
                     'background:rgba(16,185,129,0.1); color:var(--success)' :
                     'background:rgba(239,68,68,0.1); color:var(--error)';
 
-                const detailStr = `(LAST ${item.days} DAYS | WICK <= ${item.max_wick})`;
+                const displayDays = item.days || item.total_days || 30;
+                const displayWick = item.max_wick || 0.12;
+                const detailStr = `(LAST ${displayDays} DAYS | WICK <= ${displayWick})`;
 
                 tr.innerHTML = `
                     <td>
@@ -973,11 +962,16 @@
                 const tvUrl = `https://www.tradingview.com/chart/?symbol=${item.tv_symbol}`;
 
                 if (type === 'imbalance') {
+                    // Imbalance table has: Ticker, Pattern, Match Count, Avg Diff, Action
+                    const patternLabel = item.type === 'Long' ? 'Green Candle' : 'Red Candle';
+                    const patternColor = item.type === 'Long' ? 'var(--success)' : 'var(--error)';
+                    const bgAlpha = item.type === 'Long' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)';
+
                     tr.innerHTML = `
                         <td><span class="ticker-name">${item.ticker}</span>${item.is_new ? '<span class="new-indicator">New</span>' : ''}</td>
-                        <td><span class="spread-val" style="background:${item.type === 'Long' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'}; color:${item.type === 'Long' ? 'var(--success)' : 'var(--error)'}">${item.type}</span></td>
-                        <td>${item.green_count}</td>
-                        <td>${item.red_count}</td>
+                        <td><span class="spread-val" style="background:${bgAlpha}; color:${patternColor}">${patternLabel}</span></td>
+                        <td>${item.match_count}</td>
+                        <td>${item.avg_diff}</td>
                         <td><a href="${tvUrl}" target="_blank" class="tv-btn">View Nodes</a></td>
                     `;
                 } else {
