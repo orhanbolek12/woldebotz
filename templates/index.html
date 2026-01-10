@@ -907,7 +907,9 @@
             document.getElementById('imbalanceResultsCard').style.display = 'none';
             document.getElementById('imbalanceShortResultsCard').style.display = 'none';
             document.getElementById('imbalanceLongResultsCard').style.display = 'none';
-            document.querySelector('#imbalanceResultsTable tbody').innerHTML = ''; // Might be unused, check ID usage
+            // FIX: Correctly targeting the two separate tables instead of non-existent generic one
+            if (document.querySelector('#imbalanceLongResultsTable tbody')) document.querySelector('#imbalanceLongResultsTable tbody').innerHTML = '';
+            if (document.querySelector('#imbalanceShortResultsTable tbody')) document.querySelector('#imbalanceShortResultsTable tbody').innerHTML = '';
             document.getElementById('noResults').style.display = 'none';
 
             // Clear previous results
