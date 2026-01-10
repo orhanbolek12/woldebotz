@@ -893,53 +893,98 @@
 
         async function startImbalanceAnalysis() {
             const tickersElement = document.getElementById('imbalanceTickers');
-            const tickers = tickersElement.value;
-            if (!tickers.trim()) return;
+            const tickers = tickersElement.value
+                .replace(/\n/g, ',')
+                .split(',')
+                .map(t => t.trim())
+                .filter(t => t.length > 0);
+
+            if (tickers.length === 0) return;
 
             document.getElementById('analyzeImbalanceBtn').disabled = true;
             document.getElementById('analyzeImbalanceBtn').innerText = "AI Scan Running...";
             document.getElementById('imbProgressContainer').style.display = 'block';
             document.getElementById('imbalanceResultsCard').style.display = 'none';
-            document.querySelector('#imbalanceResultsTable tbody').innerHTML = '';
+            document.getElementById('imbalanceShortResultsCard').style.display = 'none';
+            document.getElementById('imbalanceLongResultsCard').style.display = 'none';
+            document.querySelector('#imbalanceResultsTable tbody').innerHTML = ''; // Might be unused, check ID usage
             document.getElementById('noResults').style.display = 'none';
-            updateImbProgress(0, "Deploying AI Models...");
+
+            // Clear previous results
+            dataStore.imbalanceLong = [];
+            dataStore.imbalanceShort = [];
+
+            let completed = 0;
+            const total = tickers.length;
+            const BATCH_SIZE = 3; // Small batch size for safety on Vercel
+
+            updateImbProgress(0, `Initializing scan for ${total} tickers...`);
+
+            const days = document.getElementById('imbDays').value;
+            const minGreen = document.getElementById('imbMinGreen').value;
+            const minRed = document.getElementById('imbMinRed').value;
+            const longWick = document.getElementById('imbLongWick').value;
+            const shortWick = document.getElementById('imbShortWick').value;
 
             try {
-                const formData = new FormData();
-                formData.append('tickers', tickers);
-                formData.append('days', document.getElementById('imbDays').value);
-                formData.append('min_green_bars', document.getElementById('imbMinGreen').value);
-                formData.append('min_red_bars', document.getElementById('imbMinRed').value);
-                formData.append('long_wick_size', document.getElementById('imbLongWick').value);
-                formData.append('short_wick_size', document.getElementById('imbShortWick').value);
+                for (let i = 0; i < total; i += BATCH_SIZE) {
+                    const batch = tickers.slice(i, i + BATCH_SIZE);
+                    const batchStr = batch.join(',');
 
-                const res = await fetch('/find_imbalance', { method: 'POST', body: formData });
-                const data = await res.json();
-                jobId = data.job_id;
-                if (pollInterval) clearInterval(pollInterval);
-                pollInterval = setInterval(imbPollStatus, 2000);
-            } catch (e) { alert("AI Error: " + e.message); resetUI(); }
-        }
+                    const formData = new FormData();
+                    formData.append('tickers', batchStr);
+                    formData.append('days', days);
+                    formData.append('min_green_bars', minGreen);
+                    formData.append('min_red_bars', minRed);
+                    formData.append('long_wick_size', longWick);
+                    formData.append('short_wick_size', shortWick);
 
-        async function imbPollStatus() {
-            if (!jobId || currentTab !== 'imbalance') return;
-            try {
-                const res = await fetch(`/status/${jobId}`);
-                const job = await res.json();
+                    updateImbProgress(Math.round((completed / total) * 100), `Analyzing ${batch.join(', ')}...`);
 
-                if (job.status === 'processing') {
-                    const percent = Math.round((job.progress / job.total) * 100);
-                    updateImbProgress(percent, `Synthesizing ${job.progress}/${job.total} Data Points`);
-                    if (job.results && job.results.length > 0) renderImbalanceResults(job.results);
-                } else if (job.status === 'completed') {
-                    clearInterval(pollInterval);
-                    updateImbProgress(100, "Inference Completed");
-                    renderImbalanceResults(job.results);
-                    resetUI();
-                    jobId = null;
+                    const res = await fetch('/analyze_imbalance_batch', { method: 'POST', body: formData });
+                    const data = await res.json();
+
+                    if (data.results && data.results.length > 0) {
+                        // Append results immediately
+                        const longNew = data.results.filter(r => r.type === 'Long');
+                        const shortNew = data.results.filter(r => r.type === 'Short');
+
+                        if (longNew.length > 0) {
+                            dataStore.imbalanceLong = [...(dataStore.imbalanceLong || []), ...longNew];
+                        }
+                        if (shortNew.length > 0) {
+                            dataStore.imbalanceShort = [...(dataStore.imbalanceShort || []), ...shortNew];
+                        }
+
+                        // Re-render all results with accumulated data
+                        // Note: Ideally we'd optimize to just append, but full re-render is safer for sorting
+                        renderImbalanceResults([...(dataStore.imbalanceLong || []), ...(dataStore.imbalanceShort || [])]);
+                    }
+
+                    completed += batch.length;
+                    updateImbProgress(Math.round((completed / total) * 100), `Analyzed ${completed}/${total}...`);
+
+                    // Small delay to be nice to the browser event loop
+                    await new Promise(r => setTimeout(r, 100));
                 }
-            } catch (e) { console.error(e); }
+
+                updateImbProgress(100, "Scan Complete");
+
+                // Final check for explicit "No Results"
+                const allResults = [...(dataStore.imbalanceLong || []), ...(dataStore.imbalanceShort || [])];
+                if (allResults.length === 0) {
+                    renderImbalanceResults([]); // Triggers the "No Match" UI
+                }
+
+            } catch (e) {
+                console.error(e);
+                alert("Scan Error: " + e.message);
+            } finally {
+                resetUI();
+            }
         }
+
+        // Removed imbPollStatus as it is no longer needed
 
         function updateImbProgress(percent, text) {
             document.getElementById('imbProgressFill').style.width = percent + '%';

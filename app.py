@@ -387,7 +387,45 @@ def process_imbalance_job(job_id, tickers):
         res['short_wick'] = short_wick
         
     jobs[job_id]['results'] = results
+    jobs[job_id]['results'] = results
     jobs[job_id]['status'] = 'completed'
+
+@app.route('/analyze_imbalance_batch', methods=['POST'])
+def analyze_imbalance_batch():
+    """
+    Synchronous endpoint for processing a small batch of tickers.
+    Designed for client-side chunking to avoid Vercel timeouts/background thread issues.
+    """
+    tickers_str = request.form.get('tickers', '')
+    if not tickers_str:
+        return jsonify({'results': []})
+    
+    tickers = [t.strip() for t in tickers_str.split(',') if t.strip()]
+    
+    # Get parameters
+    days = int(request.form.get('days', 20))
+    min_green = int(request.form.get('min_green_bars', 12))
+    min_red = int(request.form.get('min_red_bars', 12))
+    long_wick = float(request.form.get('long_wick_size', 0.05))
+    short_wick = float(request.form.get('short_wick_size', 0.05))
+    
+    # Run analysis synchronously
+    results = fetch_imbalance(tickers, 
+                             days=days,
+                             min_green_bars=min_green,
+                             min_red_bars=min_red,
+                             long_wick_size=long_wick,
+                             short_wick_size=short_wick)
+    
+    # Mark 'is_new' relative to baseline (still using in-memory baseline for now)
+    baseline = set(imbalance_cache.get('baseline_tickers', []))
+    for res in results:
+        res['is_new'] = res['ticker'] not in baseline
+        res['days'] = days
+        res['long_wick'] = long_wick
+        res['short_wick'] = short_wick
+        
+    return jsonify({'results': results})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
