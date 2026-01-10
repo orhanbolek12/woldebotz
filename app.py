@@ -1,3 +1,9 @@
+import os
+# CRITICAL: Fix for Vercel read-only filesystem
+# yfinance tries to create a cache in ~/.cache which is read-only.
+# We must point it to /tmp which is writable.
+os.environ['XDG_CACHE_HOME'] = '/tmp'
+
 from flask import Flask, render_template, request, jsonify
 from logic import fetch_and_process, fetch_imbalance
 import threading
