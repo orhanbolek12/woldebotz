@@ -453,130 +453,82 @@
                         <button id="stopImbalanceBtn" class="btn-outline"
                             style="border-color:var(--error); color:var(--error);" onclick="stopImbalance()"
                             disabled>Stop Scan</button>
-                        <button class="btn-outline" onclick="refreshImbalance()">Recalculate AI</button>
                     </div>
                 </div>
 
-                <!-- Advanced Settings -->
+                <!-- UI Configuration -->
+                <div class="card p-4 mb-4" style="border:1px solid var(--border-color);">
+                    <h4
+                        style="color:var(--text-secondary); margin-bottom:1rem; font-size:0.9rem; text-transform:uppercase; letter-spacing:1px;">
+                        Analysis Configuration</h4>
+
+
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1.5rem;">
+
+                        <!-- Days -->
+                        <div class="form-group">
+                            <label>Days to Analyze</label>
+                            <input type="number" id="imbDays" class="form-control" value="30">
+                            <small style="color:var(--text-secondary);">Look back period (e.g. last 30 daily
+                                bars)</small>
+                        </div>
+
+                        <!-- Candle Color -->
+                        <div class="form-group">
+                            <label>Target Candle Color</label>
+                            <select id="imbColor" class="form-control"
+                                style="background:var(--card-bg); color:var(--text-primary); border:1px solid var(--border-color);">
+                                <option value="Green">Green (Close > Open)</option>
+                                <option value="Red">Red (Open > Close)</option>
+                            </select>
+                            <small style="color:var(--text-secondary);">Which candle type to count?</small>
+                        </div>
+
+                        <!-- Min Count -->
+                        <div class="form-group">
+                            <label>Min Occurrences</label>
+                            <input type="number" id="imbMinCount" class="form-control" value="20">
+                            <small style="color:var(--text-secondary);">Minimum # of matching candles
+                                required</small>
+                        </div>
+
+                        <!-- Max Wick -->
+                        <div class="form-group">
+                            <label>Max Wick/Diff Size</label>
+                            <input type="number" id="imbMaxWick" class="form-control" step="0.01" value="0.12">
+                            <small style="color:var(--text-secondary);">Max allowed diff (Open-Low or
+                                High-Open)</small>
+                        </div>
+                    </div>
+                </div>
+
                 <div
-                    style="margin-top:2rem; margin-bottom:2rem; border-top:1px solid var(--glass-border); padding-top:2rem;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; cursor:pointer;"
-                        onclick="toggleAdvancedSettings()">
-                        <label
-                            style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; margin:0;">
-                            <span id="advancedToggle">▼</span> Advanced Settings
-                        </label>
-                        <button type="button" class="btn-outline" style="padding:0.4rem 0.8rem; font-size:0.8rem;"
-                            onclick="event.stopPropagation(); resetImbalanceDefaults()">Reset Defaults</button>
+                    style="margin-top:2.5rem; margin-bottom: 2rem; border-top: 1px solid var(--glass-border); padding-top:2rem;">
+                    <label
+                        style="display:block; font-size:0.85rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; margin-bottom:1rem;">Manual
+                        AI Override</label>
+
+                    <textarea id="imbalanceTickers"
+                        placeholder="Enter tickers to analyze for Long and Short patterns..."
+                        style="width:100%; min-height:120px; padding:1rem; background:rgba(0,0,0,0.2); border:1px solid var(--glass-border); border-radius:8px; color:white; font-family:monospace; font-size:0.9rem; resize:vertical;"></textarea>
+
+                    <button id="analyzeImbalanceBtn" class="btn-primary" onclick="startImbalanceAnalysis()">Identify
+                        Imbalance Patterns</button>
+                </div>
+
+                <!-- Imbalance Progress -->
+                <div id="imbProgressContainer" style="display:none; margin-bottom:2rem;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:0.8rem; font-size:0.9rem;">
+                        <span id="imbProgressText" style="color:var(--text-secondary)">Analyzing Patterns...</span>
+                        <span id="imbProgressPercent" style="font-weight:800; color:var(--accent-primary)">0%</span>
                     </div>
-                    <div id="advancedSettings" style="margin-top:1rem;">
-                        <!-- Shared Settings -->
-                        <div style="margin-bottom:1.5rem;">
-                            <label
-                                style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.3rem;">Days
-                                to Analyze</label>
-                            <input type="number" id="imbDays" value="20" min="5" max="90"
-                                style="width:100%; padding:0.6rem; background:rgba(0,0,0,0.2); border:1px solid var(--glass-border); border-radius:8px; color:white; font-size:0.9rem;">
-                        </div>
-
-                        <!-- Long Pattern Section -->
-                        <div
-                            style="margin-bottom:1.5rem; padding:1rem; background:rgba(16,185,129,0.05); border:1px solid rgba(16,185,129,0.2); border-radius:8px;">
-                            <h4 style="margin:0 0 1rem 0; color:var(--success); font-size:0.9rem; font-weight:700;">LONG
-                                PATTERN</h4>
-                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
-                                <div>
-                                    <label
-                                        style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.3rem;">Min
-                                        Green Bars</label>
-                                    <input type="number" id="imbMinGreen" value="12" min="1" max="50"
-                                        style="width:100%; padding:0.6rem; background:rgba(0,0,0,0.2); border:1px solid var(--glass-border); border-radius:8px; color:white; font-size:0.9rem;">
-                                </div>
-                                <div>
-                                    <label
-                                        style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.3rem;">Long
-                                        Wick Size (Open-Low)</label>
-                                    <input type="number" id="imbLongWick" value="0.05" min="0.01" max="1" step="0.01"
-                                        style="width:100%; padding:0.6rem; background:rgba(0,0,0,0.2); border:1px solid var(--glass-border); border-radius:8px; color:white; font-size:0.9rem;">
-                                </div>
-                            </div>
-                            <!-- UNIFIED CONFIGURATION -->
-                            <div class="card p-4 mb-4" style="border:1px solid var(--border-color);">
-                                <h4
-                                    style="color:var(--text-secondary); margin-bottom:1rem; font-size:0.9rem; text-transform:uppercase; letter-spacing:1px;">
-                                    Analysis Configuration</h4>
-
-                                <div
-                                    style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1.5rem;">
-
-                                    <!-- Days -->
-                                    <div class="form-group">
-                                        <label>Days to Analyze</label>
-                                        <input type="number" id="imbDays" class="form-control" value="30">
-                                        <small style="color:var(--text-secondary);">Look back period (e.g. last 30 daily
-                                            bars)</small>
-                                    </div>
-
-                                    <!-- Candle Color -->
-                                    <div class="form-group">
-                                        <label>Target Candle Color</label>
-                                        <select id="imbColor" class="form-control"
-                                            style="background:var(--card-bg); color:var(--text-primary); border:1px solid var(--border-color);">
-                                            <option value="Green">Green (Close > Open)</option>
-                                            <option value="Red">Red (Open > Close)</option>
-                                        </select>
-                                        <small style="color:var(--text-secondary);">Which candle type to count?</small>
-                                    </div>
-
-                                    <!-- Min Count -->
-                                    <div class="form-group">
-                                        <label>Min Occurrences</label>
-                                        <input type="number" id="imbMinCount" class="form-control" value="20">
-                                        <small style="color:var(--text-secondary);">Minimum # of matching candles
-                                            required</small>
-                                    </div>
-
-                                    <!-- Max Wick -->
-                                    <div class="form-group">
-                                        <label>Max Wick/Diff Size</label>
-                                        <input type="number" id="imbMaxWick" class="form-control" step="0.01"
-                                            value="0.12">
-                                        <small style="color:var(--text-secondary);">Max allowed diff (Open-Low or
-                                            High-Open)</small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     <div
-                        style="margin-top:2.5rem; margin-bottom: 2rem; border-top: 1px solid var(--glass-border); padding-top:2rem;">
-                        <label
-                            style="display:block; font-size:0.85rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; margin-bottom:1rem;">Manual
-                            AI Override</label>
-
-                        <textarea id="imbalanceTickers"
-                            placeholder="Enter tickers to analyze for Long and Short patterns..."
-                            style="width:100%; min-height:120px; padding:1rem; background:rgba(0,0,0,0.2); border:1px solid var(--glass-border); border-radius:8px; color:white; font-family:monospace; font-size:0.9rem; resize:vertical;"></textarea>
-
-                        <button id="analyzeImbalanceBtn" class="btn-primary" onclick="startImbalanceAnalysis()">Identify
-                            Imbalance Patterns</button>
-                    </div>
-
-                    <!-- Imbalance Progress -->
-                    <div id="imbProgressContainer" style="display:none; margin-bottom:2rem;">
-                        <div
-                            style="display:flex; justify-content:space-between; margin-bottom:0.8rem; font-size:0.9rem;">
-                            <span id="imbProgressText" style="color:var(--text-secondary)">Analyzing Patterns...</span>
-                            <span id="imbProgressPercent" style="font-weight:800; color:var(--accent-primary)">0%</span>
-                        </div>
-                        <div
-                            style="width:100%; height:8px; background:rgba(255,255,255,0.05); border-radius:10px; overflow:hidden;">
-                            <div id="imbProgressFill"
-                                style="width:0%; height:100%; background:linear-gradient(to right, var(--accent-primary), var(--accent-secondary)); transition: width 0.4s ease;">
-                            </div>
+                        style="width:100%; height:8px; background:rgba(255,255,255,0.05); border-radius:10px; overflow:hidden;">
+                        <div id="imbProgressFill"
+                            style="width:0%; height:100%; background:linear-gradient(to right, var(--accent-primary), var(--accent-secondary)); transition: width 0.4s ease;">
                         </div>
                     </div>
+                </div>
             </section>
 
             <!-- Custom Results Area -->
@@ -700,12 +652,7 @@
             // Hide sections and result cards
             ['custom', 'prefs', 'imbalance'].forEach(t => {
                 document.getElementById(`${t}Section`).style.display = 'none';
-                if (t === 'imbalance') {
-                    document.getElementById('imbalanceLongResultsCard').style.display = 'none';
-                    document.getElementById('imbalanceShortResultsCard').style.display = 'none';
-                } else {
-                    document.getElementById(`${t}ResultsCard`).style.display = 'none';
-                }
+                document.getElementById(`${t}ResultsCard`).style.display = 'none';
             });
             document.getElementById('noResults').style.display = 'none';
 
@@ -722,10 +669,8 @@
                 loadPrefs();
             } else if (tab === 'imbalance') {
                 document.getElementById('imbalanceSection').style.display = 'block';
-                if (dataStore.imbalanceLong && dataStore.imbalanceLong.length > 0) {
-                    const longResults = dataStore.imbalanceLong;
-                    const shortResults = dataStore.imbalanceShort || [];
-                    renderImbalanceResults([...longResults, ...shortResults]);
+                if (dataStore.imbalanceResults && dataStore.imbalanceResults.length > 0) {
+                    renderImbalanceResults(dataStore.imbalanceResults);
                 }
                 loadImbalance();
             }
@@ -772,72 +717,8 @@
             loadPrefs();
         }
 
-        async function loadImbalance() {
-            if (currentTab !== 'imbalance') return;
-            if (pollTimers.imbalance) clearTimeout(pollTimers.imbalance);
-
-            try {
-                const response = await fetch('/imbalance');
-                const data = await response.json();
-
-                if (currentTab !== 'imbalance') return;
-
-                const statusEl = document.getElementById('imbalanceStatus');
-                const dot = document.getElementById('imbalanceDot');
-
-                if (data.status === 'processing') {
-                    dot.className = 'status-dot processing';
-                    const percent = data.total > 0 ? Math.round((data.progress / data.total) * 100) : 0;
-                    statusEl.innerText = `Pattern Recognition... ${percent}%`;
-                    document.getElementById('stopImbalanceBtn').disabled = false;
-                    renderResults('imbalance', data.results);
-                    pollTimers.imbalance = setTimeout(loadImbalance, 3000);
-                } else {
-                    dot.className = 'status-dot';
-                    statusEl.innerText = data.last_updated ? `Last Updated: ${data.last_updated}` : 'Operational';
-                    document.getElementById('stopImbalanceBtn').disabled = true;
-                    if (data.results && data.results.length > 0) {
-                        renderImbalanceResults(data.results);
-                    }
-                }
-            } catch (e) { console.error(e); }
-        }
-
-        async function refreshImbalance() {
-            const formData = new FormData();
-            formData.append('days', document.getElementById('imbDays').value);
-            formData.append('min_green_bars', document.getElementById('imbMinGreen').value);
-            formData.append('min_red_bars', document.getElementById('imbMinRed').value);
-            formData.append('long_wick_size', document.getElementById('imbLongWick').value);
-            formData.append('short_wick_size', document.getElementById('imbShortWick').value);
-
-            await fetch('/refresh_imbalance', { method: 'POST', body: formData });
-            loadImbalance();
-        }
-
-        function toggleAdvancedSettings() {
-            const settings = document.getElementById('advancedSettings');
-            const toggle = document.getElementById('advancedToggle');
-            if (settings.style.display === 'none') {
-                settings.style.display = 'grid';
-                toggle.innerText = '▼';
-            } else {
-                settings.style.display = 'none';
-                toggle.innerText = '▶';
-            }
-        }
-
-        function resetImbalanceDefaults() {
-            document.getElementById('imbDays').value = 20;
-            document.getElementById('imbMinGreen').value = 12;
-            document.getElementById('imbMinRed').value = 12;
-            document.getElementById('imbLongWick').value = 0.05;
-            document.getElementById('imbShortWick').value = 0.05;
-        }
-
         async function stopImbalance() {
             await fetch('/stop_imbalance', { method: 'POST' });
-            loadImbalance();
         }
 
         async function startAnalysis() {
@@ -1071,8 +952,7 @@
             // This prevents "leaking" results from other tabs
             document.getElementById('customResultsCard').style.display = 'none';
             document.getElementById('prefsResultsCard').style.display = 'none';
-            document.getElementById('imbalanceLongResultsCard').style.display = 'none';
-            document.getElementById('imbalanceShortResultsCard').style.display = 'none';
+            document.getElementById('imbalanceResultsCard').style.display = 'none';
 
             const card = document.getElementById(`${type}ResultsCard`);
             const tbody = document.querySelector(`#${type}ResultsTable tbody`);
@@ -1115,10 +995,8 @@
 
         function copyToClipboard(type) {
             let results = [];
-            if (type === 'imbalanceLong') {
-                results = dataStore.imbalanceLong || [];
-            } else if (type === 'imbalanceShort') {
-                results = dataStore.imbalanceShort || [];
+            if (type === 'imbalance') {
+                results = dataStore.imbalanceResults || [];
             } else {
                 results = dataStore[type];
             }
