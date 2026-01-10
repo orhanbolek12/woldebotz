@@ -213,3 +213,82 @@ def fetch_imbalance(tickers,
     if progress_callback: progress_callback(total, total)
     
     return results
+def fetch_range_ai(tickers, 
+                   days=90, 
+                   max_points=1.0, 
+                   max_percent=5.0,
+                   progress_callback=None):
+    """
+    Range AI Logic (Replaces Custom Analysis):
+    Analyzes tickers to find those that have stayed within a specific range
+    over the last 'days' (dividend adjusted).
+    
+    Criteria:
+    1. (Max - Min) <= max_points
+    2. (Max - Min) / Min * 100 <= max_percent
+    """
+    results = []
+    total = len(tickers)
+    
+    for i, raw_ticker in enumerate(tickers):
+        # Progress check
+        if progress_callback:
+            if progress_callback(i, total) == 'STOP':
+                logging.info(f"Stop signal received at {raw_ticker}.")
+                return results
+
+        yf_ticker = parse_ticker_yf(raw_ticker)
+        tv_symbol = parse_ticker_tv(raw_ticker)
+        
+        try:
+            # Fetch data (use 1y to be safe for any requested 'days')
+            ticker_obj = yf.Ticker(yf_ticker)
+            df = ticker_obj.history(period="1y", interval="1d", auto_adjust=True)
+            
+            # Fallback
+            if df.empty and yf_ticker != raw_ticker:
+                 df = yf.Ticker(raw_ticker).history(period="1y", interval="1d", auto_adjust=True)
+
+            # Clean
+            df = df.dropna(how='all')
+            if df.empty or len(df) < days:
+                continue
+
+            # Slice the requested days
+            df_slice = df.tail(days).copy()
+            
+            if df_slice.empty:
+                continue
+                
+            low_min = df_slice['Low'].min()
+            high_max = df_slice['High'].max()
+            current_price = df_slice['Close'].iloc[-1]
+            
+            if pd.isna(low_min) or pd.isna(high_max):
+                continue
+                
+            point_range = high_max - low_min
+            percent_range = (point_range / low_min) * 100 if low_min > 0 else 0
+            
+            # Criteria Check
+            if point_range <= max_points and percent_range <= max_percent:
+                results.append({
+                    'ticker': raw_ticker,
+                    'yf_symbol': yf_ticker,
+                    'tv_symbol': tv_symbol,
+                    'min': round(low_min, 2),
+                    'max': round(high_max, 2),
+                    'current': round(current_price, 2),
+                    'point_range': round(point_range, 2),
+                    'percent_range': round(percent_range, 2),
+                    'days': days
+                })
+
+        except Exception as e:
+            logging.error(f"Error in Range AI for {raw_ticker}: {e}")
+            continue
+            
+    # Final progress update
+    if progress_callback: progress_callback(total, total)
+    
+    return results

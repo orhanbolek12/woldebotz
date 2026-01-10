@@ -381,7 +381,7 @@
 
     <div class="container">
         <nav class="tabs-nav">
-            <button class="tab-trigger active" onclick="switchTab('custom')">Custom Analysis</button>
+            <button class="tab-trigger active" onclick="switchTab('custom')">Range AI</button>
             <button class="tab-trigger" onclick="switchTab('prefs')">Smart Watchlist</button>
             <button class="tab-trigger" onclick="switchTab('imbalance')">Imbalance AI</button>
         </nav>
@@ -389,16 +389,55 @@
         <!-- Dynamic Content Area -->
         <main id="mainContainer">
 
-            <!-- Custom Search -->
+            <!-- Range AI Section -->
             <section id="customSection" class="glass-card">
-                <h3 style="margin-top:0; font-weight:700;">Deep Sweep Analysis</h3>
+                <h3 style="margin-top:0; font-weight:700;">Range AI Analysis</h3>
                 <p style="color:var(--text-secondary); font-size: 0.9rem; margin-bottom: 2rem;">
-                    Run custom real-time analysis on a batch of tickers. We'll check for 90d dividend-adjusted
-                    stability.
+                    Analyze tickers for dividend-adjusted stability. Find stocks that stayed within your chosen point
+                    and percentage range.
                 </p>
-                <textarea id="tickers" placeholder="Paste symbols here (e.g. ABR-D, PCG-G)..."></textarea>
-                <button id="analyzeBtn" class="btn-primary" onclick="startAnalysis()">
-                    Run Intelligence Report
+
+                <div class="card p-4 mb-4"
+                    style="border:1px solid var(--border-color); background:rgba(255,255,255,0.02); padding:20px; border-radius:12px; margin-bottom: 20px;">
+                    <div
+                        style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:20px; margin-bottom:20px;">
+                        <!-- Days -->
+                        <div class="form-group">
+                            <label>Analysis Period (Days)</label>
+                            <input type="number" id="rangeDays" class="form-control" value="90">
+                            <small style="color:var(--text-secondary);">Look-back period</small>
+                        </div>
+                        <!-- Max Points -->
+                        <div class="form-group">
+                            <label>Max Point Range</label>
+                            <input type="number" id="rangePoints" class="form-control" step="0.1" value="1.0">
+                            <small style="color:var(--text-secondary);">e.g. 1.0 (25.0 to 24.0)</small>
+                        </div>
+                        <!-- Max Percentage -->
+                        <div class="form-group">
+                            <label>Max Percentage Range</label>
+                            <input type="number" id="rangePercent" class="form-control" step="0.1" value="5.0">
+                            <small style="color:var(--text-secondary);">Max (Max-Min)/Min %</small>
+                        </div>
+                    </div>
+
+                    <!-- Master List Toggle for Range AI -->
+                    <div class="form-group"
+                        style="display:flex; align-items:center; gap:10px; margin-bottom:15px; background:rgba(255,255,255,0.03); padding:10px; border-radius:8px;">
+                        <input type="checkbox" id="rangeMasterList" style="width:20px; height:20px; cursor:pointer;">
+                        <div>
+                            <label style="margin:0; cursor:pointer;" for="rangeMasterList">Analyze Master List
+                                (Preferred Stocks)</label>
+                            <div style="font-size:0.75rem; color:var(--text-secondary);">Analyze the pre-defined list
+                                instead of manual entry</div>
+                        </div>
+                    </div>
+                </div>
+
+                <textarea id="tickers"
+                    placeholder="Paste symbols here (e.g. ABR-D, PCG-G) if not using Master List..."></textarea>
+                <button id="analyzeBtn" class="btn-primary" onclick="startRangeAnalysis()">
+                    Identify Range Stability
                 </button>
 
                 <!-- Progress Container inside card -->
@@ -598,9 +637,10 @@
                         <thead>
                             <tr>
                                 <th>Ticker</th>
-                                <th>Pattern</th>
-                                <th>Match Count</th>
-                                <th>Avg Diff</th>
+                                <th>Range (Pts)</th>
+                                <th>Min / Max</th>
+                                <th>Current</th>
+                                <th>% Range</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
@@ -628,7 +668,7 @@
         };
 
         let dataStore = {
-            custom: [],
+            custom: [], // This will now store Range AI results
             prefs: [],
             imbalance: []
         };
@@ -724,49 +764,112 @@
             await fetch('/stop_imbalance', { method: 'POST' });
         }
 
-        async function startAnalysis() {
-            const tickersElement = document.getElementById('tickers');
-            const tickers = tickersElement.value;
-            if (!tickers.trim()) return;
+        async function startRangeAnalysis() {
+            const masterToggle = document.getElementById('rangeMasterList');
+            let tickers = [];
+
+            if (masterToggle.checked) {
+                document.getElementById('analyzeBtn').disabled = true;
+                document.getElementById('analyzeBtn').innerText = "Loading Master List...";
+                try {
+                    const tRes = await fetch('/get_tickers');
+                    const tData = await tRes.json();
+                    tickers = tData.tickers || [];
+                } catch (e) {
+                    alert("Failed to load master list: " + e.message);
+                    resetUI();
+                    return;
+                }
+            } else {
+                const tickersElement = document.getElementById('tickers');
+                const rawTickers = tickersElement.value;
+                if (!rawTickers.trim()) {
+                    alert("Please enter tickers or select 'Master List'");
+                    return;
+                }
+                tickers = rawTickers.replace(/\n/g, ',').split(',').map(t => t.trim()).filter(t => t);
+            }
+
+            if (tickers.length === 0) {
+                alert("No tickers to analyze.");
+                resetUI();
+                return;
+            }
 
             document.getElementById('analyzeBtn').disabled = true;
-            document.getElementById('analyzeBtn').innerText = "Processing Data...";
+            document.getElementById('analyzeBtn').innerText = "Analyzing Range...";
             document.getElementById('progressContainer').style.display = 'block';
-            document.getElementById('customResultsCard').style.display = 'none'; // Hide custom results card
-            document.querySelector('#customResultsTable tbody').innerHTML = ''; // Clear custom table
-            document.getElementById('noResults').style.display = 'none'; // Hide no results message
-            updateProgress(0, "Initiating Handshake...");
+            document.getElementById('noResults').style.display = 'none';
+
+            // Clear data store
+            dataStore.custom = [];
+
+            let completed = 0;
+            const total = tickers.length;
+            const BATCH_SIZE = 3;
+
+            updateProgress(0, `Initializing Range AI for ${total} tickers...`);
+
+            const days = document.getElementById('rangeDays').value;
+            const maxPoints = document.getElementById('rangePoints').value;
+            const maxPercent = document.getElementById('rangePercent').value;
 
             try {
-                const formData = new FormData();
-                formData.append('tickers', tickers);
-                const res = await fetch('/find', { method: 'POST', body: formData });
-                const data = await res.json();
-                jobId = data.job_id;
-                if (pollInterval) clearInterval(pollInterval);
-                pollInterval = setInterval(pollStatus, 2000);
-            } catch (e) { alert("Security Error: " + e.message); resetUI(); }
-        }
+                for (let i = 0; i < total; i += BATCH_SIZE) {
+                    const batch = tickers.slice(i, i + BATCH_SIZE);
+                    const batchStr = batch.join(',');
 
-        async function pollStatus() {
-            if (!jobId || currentTab !== 'custom') return;
-            try {
-                const res = await fetch(`/status/${jobId}`);
-                const job = await res.json();
+                    // Accuracy Tuning: Batch fetch with retry
+                    let data = null;
+                    let retries = 2;
+                    while (retries >= 0) {
+                        try {
+                            const formData = new FormData();
+                            formData.append('tickers', batchStr);
+                            formData.append('days', days);
+                            formData.append('max_points', maxPoints);
+                            formData.append('max_percent', maxPercent);
 
-                if (job.status === 'processing') {
-                    const percent = Math.round((job.progress / job.total) * 100);
-                    updateProgress(percent, `Analyzed ${job.progress}/${job.total} Nodes`);
-                    if (job.results && job.results.length > 0) renderResults('custom', job.results);
-                } else if (job.status === 'completed') {
-                    clearInterval(pollInterval);
-                    updateProgress(100, "Verification Complete");
-                    renderResults('custom', job.results);
-                    resetUI();
-                    jobId = null;
+                            updateProgress(Math.round((completed / total) * 100), `Analyzing ${batch.join(', ')}...`);
+
+                            const res = await fetch('/analyze_range_batch', { method: 'POST', body: formData });
+                            data = await res.json();
+                            if (data.error) throw new Error(data.error);
+                            break; // Success
+                        } catch (err) {
+                            console.warn(`Retry ${2 - retries} for batch ${batchStr}: ${err.message}`);
+                            retries--;
+                            if (retries < 0) throw err;
+                            await new Promise(r => setTimeout(r, 1000));
+                        }
+                    }
+
+                    if (data.results && data.results.length > 0) {
+                        dataStore.custom = [...(dataStore.custom || []), ...data.results];
+                        renderResults('custom', dataStore.custom);
+                    }
+
+                    completed += batch.length;
+                    updateProgress(Math.round((completed / total) * 100), `Analyzed ${completed}/${total}...`);
+
+                    await new Promise(r => setTimeout(r, 400));
                 }
-            } catch (e) { console.error(e); }
+
+                updateProgress(100, "Range Analysis Complete");
+
+                if (!dataStore.custom || dataStore.custom.length === 0) {
+                    document.getElementById('noResults').style.display = 'block';
+                }
+
+            } catch (e) {
+                console.error(e);
+                alert("Scan Error: " + e.message);
+            } finally {
+                resetUI();
+            }
         }
+
+
 
         function updateProgress(percent, text) {
             document.getElementById('progressFill').style.width = percent + '%';
@@ -1005,22 +1108,32 @@
                 const tr = document.createElement('tr');
                 const tvUrl = `https://www.tradingview.com/chart/?symbol=${item.tv_symbol}`;
 
-                if (type === 'imbalance') {
-                    // Imbalance table has: Ticker, Pattern, Match Count, Avg Diff, Action
-                    const patternLabel = item.type === 'Long' ? 'Green Candle' : 'Red Candle';
-                    const patternColor = item.type === 'Long' ? 'var(--success)' : 'var(--error)';
-                    const bgAlpha = item.type === 'Long' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)';
-
+                if (type === 'custom') {
+                    // Range AI specialized rendering: Ticker, Range (Pts), Min/Max, Current, % Range, Action
                     tr.innerHTML = `
-                        <td><span class="ticker-name">${item.ticker}</span>${item.is_new ? '<span class="new-indicator">New</span>' : ''}</td>
-                        <td><span class="spread-val" style="background:${bgAlpha}; color:${patternColor}">${patternLabel}</span></td>
-                        <td>${item.match_count}</td>
-                        <td>${item.avg_diff}</td>
-                        <td><a href="${tvUrl}" target="_blank" class="tv-btn">View Nodes</a></td>
+                        <td>
+                            <div style="display:flex; align-items:center;">
+                                <span class="ticker-name">${item.ticker}</span>
+                            </div>
+                            <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">
+                                (LAST ${item.days} DAYS)
+                            </div>
+                        </td>
+                        <td><span class="spread-val">${item.point_range} pts</span></td>
+                        <td>$${item.min} - $${item.max}</td>
+                        <td>$${item.current}</td>
+                        <td><span style="color:var(--accent-secondary); font-weight:600;">${item.percent_range}%</span></td>
+                        <td><a href="${tvUrl}" target="_blank" class="tv-btn">View Chart</a></td>
                     `;
                 } else {
+                    // Legacy Smart Watchlist rendering (type === 'prefs')
                     tr.innerHTML = `
-                        <td><span class="ticker-name">${item.ticker}</span>${item.is_new ? '<span class="new-indicator">New</span>' : ''}</td>
+                        <td>
+                            <div style="display:flex; align-items:center;">
+                                <span class="ticker-name">${item.ticker}</span>
+                                ${item.is_new ? '<span class="new-indicator">New</span>' : ''}
+                            </div>
+                        </td>
                         <td>$${item.min}</td>
                         <td>$${item.max}</td>
                         <td><span class="spread-val">$${item.spread}</span></td>

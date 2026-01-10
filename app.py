@@ -5,7 +5,7 @@ import os
 os.environ['XDG_CACHE_HOME'] = '/tmp'
 
 from flask import Flask, render_template, request, jsonify
-from logic import fetch_and_process, fetch_imbalance
+from logic import fetch_and_process, fetch_imbalance, fetch_range_ai
 import threading
 import uuid
 import time
@@ -402,6 +402,35 @@ def process_imbalance_job(job_id, tickers):
     jobs[job_id]['results'] = results
     jobs[job_id]['results'] = results
     jobs[job_id]['status'] = 'completed'
+
+@app.route('/analyze_range_batch', methods=['POST'])
+def analyze_range_batch():
+    """
+    Synchronous endpoint for Range AI batch processing.
+    """
+    tickers_str = request.form.get('tickers', '')
+    if not tickers_str:
+        return jsonify({'results': []})
+    
+    tickers = [t.strip() for t in tickers_str.split(',') if t.strip()]
+    
+    # Get parameters
+    days = int(request.form.get('days', 90))
+    max_points = float(request.form.get('max_points', 1.0))
+    max_percent = float(request.form.get('max_percent', 5.0))
+    
+    try:
+        results = fetch_range_ai(tickers, 
+                                days=days, 
+                                max_points=max_points, 
+                                max_percent=max_percent)
+    except Exception as e:
+        import traceback
+        trace = traceback.format_exc()
+        print(f"Range AI Batch Failed: {e}\n{trace}")
+        return jsonify({'results': [], 'error': str(e), 'trace': trace})
+        
+    return jsonify({'results': results})
 
 @app.route('/analyze_imbalance_batch', methods=['POST'])
 def analyze_imbalance_batch():
