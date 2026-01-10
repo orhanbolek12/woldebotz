@@ -944,6 +944,13 @@
                     const res = await fetch('/analyze_imbalance_batch', { method: 'POST', body: formData });
                     const data = await res.json();
 
+                    if (data.error) {
+                        console.error("Backend Error:", data.error);
+                        alert(`Analysis Failed for batch ${batch.join(', ')}:\n${data.error}`);
+                        // Don't stop, try next batch? Or stop? Let's stop to let user see error.
+                        throw new Error(data.error);
+                    }
+
                     if (data.results && data.results.length > 0) {
                         // Append results immediately
                         const longNew = data.results.filter(r => r.type === 'Long');

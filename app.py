@@ -409,13 +409,19 @@ def analyze_imbalance_batch():
     long_wick = float(request.form.get('long_wick_size', 0.05))
     short_wick = float(request.form.get('short_wick_size', 0.05))
     
-    # Run analysis synchronously
-    results = fetch_imbalance(tickers, 
-                             days=days,
-                             min_green_bars=min_green,
-                             min_red_bars=min_red,
-                             long_wick_size=long_wick,
-                             short_wick_size=short_wick)
+    # Run analysis synchronously with error capture
+    try:
+        results = fetch_imbalance(tickers, 
+                                 days=days,
+                                 min_green_bars=min_green,
+                                 min_red_bars=min_red,
+                                 long_wick_size=long_wick,
+                                 short_wick_size=short_wick)
+    except Exception as e:
+        import traceback
+        trace = traceback.format_exc()
+        print(f"Batch Analysis Failed: {e}\n{trace}")
+        return jsonify({'results': [], 'error': str(e), 'trace': trace})
     
     # Mark 'is_new' relative to baseline (still using in-memory baseline for now)
     baseline = set(imbalance_cache.get('baseline_tickers', []))
