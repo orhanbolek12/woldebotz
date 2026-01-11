@@ -2,6 +2,7 @@ import yfinance as yf
 import pandas as pd
 import logging
 import time
+from datetime import datetime, timedelta
 
 logging.basicConfig(filename='debug.log', level=logging.DEBUG)
 
@@ -292,3 +293,152 @@ def fetch_range_ai(tickers,
     if progress_callback: progress_callback(total, total)
     
     return results
+
+
+def analyze_dividend_recovery(raw_ticker, lookback=3):
+    """
+    Analyze dividend recovery for a preferred stock.
+    
+    Args:
+        raw_ticker: Stock symbol (e.g., 'BAC-Q')
+        lookback: Number of recent dividends to analyze (3 or 5)
+    
+    Returns:
+        {
+            'ticker': str,
+            'tv_symbol': str,
+            'dividends': [
+                {
+                    'ex_date': 'YYYY-MM-DD',
+                    'amount': float,
+                    'pre_div_close': float,
+                    'recovered': bool,
+                    'recovery_days': int or None,
+                    'current_distance': float (if not recovered)
+                }
+            ],
+            'current_price': float,
+            'days_since_last_div': int,
+            'error': str (if any)
+        }
+    """
+    yf_ticker = parse_ticker_yf(raw_ticker)
+    logging.debug(f"Dividend Recovery: {raw_ticker} -> {yf_ticker}")
+    
+    try:
+        ticker = yf.Ticker(yf_ticker)
+        
+        # Fetch dividend history (last 2 years to ensure we get enough data)
+        dividends = ticker.dividends
+        
+        if dividends.empty:
+            # Try raw ticker
+            if yf_ticker != raw_ticker:
+                logging.debug(f"Converted fetch failed, trying original {raw_ticker}")
+                ticker = yf.Ticker(raw_ticker)
+                dividends = ticker.dividends
+        
+        if dividends.empty or len(dividends) == 0:
+            return {
+                'ticker': raw_ticker,
+                'tv_symbol': yf_ticker,
+                'error': 'No dividend history found',
+                'dividends': [],
+                'current_price': None,
+                'days_since_last_div': None
+            }
+        
+        # Get last N dividends
+        recent_divs = dividends.tail(lookback)
+        
+        # Fetch historical price data (2 years to cover all dividends + recovery periods)
+        # We need raw prices (auto_adjust=False) to check if price returned to actual pre-div level
+        hist = ticker.history(period="2y", auto_adjust=False)
+        
+        if hist.empty:
+            return {
+                'ticker': raw_ticker,
+                'tv_symbol': yf_ticker,
+                'error': 'No price history found',
+                'dividends': [],
+                'current_price': None,
+                'days_since_last_div': None
+            }
+        
+        current_price = hist['Close'].iloc[-1] if not hist.empty else None
+        
+        dividend_analysis = []
+        
+        for ex_date, amount in recent_divs.items():
+            ex_date_str = ex_date.strftime('%Y-%m-%d')
+            
+            # Get close price on day BEFORE ex-dividend date
+            pre_div_date = ex_date - timedelta(days=1)
+            
+            # Find the actual trading day before ex-date
+            pre_div_close = None
+            for i in range(5):  # Look back up to 5 days for a valid trading day
+                check_date = ex_date - timedelta(days=i+1)
+                if check_date in hist.index:
+                    pre_div_close = hist.loc[check_date, 'Close']
+                    break
+            
+            if pre_div_close is None:
+                logging.warning(f"Could not find pre-dividend close for {raw_ticker} on {ex_date_str}")
+                continue
+            
+            # Track prices after ex-dividend date to find recovery
+            recovered = False
+            recovery_days = None
+            current_distance = None
+            
+            # Get all dates after ex-date
+            future_dates = hist[hist.index > ex_date]
+            
+            if not future_dates.empty:
+                for date, row in future_dates.iterrows():
+                    # Calculate calendar days elapsed
+                    days_elapsed = (date.date() - ex_date.date()).days
+                    
+                    if row['Close'] >= pre_div_close:
+                        recovered = True
+                        recovery_days = days_elapsed
+                        break
+                
+                # If not recovered, calculate current distance
+                if not recovered:
+                    latest_close = future_dates['Close'].iloc[-1]
+                    current_distance = round(pre_div_close - latest_close, 2)
+                    recovery_days = (datetime.now().date() - ex_date.date()).days  # Days since dividend (calendar)
+            
+            dividend_analysis.append({
+                'ex_date': ex_date_str,
+                'amount': round(amount, 3),
+                'pre_div_close': round(pre_div_close, 2),
+                'recovered': recovered,
+                'recovery_days': recovery_days,
+                'current_distance': current_distance
+            })
+        
+        # Calculate days since last dividend
+        last_div_date = recent_divs.index[-1]
+        days_since_last = (datetime.now().date() - last_div_date.date()).days
+        
+        return {
+            'ticker': raw_ticker,
+            'tv_symbol': yf_ticker,
+            'dividends': dividend_analysis,
+            'current_price': round(current_price, 2) if current_price else None,
+            'days_since_last_div': days_since_last
+        }
+        
+    except Exception as e:
+        logging.error(f"Error in Dividend Recovery for {raw_ticker}: {e}")
+        return {
+            'ticker': raw_ticker,
+            'tv_symbol': yf_ticker,
+            'error': str(e),
+            'dividends': [],
+            'current_price': None,
+            'days_since_last_div': None
+        }

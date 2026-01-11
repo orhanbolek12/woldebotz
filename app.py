@@ -5,7 +5,7 @@ import os
 os.environ['XDG_CACHE_HOME'] = '/tmp'
 
 from flask import Flask, render_template, request, jsonify
-from logic import fetch_and_process, fetch_imbalance, fetch_range_ai
+from logic import fetch_and_process, fetch_imbalance, fetch_range_ai, analyze_dividend_recovery
 import threading
 import uuid
 import time
@@ -471,6 +471,30 @@ def analyze_imbalance_batch():
         res['max_wick'] = max_wick
         
     return jsonify({'results': results})
+
+
+@app.route('/analyze_dividend_recovery', methods=['POST'])
+def analyze_dividend_recovery_endpoint():
+    """
+    Endpoint for dividend recovery analysis.
+    Accepts tickers and lookback parameter, returns recovery data.
+    """
+    tickers_str = request.form.get('tickers', '')
+    lookback = int(request.form.get('lookback', 3))
+    
+    if not tickers_str.strip():
+        return jsonify({'results': [], 'error': 'No tickers provided'})
+    
+    # Parse tickers
+    tickers = [t.strip() for t in tickers_str.replace('\n', ',').split(',') if t.strip()]
+    
+    results = []
+    for ticker in tickers:
+        result = analyze_dividend_recovery(ticker, lookback)
+        results.append(result)
+    
+    return jsonify({'results': results})
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
