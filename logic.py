@@ -400,7 +400,8 @@ def analyze_dividend_recovery(raw_ticker, lookback=3):
                     # Calculate calendar days elapsed
                     days_elapsed = (date.date() - ex_date.date()).days
                     
-                    if row['Close'] >= pre_div_close:
+                    # User Rule: Check if 'High' reached the pre-div close, not just Close
+                    if row['High'] >= pre_div_close:
                         recovered = True
                         recovery_days = days_elapsed
                         break
