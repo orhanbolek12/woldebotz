@@ -1588,9 +1588,23 @@
 
         // SORTING
         if (sortType === 'fastest') {
-            results.sort((a, b) => b.rec_score - a.rec_score); // Descending Score
+            results.sort((a, b) => {
+                // Primary: Days (Ascending) - Lower is better
+                if (Math.abs(a.avg_rec_days - b.avg_rec_days) > 0.01) {
+                    return a.avg_rec_days - b.avg_rec_days;
+                }
+                // Secondary: Pct (Descending) - Higher is better
+                return b.avg_rec_pct - a.avg_rec_pct;
+            });
         } else if (sortType === 'slowest') {
-            results.sort((a, b) => a.rec_score - b.rec_score); // Ascending Score
+            results.sort((a, b) => {
+                // Primary: Days (Descending) - Higher is better
+                if (Math.abs(a.avg_rec_days - b.avg_rec_days) > 0.01) {
+                    return b.avg_rec_days - a.avg_rec_days;
+                }
+                // Secondary: Pct (Ascending) - Lower is better (worse recovery)
+                return a.avg_rec_pct - b.avg_rec_pct;
+            });
         }
 
         results.forEach(item => {
