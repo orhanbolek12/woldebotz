@@ -823,6 +823,21 @@
                             <option value="5">Last 5 Dividends</option>
                         </select>
                     </div>
+                    <div class="control-item">
+                        <label>Recovery Window (Days)</label>
+                        <input type="number" id="divRecWindow" value="5" min="1" max="30">
+                    </div>
+                    <div class="control-item">
+                        <label>Target Recovery %</label>
+                        <input type="number" id="divTargetPct" value="90" min="1" max="100">
+                    </div>
+                    <div class="control-item">
+                        <label>Sort By</label>
+                        <select id="divSort">
+                            <option value="fastest">Fastest Recovery</option>
+                            <option value="slowest">Slowest Recovery</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -1449,6 +1464,7 @@
         updateDivProgress(0, `Initializing analysis for ${total} tickers...`);
 
         const lookback = document.getElementById('divLookback').value;
+        const recWindow = document.getElementById('divRecWindow').value;
 
         try {
             for (let i = 0; i < total; i += BATCH_SIZE) {
@@ -1463,6 +1479,7 @@
                         const formData = new FormData();
                         formData.append('tickers', batchStr);
                         formData.append('lookback', lookback);
+                        formData.append('recovery_window', recWindow);
 
                         updateDivProgress(Math.round((completed / total) * 100), `Analyzing ${batch.join(', ')}...`);
 
@@ -1535,11 +1552,65 @@
 
         tbody.innerHTML = '';
 
-        results.sort((a, b) => a.ticker.localeCompare(b.ticker)).forEach(item => {
+        // Filter and Sort Logic
+        const sortType = document.getElementById('divSort').value;
+        const targetPct = parseFloat(document.getElementById('divTargetPct').value) || 90;
+        const recWindow = parseInt(document.getElementById('divRecWindow').value) || 5;
+
+        // Helper to calculate score for sorting
+        results.forEach(item => {
+            let totalRecDays = 0;
+            let recCount = 0;
+            let allRecovered = true;
+
+            if (item.dividends) {
+                item.dividends.forEach(div => {
+                    if (div.recovered) {
+                        totalRecDays += div.recovery_days;
+                        recCount++;
+                    } else {
+                        allRecovered = false;
+                        totalRecDays += 999; // Penalty for unrecovered
+                    }
+                });
+            }
+            // Average recovery days (lower is better)
+            item.avg_rec_days = item.dividends && item.dividends.length > 0 ? (totalRecDays / item.dividends.length) : 9999;
+            item.rec_score = allRecovered ? item.avg_rec_days : item.avg_rec_days + 1000;
+        });
+
+        // SORTING
+        if (sortType === 'fastest') {
+            results.sort((a, b) => a.rec_score - b.rec_score);
+        } else if (sortType === 'slowest') {
+            results.sort((a, b) => b.avg_rec_days - a.avg_rec_days); // Simple avg for slowest
+        }
+
+        results.forEach(item => {
             const tr = document.createElement('tr');
             const tvUrl = `https://www.tradingview.com/chart/?symbol=${item.tv_symbol}`;
 
-            let tds = `<td><span class="ticker-name">${item.ticker}</span></td>`;
+            let tds = `<td><span class="ticker-name">${item.ticker}</span>`;
+
+            // Check if it meets the specific "X% in Y days" criteria for ALL analyzed dividends?
+            // User request: "son 3 divinin ilk 5 gününde %90'ını recoverlayan kağıtları ayrıca göster"
+            // Let's count how many met the criteria
+            let metCriteriaCount = 0;
+            if (item.dividends) {
+                item.dividends.forEach(div => {
+                    if (div.window_recv_pct >= targetPct) metCriteriaCount++;
+                });
+            }
+
+            // Highlight if ALL met criteria (or maybe simplified to 'all')?
+            // Let's use a badge if it performed well in the window
+            if (item.dividends && metCriteriaCount === item.dividends.length) {
+                tds += `<div style="margin-top:4px;"><span style="background:var(--success); color:white; font-size:0.6rem; padding:2px 4px; border-radius:3px; font-weight:800;">⚡ ELITE RECOVERY</span></div>`;
+            } else if (metCriteriaCount > 0) {
+                tds += `<div style="margin-top:4px;"><span style="background:var(--accent-secondary); color:white; font-size:0.6rem; padding:2px 4px; border-radius:3px; font-weight:800;">⚡ ${metCriteriaCount}/${item.dividends.length} FAST</span></div>`;
+            }
+
+            tds += `</td>`;
 
             // Dividend Columns
             if (item.dividends && item.dividends.length > 0) {
@@ -1554,10 +1625,10 @@
                                    </div>`;
                     }
 
-                    // 5-Day Recovery Stat
-                    let pctClass = div.five_day_recv_pct >= 90 ? 'color:#10b981' : 'color:#94a3b8'; // Green if >= 90%
+                    // Custom Window Recovery Stat
+                    let pctClass = div.window_recv_pct >= targetPct ? 'color:#10b981' : 'color:#94a3b8'; // Dynamic Green
                     content += `<div style="font-size:0.7rem; margin-top:3px; ${pctClass}">
-                                  5d Rec: <strong>${div.five_day_recv_pct}%</strong>
+                                  ${recWindow}d Rec: <strong>${div.window_recv_pct}%</strong>
                                 </div>`;
 
                     // Tooltip or extra info

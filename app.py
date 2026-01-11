@@ -477,10 +477,11 @@ def analyze_imbalance_batch():
 def analyze_dividend_recovery_endpoint():
     """
     Endpoint for dividend recovery analysis.
-    Accepts tickers and lookback parameter, returns recovery data.
+    Accepts tickers, lookback, and recovery_window parameters.
     """
     tickers_str = request.form.get('tickers', '')
     lookback = int(request.form.get('lookback', 3))
+    recovery_window = int(request.form.get('recovery_window', 5))
     
     if not tickers_str.strip():
         return jsonify({'results': [], 'error': 'No tickers provided'})
@@ -490,7 +491,7 @@ def analyze_dividend_recovery_endpoint():
     
     results = []
     for ticker in tickers:
-        result = analyze_dividend_recovery(ticker, lookback)
+        result = analyze_dividend_recovery(ticker, lookback, recovery_window)
         results.append(result)
     
     return jsonify({'results': results})

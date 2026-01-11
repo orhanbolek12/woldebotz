@@ -295,32 +295,14 @@ def fetch_range_ai(tickers,
     return results
 
 
-def analyze_dividend_recovery(raw_ticker, lookback=3):
+def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
     """
     Analyze dividend recovery for a preferred stock.
     
     Args:
         raw_ticker: Stock symbol (e.g., 'BAC-Q')
         lookback: Number of recent dividends to analyze (3 or 5)
-    
-    Returns:
-        {
-            'ticker': str,
-            'tv_symbol': str,
-            'dividends': [
-                {
-                    'ex_date': 'YYYY-MM-DD',
-                    'amount': float,
-                    'pre_div_close': float,
-                    'recovered': bool,
-                    'recovery_days': int or None,
-                    'current_distance': float (if not recovered)
-                }
-            ],
-            'current_price': float,
-            'days_since_last_div': int,
-            'error': str (if any)
-        }
+        recovery_window: Days window to calculate recovery percentage (default 5)
     """
     yf_ticker = parse_ticker_yf(raw_ticker)
     logging.debug(f"Dividend Recovery: {raw_ticker} -> {yf_ticker}")
@@ -412,15 +394,15 @@ def analyze_dividend_recovery(raw_ticker, lookback=3):
                     current_distance = round(pre_div_close - latest_close, 2)
                     recovery_days = (datetime.now().date() - ex_date.date()).days  # Days since dividend (calendar)
             
-            # Calculate 5-Day Recovery Percentage
-            # (Max_High_In_First_5_Days - (Pre_Div_Close - Amount)) / Amount
-            future_dates_5 = future_dates.head(5)
-            five_day_recv_pct = 0.0
-            if not future_dates_5.empty and amount > 0:
-                max_high_5 = future_dates_5['High'].max()
+            # Calculate Recovery Percentage for custom window (e.g. 5 days)
+            # (Max_High_In_Window - (Pre_Div_Close - Amount)) / Amount
+            future_dates_window = future_dates.head(recovery_window)
+            window_recv_pct = 0.0
+            if not future_dates_window.empty and amount > 0:
+                max_high_window = future_dates_window['High'].max()
                 theoretical_base = pre_div_close - amount
-                recovered_amt = max_high_5 - theoretical_base
-                five_day_recv_pct = round((recovered_amt / amount) * 100, 1)
+                recovered_amt = max_high_window - theoretical_base
+                window_recv_pct = round((recovered_amt / amount) * 100, 1)
 
             dividend_analysis.append({
                 'ex_date': ex_date_str,
@@ -429,7 +411,7 @@ def analyze_dividend_recovery(raw_ticker, lookback=3):
                 'recovered': recovered,
                 'recovery_days': recovery_days,
                 'current_distance': current_distance,
-                'five_day_recv_pct': five_day_recv_pct
+                'window_recv_pct': window_recv_pct
             })
         
         # Calculate days since last dividend
