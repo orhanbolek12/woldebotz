@@ -383,8 +383,8 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
             recovery_days = None
             current_distance = None
             
-            # Get all dates after ex-date
-            future_dates = hist[hist.index > ex_date]
+            # Get all dates starting from ex-date (Day 1)
+            future_dates = hist[hist.index >= ex_date]
             
             if not future_dates.empty:
                 for date, row in future_dates.iterrows():
