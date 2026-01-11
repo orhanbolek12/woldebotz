@@ -1560,30 +1560,37 @@
         // Helper to calculate score for sorting
         results.forEach(item => {
             let totalRecDays = 0;
+            let totalRecPct = 0;
             let recCount = 0;
-            let allRecovered = true;
 
-            if (item.dividends) {
+            if (item.dividends && item.dividends.length > 0) {
                 item.dividends.forEach(div => {
                     if (div.recovered) {
                         totalRecDays += div.recovery_days;
-                        recCount++;
                     } else {
-                        allRecovered = false;
-                        totalRecDays += 999; // Penalty for unrecovered
+                        totalRecDays += 999;
                     }
+                    // For score: Prioritize window_recv_pct
+                    totalRecPct += (div.window_recv_pct || 0);
                 });
+                item.avg_rec_pct = totalRecPct / item.dividends.length;
+                item.avg_rec_days = totalRecDays / item.dividends.length;
+            } else {
+                item.avg_rec_pct = -1;
+                item.avg_rec_days = 9999;
             }
-            // Average recovery days (lower is better)
-            item.avg_rec_days = item.dividends && item.dividends.length > 0 ? (totalRecDays / item.dividends.length) : 9999;
-            item.rec_score = allRecovered ? item.avg_rec_days : item.avg_rec_days + 1000;
+
+            // Score Logic: High Pct is best. Low Days is tiebreaker.
+            // Let's make a combined score where Higher is Better
+            // Score = (AvgPct * 100) - AvgDays
+            item.rec_score = (item.avg_rec_pct * 1000) - item.avg_rec_days;
         });
 
         // SORTING
         if (sortType === 'fastest') {
-            results.sort((a, b) => a.rec_score - b.rec_score);
+            results.sort((a, b) => b.rec_score - a.rec_score); // Descending Score
         } else if (sortType === 'slowest') {
-            results.sort((a, b) => b.avg_rec_days - a.avg_rec_days); // Simple avg for slowest
+            results.sort((a, b) => a.rec_score - b.rec_score); // Ascending Score
         }
 
         results.forEach(item => {
@@ -1604,10 +1611,13 @@
 
             // Highlight if ALL met criteria (or maybe simplified to 'all')?
             // Let's use a badge if it performed well in the window
-            if (item.dividends && metCriteriaCount === item.dividends.length) {
-                tds += `<div style="margin-top:4px;"><span style="background:var(--success); color:white; font-size:0.6rem; padding:2px 4px; border-radius:3px; font-weight:800;">⚡ ELITE RECOVERY</span></div>`;
-            } else if (metCriteriaCount > 0) {
-                tds += `<div style="margin-top:4px;"><span style="background:var(--accent-secondary); color:white; font-size:0.6rem; padding:2px 4px; border-radius:3px; font-weight:800;">⚡ ${metCriteriaCount}/${item.dividends.length} FAST</span></div>`;
+            // Strict check: Must have ACTUAL dividends to match (prevent 0/0 elite)
+            if (item.dividends && item.dividends.length > 0) {
+                if (metCriteriaCount === item.dividends.length) {
+                    tds += `<div style="margin-top:4px;"><span style="background:var(--success); color:white; font-size:0.6rem; padding:2px 4px; border-radius:3px; font-weight:800;">⚡ ELITE RECOVERY</span></div>`;
+                } else if (metCriteriaCount > 0) {
+                    tds += `<div style="margin-top:4px;"><span style="background:var(--accent-secondary); color:white; font-size:0.6rem; padding:2px 4px; border-radius:3px; font-weight:800;">⚡ ${metCriteriaCount}/${item.dividends.length} FAST</span></div>`;
+                }
             }
 
             tds += `</td>`;
@@ -1616,7 +1626,11 @@
             if (item.dividends && item.dividends.length > 0) {
                 item.dividends.forEach(div => {
                     let content = '';
-                    if (div.recovered) {
+
+                    if (div.error) {
+                        content = `<div style="color:var(--error); font-size:0.7rem; font-weight:700;">DATA ERROR</div>
+                                   <div style="font-size:0.65rem; opacity:0.7;">No Price Data</div>`;
+                    } else if (div.recovered) {
                         content = `<div class="div-recovered">✅ ${div.recovery_days}d</div>`;
                     } else {
                         content = `<div class="div-not-recovered">❌ ${div.recovery_days}d</div>
@@ -1625,11 +1639,13 @@
                                    </div>`;
                     }
 
-                    // Custom Window Recovery Stat
-                    let pctClass = div.window_recv_pct >= targetPct ? 'color:#10b981' : 'color:#94a3b8'; // Dynamic Green
-                    content += `<div style="font-size:0.7rem; margin-top:3px; ${pctClass}">
-                                  ${recWindow}d Rec: <strong>${div.window_recv_pct}%</strong>
-                                </div>`;
+                    // Custom Window Recovery Stat (Only if not error)
+                    if (!div.error) {
+                        let pctClass = div.window_recv_pct >= targetPct ? 'color:#10b981' : 'color:#94a3b8'; // Dynamic Green
+                        content += `<div style="font-size:0.7rem; margin-top:3px; ${pctClass}">
+                                      ${recWindow}d Rec: <strong>${div.window_recv_pct}%</strong>
+                                    </div>`;
+                    }
 
                     // Tooltip or extra info
                     content += `<div style="font-size:0.65rem; color:var(--text-secondary); margin-top:4px; border-top:1px solid rgba(255,255,255,0.05); padding-top:2px;">

@@ -367,6 +367,15 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
             
             if pre_div_close is None:
                 logging.warning(f"Could not find pre-dividend close for {raw_ticker} on {ex_date_str}")
+                dividend_analysis.append({
+                    'ex_date': ex_date_str,
+                    'amount': round(amount, 3),
+                    'error': 'Price data missing',
+                    'recovered': False,
+                    'recovery_days': 9999,
+                    'current_distance': 0,
+                    'window_recv_pct': 0
+                })
                 continue
             
             # Track prices after ex-dividend date to find recovery
