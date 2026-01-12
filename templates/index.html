@@ -828,7 +828,13 @@
                         <input type="number" id="divRecWindow" value="5" min="1" max="30">
                     </div>
                     <div class="control-item">
-                        <label>Target Recovery %</label>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <label>Target Recovery %</label>
+                            <div style="display:flex; align-items:center; gap:5px; margin-bottom:0.8rem;">
+                                <input type="checkbox" id="divStrictFilter" style="width:14px; height:14px; cursor:pointer;">
+                                <span style="font-size:0.65rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Strict Filter</span>
+                            </div>
+                        </div>
                         <input type="number" id="divTargetPct" value="90" min="1" max="100">
                     </div>
                     <div class="control-item">
@@ -1589,25 +1595,41 @@
         // SORTING
         if (sortType === 'fastest') {
             results.sort((a, b) => {
-                // Primary: Days (Ascending) - Lower is better
-                if (Math.abs(a.avg_rec_days - b.avg_rec_days) > 0.01) {
-                    return a.avg_rec_days - b.avg_rec_days;
+                // Primary: Pct (Descending) - Higher is better
+                if (Math.abs(a.avg_rec_pct - b.avg_rec_pct) > 0.1) {
+                    return b.avg_rec_pct - a.avg_rec_pct;
                 }
-                // Secondary: Pct (Descending) - Higher is better
-                return b.avg_rec_pct - a.avg_rec_pct;
+                // Secondary: Days (Ascending) - Lower is better
+                return a.avg_rec_days - b.avg_rec_days;
             });
         } else if (sortType === 'slowest') {
             results.sort((a, b) => {
-                // Primary: Days (Descending) - Higher is better
-                if (Math.abs(a.avg_rec_days - b.avg_rec_days) > 0.01) {
-                    return b.avg_rec_days - a.avg_rec_days;
+                // Primary: Pct (Ascending) - Lower is worse (slowest)
+                if (Math.abs(a.avg_rec_pct - b.avg_rec_pct) > 0.1) {
+                    return a.avg_rec_pct - b.avg_rec_pct;
                 }
-                // Secondary: Pct (Ascending) - Lower is better (worse recovery)
-                return a.avg_rec_pct - b.avg_rec_pct;
+                // Secondary: Days (Descending) - Higher is slower
+                return b.avg_rec_days - a.avg_rec_days;
             });
         }
 
-        results.forEach(item => {
+        // STRICT FILTERING
+        const strictFilter = document.getElementById('divStrictFilter').checked;
+        let filteredResults = results;
+        if (strictFilter) {
+            filteredResults = results.filter(item => {
+                let metCriteriaCount = 0;
+                if (item.dividends && item.dividends.length > 0) {
+                    item.dividends.forEach(div => {
+                        if (div.window_recv_pct >= targetPct) metCriteriaCount++;
+                    });
+                    return metCriteriaCount === item.dividends.length;
+                }
+                return false;
+            });
+        }
+
+        filteredResults.forEach(item => {
             const tr = document.createElement('tr');
             const tvUrl = `https://www.tradingview.com/chart/?symbol=${item.tv_symbol}`;
 
