@@ -831,8 +831,11 @@
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <label>Target Recovery %</label>
                             <div style="display:flex; align-items:center; gap:5px; margin-bottom:0.8rem;">
-                                <input type="checkbox" id="divStrictFilter" style="width:14px; height:14px; cursor:pointer;">
-                                <span style="font-size:0.65rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Strict Filter</span>
+                                <input type="checkbox" id="divStrictFilter"
+                                    style="width:14px; height:14px; cursor:pointer;">
+                                <span
+                                    style="font-size:0.65rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Strict
+                                    Filter</span>
                             </div>
                         </div>
                         <input type="number" id="divTargetPct" value="90" min="1" max="100">
@@ -843,6 +846,18 @@
                             <option value="fastest">Fastest Recovery</option>
                             <option value="slowest">Slowest Recovery</option>
                         </select>
+                    </div>
+                    <div class="control-item">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <label>Upcoming Div Filter</label>
+                            <div style="display:flex; align-items:center; gap:5px; margin-bottom:0.8rem;">
+                                <input type="checkbox" id="divUpcomingFilter"
+                                    style="width:14px; height:14px; cursor:pointer;">
+                                <span
+                                    style="font-size:0.65rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Apply</span>
+                            </div>
+                        </div>
+                        <input type="number" id="divUpcomingDays" value="14" min="1" max="14">
                     </div>
                 </div>
             </div>
@@ -1629,6 +1644,17 @@
             });
         }
 
+        // UPCOMING DIV FILTERING
+        const upcomingFilter = document.getElementById('divUpcomingFilter').checked;
+        const upcomingDaysLimit = parseInt(document.getElementById('divUpcomingDays').value) || 14;
+
+        if (upcomingFilter) {
+            filteredResults = filteredResults.filter(item => {
+                // Must be between 1 and X days
+                return item.next_div_days !== null && item.next_div_days >= 1 && item.next_div_days <= upcomingDaysLimit;
+            });
+        }
+
         filteredResults.forEach(item => {
             const tr = document.createElement('tr');
             const tvUrl = `https://www.tradingview.com/chart/?symbol=${item.tv_symbol}`;
@@ -1707,6 +1733,10 @@
                         <div style="font-size:0.7rem; color:var(--text-secondary);">
                            Last Div: ${item.days_since_last_div !== null ? item.days_since_last_div + 'd ago' : 'N/A'}
                         </div>
+                        ${item.next_div_days !== null ? `
+                        <div style="font-size:0.7rem; color:var(--accent-primary); font-weight:700; margin-top:2px;">
+                           Next Div: ${item.next_div_days}d (${item.next_ex_date})
+                        </div>` : ''}
                     </td>`;
 
             tds += `<td><a href="${tvUrl}" target="_blank" class="tv-btn">View</a></td>`;

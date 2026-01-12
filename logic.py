@@ -367,14 +367,54 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
                 recovered_amt = max_high_window - theoretical_base
                 window_recv_pct = round((recovered_amt / amount) * 100, 1)
             dividend_analysis.append({'ex_date': ex_date_str, 'amount': round(amount, 3), 'pre_div_close': round(pre_div_close, 2), 'recovered': recovered, 'recovery_days': recovery_days, 'current_distance': 0 if recovered else current_distance, 'window_recv_pct': window_recv_pct})
-        
+        last_div_date = None
         days_since_last = None
         if not recent_divs.empty:
             last_div_date = recent_divs.index[-1]
             days_since_last = (datetime.now().date() - last_div_date.date()).days
         
+        # Next Dividend Logic
+        next_div_days = None
+        next_ex_date = None
+        
+        try:
+            ex_div_ts = ticker.info.get("exDividendDate")
+            if ex_div_ts:
+                next_ex_date = datetime.fromtimestamp(ex_div_ts)
+            else:
+                cal = ticker.calendar
+                if cal and 'Ex-Dividend Date' in cal:
+                    val = cal['Ex-Dividend Date']
+                    if hasattr(val, 'date'): # Could be date or datetime
+                        next_ex_date = datetime.combine(val, datetime.min.time()) if not isinstance(val, datetime) else val
+        except: pass
+        
+        # Estimation Fallback
+        if not next_ex_date or (next_ex_date.date() < datetime.now().date()):
+            if not dividends.empty:
+                last_ex = dividends.index[-1]
+                freq = 91 # Default quarterly
+                if len(dividends) >= 2:
+                    freq = (dividends.index[-1] - dividends.index[-2]).days
+                if freq < 20: freq = 91
+                next_ex_date = (last_ex + timedelta(days=freq)).replace(tzinfo=None)
+        
+        if next_ex_date:
+            next_div_days = (next_ex_date.date() - datetime.now().date()).days
+            # If still negative (estimation was bad), keep as None or push forward
+            if next_div_days < 0:
+                next_div_days = None
+
         tv_symbol = parse_ticker_tv(raw_ticker)
-        return {'ticker': raw_ticker, 'tv_symbol': tv_symbol, 'dividends': dividend_analysis, 'current_price': round(current_price, 2), 'days_since_last_div': days_since_last}
+        return {
+            'ticker': raw_ticker, 
+            'tv_symbol': tv_symbol, 
+            'dividends': dividend_analysis, 
+            'current_price': round(current_price, 2), 
+            'days_since_last_div': days_since_last,
+            'next_div_days': next_div_days,
+            'next_ex_date': next_ex_date.strftime('%Y-%m-%d') if next_ex_date else None
+        }
     except Exception as e:
         logging.error(f"Error in Dividend Recovery for {raw_ticker}: {e}")
         tv_symbol = parse_ticker_tv(raw_ticker)
