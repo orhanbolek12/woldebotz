@@ -3,3 +3,6 @@ yfinance
 pandas
 werkzeug
 lxml
+requests
+beautifulsoup4
+gunicorn
