@@ -1973,11 +1973,13 @@
         const strictFilter = document.getElementById('divStrictFilter').checked;
 
         // Ensure Max >= Min logic? Or let user do whatever.
-        const minTarget = parseFloat(document.getElementById('divTargetPct').value) || 0;
+        let minTarget = parseFloat(document.getElementById('divTargetPct').value) || 0;
         let maxTarget = parseFloat(document.getElementById('divMaxTargetPct').value) || 100;
 
         // User Logic: If max is 100, effectively "No Limit"
         if (maxTarget === 100) maxTarget = 999999;
+        // User Logic: If min is 0, effectively "No Floor" (Allow negatives)
+        if (minTarget === 0) minTarget = -999999;
 
         let filteredResults = results;
         if (strictFilter) {
@@ -2019,9 +2021,14 @@
             // Elite/Fast Badge Logic (Range Based)
             let metCriteriaCount = 0;
             if (item.dividends) {
+                let minT = parseFloat(document.getElementById('divTargetPct').value) || 0;
+                let maxT = parseFloat(document.getElementById('divMaxTargetPct').value) || 100;
+                if (maxT === 100) maxT = 999999;
+                if (minT === 0) minT = -999999;
+
                 item.dividends.forEach(div => {
                     const p = div.window_recv_pct || 0;
-                    if (p >= minTarget && p <= maxTarget) metCriteriaCount++;
+                    if (p >= minT && p <= maxT) metCriteriaCount++;
                 });
             }
 
@@ -2046,20 +2053,12 @@
                     if (div.error) {
                         content = `<div style="color:var(--error); font-size:0.7rem; font-weight:700;">DATA ERROR</div>
                                    <div style="font-size:0.65rem; opacity:0.7;">No Price Data</div>`;
-                    } else if (div.recovered) {
-                        content = `<div class="div-recovered">✅ ${div.recovery_days}d</div>`;
                     } else {
-                        content = `<div class="div-not-recovered">❌ ${div.recovery_days}d</div>
-                                   <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:2px;">
-                                     Dist: ${div.current_distance}
-                                   </div>`;
-                    }
-
-                    // Custom Window Recovery Stat (Only if not error)
-                    if (!div.error) {
-                        const minT = parseFloat(document.getElementById('divTargetPct').value) || 0;
+                        // Custom Window Recovery Stat (Only if not error)
+                        let minT = parseFloat(document.getElementById('divTargetPct').value) || 0;
                         let maxT = parseFloat(document.getElementById('divMaxTargetPct').value) || 100;
                         if (maxT === 100) maxT = 999999;
+                        if (minT === 0) minT = -999999;
 
                         const p = div.window_recv_pct || 0;
 
