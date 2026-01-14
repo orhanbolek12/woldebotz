@@ -682,13 +682,47 @@
 
         .mini-label {
             position: absolute;
-            bottom: -14px;
+            bottom: -18px;
             left: 2px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .mini-label span {
             font-size: 0.55rem;
             font-weight: 800;
             color: var(--text-secondary);
             opacity: 0.7;
             letter-spacing: 0.5px;
+        }
+
+        /* Custom Checkbox */
+        .cyber-check {
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--glass-border);
+            border-radius: 3px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .cyber-check:checked {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+
+        .cyber-check:checked::after {
+            content: '✓';
+            font-size: 9px;
+            color: white;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            line-height: 1;
         }
 
         .intel-module {
@@ -1107,14 +1141,22 @@
                                         <input type="number" id="divTargetPct" value="90" min="0" max="100">
                                         <span class="unit-tag">%</span>
                                     </div>
-                                    <span class="mini-label">MIN</span>
+                                    <label class="mini-label">
+                                        <input type="checkbox" id="chkMin" class="cyber-check" checked
+                                            onchange="toggleInput('divTargetPct', this)">
+                                        <span>MIN</span>
+                                    </label>
                                 </div>
                                 <div style="flex:1; position:relative;">
                                     <div class="unit-wrapper">
                                         <input type="number" id="divMaxTargetPct" value="100" min="0" max="100">
                                         <span class="unit-tag">%</span>
                                     </div>
-                                    <span class="mini-label">MAX</span>
+                                    <label class="mini-label">
+                                        <input type="checkbox" id="chkMax" class="cyber-check" checked
+                                            onchange="toggleInput('divMaxTargetPct', this)">
+                                        <span>MAX</span>
+                                    </label>
                                 </div>
                             </div>
                         </div>
@@ -1976,10 +2018,25 @@
         let minTarget = parseFloat(document.getElementById('divTargetPct').value) || 0;
         let maxTarget = parseFloat(document.getElementById('divMaxTargetPct').value) || 100;
 
-        // User Logic: If max is 100, effectively "No Limit"
-        if (maxTarget === 100) maxTarget = 999999;
-        // User Logic: If min is 0, effectively "No Floor" (Allow negatives)
-        if (minTarget === 0) minTarget = -999999;
+        const isMinChecked = document.getElementById('chkMin').checked;
+        const isMaxChecked = document.getElementById('chkMax').checked;
+
+        // Logic:
+        // 1. If Unchecked -> Absolute Infinite Limit
+        // 2. If Checked but value at limit (0 or 100) -> Smart Infinite Limit
+        // 3. Else -> Use specific value
+
+        if (!isMinChecked) {
+            minTarget = -999999;
+        } else if (minTarget === 0) {
+            minTarget = -999999;
+        }
+
+        if (!isMaxChecked) {
+            maxTarget = 999999;
+        } else if (maxTarget === 100) {
+            maxTarget = 999999;
+        }
 
         let filteredResults = results;
         if (strictFilter) {
@@ -2023,8 +2080,11 @@
             if (item.dividends) {
                 let minT = parseFloat(document.getElementById('divTargetPct').value) || 0;
                 let maxT = parseFloat(document.getElementById('divMaxTargetPct').value) || 100;
-                if (maxT === 100) maxT = 999999;
-                if (minT === 0) minT = -999999;
+                const minC = document.getElementById('chkMin').checked;
+                const maxC = document.getElementById('chkMax').checked;
+
+                if (!minC || minT === 0) minT = -999999;
+                if (!maxC || maxT === 100) maxT = 999999;
 
                 item.dividends.forEach(div => {
                     const p = div.window_recv_pct || 0;
@@ -2057,8 +2117,11 @@
                         // Custom Window Recovery Stat (Only if not error)
                         let minT = parseFloat(document.getElementById('divTargetPct').value) || 0;
                         let maxT = parseFloat(document.getElementById('divMaxTargetPct').value) || 100;
-                        if (maxT === 100) maxT = 999999;
-                        if (minT === 0) minT = -999999;
+                        const minC = document.getElementById('chkMin').checked;
+                        const maxC = document.getElementById('chkMax').checked;
+
+                        if (!minC || minT === 0) minT = -999999;
+                        if (!maxC || maxT === 100) maxT = 999999;
 
                         const p = div.window_recv_pct || 0;
 
@@ -2126,6 +2189,16 @@
             this.dispatchEvent(new Event('change'));
         });
     });
+    function toggleInput(inputId, checkbox) {
+        const input = document.getElementById(inputId);
+        if (checkbox.checked) {
+            input.disabled = false;
+            input.parentElement.style.opacity = "1";
+        } else {
+            input.disabled = true;
+            input.parentElement.style.opacity = "0.5";
+        }
+    }
 </script>
 
 <div class="signature">@ORHANWOLDE</div>
