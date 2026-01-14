@@ -392,18 +392,19 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
         # Estimation Fallback
         if not next_ex_date or (next_ex_date.date() < datetime.now().date()):
             if not dividends.empty:
-                last_ex = dividends.index[-1]
+                last_ex = dividends.index[-1].replace(tzinfo=None)
                 freq = 91 # Default quarterly
                 if len(dividends) >= 2:
                     freq = (dividends.index[-1] - dividends.index[-2]).days
                 if freq < 20: freq = 91
-                next_ex_date = (last_ex + timedelta(days=freq)).replace(tzinfo=None)
+                
+                # Roll forward until we find a date in the future
+                next_ex_date = last_ex + timedelta(days=freq)
+                while next_ex_date.date() < datetime.now().date():
+                    next_ex_date += timedelta(days=freq)
         
         if next_ex_date:
             next_div_days = (next_ex_date.date() - datetime.now().date()).days
-            # If still negative (estimation was bad), keep as None or push forward
-            if next_div_days < 0:
-                next_div_days = None
 
         tv_symbol = parse_ticker_tv(raw_ticker)
         return {
