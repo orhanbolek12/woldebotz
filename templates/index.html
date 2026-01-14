@@ -690,7 +690,16 @@
                             <input type="checkbox" id="rangeMasterList">
                             <span class="slider"></span>
                         </label>
-                        <span style="font-size:0.85rem; font-weight:700; color:var(--text-secondary)">Analyze Master
+                        <span
+                            style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); margin-right: 1.5rem;">Analyze
+                            Master
+                            List</span>
+
+                        <label class="switch">
+                            <input type="checkbox" id="rangeCefList">
+                            <span class="slider"></span>
+                        </label>
+                        <span style="font-size:0.85rem; font-weight:700; color:var(--text-secondary)">Analyze CEF
                             List</span>
                     </div>
                 </div>
@@ -748,7 +757,16 @@
                             <input type="checkbox" id="imbMasterList">
                             <span class="slider"></span>
                         </label>
-                        <span style="font-size:0.85rem; font-weight:700; color:var(--text-secondary)">Analyze Master
+                        <span
+                            style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); margin-right: 1.5rem;">Analyze
+                            Master
+                            List</span>
+
+                        <label class="switch">
+                            <input type="checkbox" id="imbCefList">
+                            <span class="slider"></span>
+                        </label>
+                        <span style="font-size:0.85rem; font-weight:700; color:var(--text-secondary)">Analyze CEF
                             List</span>
                     </div>
                 </div>
@@ -804,7 +822,16 @@
                             <input type="checkbox" id="divMasterList">
                             <span class="slider"></span>
                         </label>
-                        <span style="font-size:0.85rem; font-weight:700; color:var(--text-secondary)">Analyze Master
+                        <span
+                            style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); margin-right: 1.5rem;">Analyze
+                            Master
+                            List</span>
+
+                        <label class="switch">
+                            <input type="checkbox" id="divCefList">
+                            <span class="slider"></span>
+                        </label>
+                        <span style="font-size:0.85rem; font-weight:700; color:var(--text-secondary)">Analyze CEF
                             List</span>
                     </div>
                 </div>
@@ -1047,9 +1074,22 @@
 
     async function startRangeAnalysis() {
         const masterToggle = document.getElementById('rangeMasterList');
+        const cefToggle = document.getElementById('rangeCefList');
         let tickers = [];
 
-        if (masterToggle.checked) {
+        if (cefToggle.checked) {
+            document.getElementById('analyzeBtn').disabled = true;
+            document.getElementById('analyzeBtn').innerText = "Loading CEF List...";
+            try {
+                const tRes = await fetch('/get_cef_tickers');
+                const tData = await tRes.json();
+                tickers = tData.tickers || [];
+            } catch (e) {
+                alert("Failed to load CEF list: " + e.message);
+                resetUI();
+                return;
+            }
+        } else if (masterToggle.checked) {
             document.getElementById('analyzeBtn').disabled = true;
             document.getElementById('analyzeBtn').innerText = "Loading Master List...";
             try {
@@ -1065,7 +1105,7 @@
             const tickersElement = document.getElementById('tickers');
             const rawTickers = tickersElement.value;
             if (!rawTickers.trim()) {
-                alert("Please enter tickers or select 'Master List'");
+                alert("Please enter tickers or select a list");
                 return;
             }
             tickers = rawTickers.replace(/\n/g, ',').split(',').map(t => t.trim()).filter(t => t);
@@ -1160,9 +1200,22 @@
 
     async function startImbalanceAnalysis() {
         const masterToggle = document.getElementById('imbMasterList');
+        const cefToggle = document.getElementById('imbCefList');
         let tickers = [];
 
-        if (masterToggle.checked) {
+        if (cefToggle.checked) {
+            document.getElementById('analyzeImbalanceBtn').disabled = true;
+            document.getElementById('analyzeImbalanceBtn').innerText = "Loading CEF List...";
+            try {
+                const tRes = await fetch('/get_cef_tickers');
+                const tData = await tRes.json();
+                tickers = tData.tickers || [];
+            } catch (e) {
+                alert("Failed to load CEF list: " + e.message);
+                resetUI();
+                return;
+            }
+        } else if (masterToggle.checked) {
             document.getElementById('analyzeImbalanceBtn').disabled = true;
             document.getElementById('analyzeImbalanceBtn').innerText = "Loading Master List...";
             try {
@@ -1178,7 +1231,7 @@
             const tickersElement = document.getElementById('imbalanceTickers');
             const rawTickers = tickersElement.value;
             if (!rawTickers.trim()) {
-                alert("Please enter tickers or select 'Master List'");
+                alert("Please enter tickers or select a list");
                 return;
             }
             tickers = rawTickers.replace(/\n/g, ',').split(',').map(t => t.trim()).filter(t => t);
@@ -1439,9 +1492,22 @@
 
     async function startDividendAnalysis() {
         const masterToggle = document.getElementById('divMasterList');
+        const cefToggle = document.getElementById('divCefList');
         let tickers = [];
 
-        if (masterToggle.checked) {
+        if (cefToggle.checked) {
+            document.getElementById('analyzeDividendBtn').disabled = true;
+            document.getElementById('analyzeDividendBtn').innerText = "Loading CEF List...";
+            try {
+                const tRes = await fetch('/get_cef_tickers');
+                const tData = await tRes.json();
+                tickers = tData.tickers || [];
+            } catch (e) {
+                alert("Failed to load CEF list: " + e.message);
+                resetUI();
+                return;
+            }
+        } else if (masterToggle.checked) {
             document.getElementById('analyzeDividendBtn').disabled = true;
             document.getElementById('analyzeDividendBtn').innerText = "Loading Master List...";
             try {
@@ -1457,7 +1523,7 @@
             const tickersElement = document.getElementById('dividendTickers');
             const rawTickers = tickersElement.value;
             if (!rawTickers.trim()) {
-                alert("Please enter tickers or select 'Master List'");
+                alert("Please enter tickers or select a list");
                 return;
             }
             tickers = rawTickers.replace(/\n/g, ',').split(',').map(t => t.trim()).filter(t => t);

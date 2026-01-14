@@ -20,6 +20,12 @@ app = Flask(__name__)
 HISTORY_FILE = 'results_history.json'
 IMBALANCE_FILE = 'imbalance_history.json'
 
+CEF_TICKERS = ["NAD", "ECF", "FAX", "AOD", "OPP", "NVG", "NEA", "BGB", "CEV", "ETW", "PDI", "RA", "FPF", "DIAX", "HYT", "NMZ", "AWF", "EVV", "BOE", "WIW", "VFL", "VCV", "EMD", "NCZ", "ARDC", "VMO", "BFK", "GLU", "VKI", "LGI", "PDT", "HQL", "ETV", "NMCO", "THQ", "NAC", "ERH", "BMEZ", "NQP", "BBN", "GDV", "MVT", "HTD", "BCX", "NAZ", "MMU", "EOT", "HPS", "HPI", "NML", "MEGI", "KTF", "AFB", "JPI", "NXP", "AIO", "RSF", "RQI", "HPF", "NMS", "LDP", "HQH", "PAI", "NRK", "IFN", "PTA", "NDMO", "ETJ", "ECAT", "BKT", "MQT", "ETG", "IIM", "NPV", "DPG", "BHV", "MUE", "RMM", "FTHY", "KIO", "RFM", "BCAT", "ASGI", "VGM", "GHY", "FMY", "MYD", "PCQ", "PFD", "EVM", "MQY", "MYN", "BDJ", "NMAI", "EVG", "RMMZ", "NKX", "EVN", "GDL", "BHK", "WEA", "BTT", "MUJ", "MAV", "SDHY", "EFR", "MIY", "BGT", "IGA", "NPFD", "BKN", "RIV", "IQI", "RMT", "IDE", "HNW", "JHI", "BNY", "BLE", "ETY", "DSU", "MHD", "BUI", "EXG", "TDF", "DBL", "EIM", "NPCT", "RFI", "ISD", "JCE", "NBB", "CAF", "MMD", "ADX", "MHI", "WDI", "MXF", "CEE", "PHD", "RNP", "BCV", "SPE", "GRX", "GF", "FMN", "THW", "JRI", "DNP", "UTF", "NMI", "SPXX", "BFZ", "PSF", "NFJ", "AGD", "DSL", "EOS", "VKQ", "PDO", "VBF", "MCI", "NUV", "GDO", "TEAF", "DLY", "NZF", "NBXG", "NCA", "BIT", "NXC", "JGH", "FINS", "KF", "NMT", "IGI", "HGLB", "RLTY", "VPV", "FFC", "NBH", "CII", "ENX", "BYM", "EMF", "EVT", "FFA", "ETX", "DFP", "BGX", "ERC", "MUC", "ETO", "PCN", "RGT", "TPZ", "RMI", "RFMZ", "PAXS", "STEW", "VLT", "SCD", "PHYS", "PFO", "PMO", "RVT", "VTN", "PFL", "SPPP", "PEO", "TBLD", "PSLV", "PTY", "QQQX", "PGZ", "DMB", "DMO", "DTF", "EEA", "EFT", "EIC", "EOI", "ETB", "FCT", "FLC", "FOF", "CSQ", "ACV", "AVK", "BANX", "BGH", "BGR", "BLW", "BSL", "BSTZ", "BTA", "BTZ", "BXMX", "CCD", "CEF", "CGO", "CHI", "CHN", "CHY", "CPZ", "FRA", "MHN", "MIO", "MPA", "MPV", "MUA", "MXE", "MYI", "NAN", "NCV", "NIE", "NIM", "NNY", "NOM", "NUW", "NXJ", "NXN", "GBAB", "GOF", "GUG", "HEQ", "HYI", "JHS", "JLS", "JOF", "IIF"]
+
+@app.route('/get_cef_tickers', methods=['GET'])
+def get_cef_tickers():
+    return jsonify({'tickers': CEF_TICKERS})
+
 # In-memory storage
 jobs = {}
 imbalance_cache = {
