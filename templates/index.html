@@ -1195,6 +1195,14 @@
                                         style="background:transparent; border:none; padding-left:0 !important; font-size:1.2rem;">
                                     <span class="unit-tag">Days</span>
                                 </div>
+                                <div style="margin-top: 8px;">
+                                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                                        <input type="checkbox" id="divIncludeToday" class="cyber-check">
+                                        <span
+                                            style="font-size:0.65rem; font-weight:800; color:var(--text-secondary); opacity:0.8;">INCLUDE
+                                            TODAY</span>
+                                    </label>
+                                </div>
                             </div>
                             <div style="width:1px; height:40px; background:rgba(255,255,255,0.05);"></div>
                             <div style="flex:2; font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">
@@ -2061,8 +2069,12 @@
 
         if (upcomingFilter) {
             filteredResults = filteredResults.filter(item => {
-                // Must be between 1 and X days
-                return item.next_div_days !== null && item.next_div_days >= 1 && item.next_div_days <= upcomingDaysLimit;
+                // Determine min days based on "Include Today" checkbox
+                const includeToday = document.getElementById('divIncludeToday').checked;
+                const minDays = includeToday ? 0 : 1;
+
+                // Must be between minDays and X days
+                return item.next_div_days !== null && item.next_div_days >= minDays && item.next_div_days <= upcomingDaysLimit;
             });
         }
 
