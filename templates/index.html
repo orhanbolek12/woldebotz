@@ -2225,6 +2225,50 @@
                 input.parentElement.style.opacity = "0.5";
             }
         }
+        // --- Tab Switching Logic ---
+        let currentTab = 'custom';
+
+        window.switchTab = function (tab, btn) {
+            currentTab = tab;
+
+            // Update active state of buttons
+            document.querySelectorAll('.tab-trigger').forEach(b => b.classList.remove('active'));
+            if (btn) {
+                btn.classList.add('active');
+            } else {
+                const selector = `.tab-trigger[data-tab="${tab}"]`;
+                const el = document.querySelector(selector);
+                if (el) el.classList.add('active');
+            }
+
+            // Hide all Sections
+            document.getElementById('customSection').style.display = 'none';
+            document.getElementById('imbalanceSection').style.display = 'none';
+            document.getElementById('dividendSection').style.display = 'none';
+
+            // Hide all Result Cards
+            document.getElementById('customResultsCard').style.display = 'none';
+            document.getElementById('imbalanceResultsCard').style.display = 'none';
+            document.getElementById('dividendResultsCard').style.display = 'none';
+
+            // Show target Section
+            if (tab === 'custom') {
+                document.getElementById('customSection').style.display = 'block';
+                if (dataStore.custom && dataStore.custom.length > 0) {
+                    document.getElementById('customResultsCard').style.display = 'block';
+                }
+            } else if (tab === 'imbalance') {
+                document.getElementById('imbalanceSection').style.display = 'block';
+                if (dataStore.imbalanceResults && dataStore.imbalanceResults.length > 0) {
+                    document.getElementById('imbalanceResultsCard').style.display = 'block';
+                }
+            } else if (tab === 'dividend') {
+                document.getElementById('dividendSection').style.display = 'block';
+                if (dataStore.dividend && dataStore.dividend.length > 0) {
+                    document.getElementById('dividendResultsCard').style.display = 'block';
+                }
+            }
+        };
 </script>
 
 <div class="signature">@ORHANWOLDE</div>
