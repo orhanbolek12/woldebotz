@@ -1790,377 +1790,391 @@
         let results = [];
         if (type === 'imbalance') {
             results = dataStore.imbalanceResults || [];
-        } else {
-            results = dataStore[type];
-        }
-
-        if (!results || results.length === 0) return;
-        const text = results.map(r => r.ticker).sort().join(', ');
-        navigator.clipboard.writeText(text).then(() => {
-            const btn = event.target;
-            const oldText = btn.innerText;
-            btn.innerText = "Copied!";
-            setTimeout(() => btn.innerText = oldText, 2000);
-        });
-    }
-
-    function resetUI() {
-        document.getElementById('analyzeBtn').disabled = false;
-        document.getElementById('analyzeBtn').innerText = "Run Intelligence Report";
-        document.getElementById('analyzeImbalanceBtn').disabled = false;
-        document.getElementById('analyzeImbalanceBtn').innerText = "Identify Imbalance Patterns";
-        document.getElementById('analyzeDividendBtn').disabled = false;
-        document.getElementById('analyzeDividendBtn').innerText = "Analyze Dividend Recovery";
-    }
-
-    // --- Dividend Recovery Logic ---
-
-    async function startDividendAnalysis() {
-        const masterToggle = document.getElementById('divMasterList');
-        const cefToggle = document.getElementById('divCefList');
-        let tickers = [];
-
-        if (cefToggle.checked) {
-            document.getElementById('analyzeDividendBtn').disabled = true;
-            document.getElementById('analyzeDividendBtn').innerText = "Loading CEF List...";
-            try {
-                const tRes = await fetch('/get_cef_tickers');
-                const tData = await tRes.json();
-                tickers = tData.tickers || [];
-            } catch (e) {
-                alert("Failed to load CEF list: " + e.message);
-                resetUI();
-                return;
-            }
-        } else if (masterToggle.checked) {
-            document.getElementById('analyzeDividendBtn').disabled = true;
-            document.getElementById('analyzeDividendBtn').innerText = "Loading Master List...";
-            try {
-                const tRes = await fetch('/get_tickers');
-                const tData = await tRes.json();
-                tickers = tData.tickers || [];
-            } catch (e) {
-                alert("Failed to load master list: " + e.message);
-                resetUI();
-                return;
-            }
-        } else {
-            const tickersElement = document.getElementById('dividendTickers');
-            const rawTickers = tickersElement.value;
-            if (!rawTickers.trim()) {
-                alert("Please enter tickers or select a list");
-                return;
-            }
-            tickers = rawTickers.replace(/\n/g, ',').split(',').map(t => t.trim()).filter(t => t);
-        }
-
-        if (tickers.length === 0) {
-            alert("No tickers to analyze.");
-            resetUI();
-            return;
-        }
-
-        document.getElementById('analyzeDividendBtn').disabled = true;
-        document.getElementById('analyzeDividendBtn').innerText = "Analyzing Dividends...";
-        document.getElementById('divProgressContainer').style.display = 'block';
-        document.getElementById('dividendResultsCard').style.display = 'none';
-        document.getElementById('noResults').style.display = 'none';
-
-        // Clear data store
-        dataStore.dividend = [];
-
-        let completed = 0;
-        const total = tickers.length;
-        const BATCH_SIZE = 4; // Slightly larger batch for dividend checks
-
-        updateDivProgress(0, `Initializing analysis for ${total} tickers...`);
-
-        const lookback = document.getElementById('divLookback').value;
-        const recWindow = document.getElementById('divRecWindow').value;
-
-        try {
-            for (let i = 0; i < total; i += BATCH_SIZE) {
-                const batch = tickers.slice(i, i + BATCH_SIZE);
-                const batchStr = batch.join(',');
-
-                // Retry logic
-                let data = null;
-                let retries = 2;
-                while (retries >= 0) {
-                    try {
-                        const formData = new FormData();
-                        formData.append('tickers', batchStr);
-                        formData.append('lookback', lookback);
-                        formData.append('recovery_window', recWindow);
-
-                        updateDivProgress(Math.round((completed / total) * 100), `Analyzing ${batch.join(', ')}...`);
-
-                        const res = await fetch('/analyze_dividend_recovery', { method: 'POST', body: formData });
-                        data = await res.json();
-                        if (data.error) throw new Error(data.error);
-                        break;
-                    } catch (err) {
-                        console.warn(`Retry ${2 - retries} for batch ${batchStr}: ${err.message}`);
-                        retries--;
-                        if (retries < 0) throw err;
-                        await new Promise(r => setTimeout(r, 1000));
-                    }
-                }
-
-                if (data.results && data.results.length > 0) {
-                    dataStore.dividend = [...(dataStore.dividend || []), ...data.results];
-                    renderDividendResults(dataStore.dividend);
-                }
-
-                completed += batch.length;
-                updateDivProgress(Math.round((completed / total) * 100), `Analyzed ${completed}/${total}...`);
-
-                await new Promise(r => setTimeout(r, 300));
-            }
-
-            updateDivProgress(100, "Analysis Complete");
-
-            if (!dataStore.dividend || dataStore.dividend.length === 0) {
-                document.getElementById('noResults').style.display = 'block';
-                document.getElementById('dividendResultsCard').style.display = 'none';
-            }
-
-        } catch (e) {
-            console.error(e);
-            alert("Analysis Error: " + e.message);
-        } finally {
-            resetUI();
-        }
-    }
-
-    function updateDivProgress(percent, text) {
-        document.getElementById('divProgressFill').style.width = percent + '%';
-        document.getElementById('divProgressPercent').innerText = percent + '%';
-        document.getElementById('divProgressText').innerText = text;
-    }
-
-    function renderDividendResults(results) {
-        if (!results || results.length === 0) return;
-
-        document.getElementById('dividendResultsCard').style.display = 'block';
-        document.getElementById('divMatchCount').innerText = `${results.length} Analyzed`;
-
-        const table = document.getElementById('dividendResultsTable');
-        const thead = table.querySelector('thead tr');
-        const tbody = table.querySelector('tbody');
-
-        // Dynamic Headers based on lookback (max count of dividends found)
-        let maxDivs = 0;
-        results.forEach(r => {
-            if (r.dividends && r.dividends.length > maxDivs) maxDivs = r.dividends.length;
-        });
-
-        // Rebuild Headers
-        thead.innerHTML = '<th>Ticker</th>';
-        for (let i = 0; i < maxDivs; i++) {
-            thead.innerHTML += `<th>Div #${i + 1}</th>`;
-        }
-        thead.innerHTML += '<th>Stats</th><th>Action</th>';
-
-        tbody.innerHTML = '';
-
-        // Filter and Sort Logic
-        const sortType = document.getElementById('divSort').value;
-        const targetPct = parseFloat(document.getElementById('divTargetPct').value) || 90;
-        const recWindow = parseInt(document.getElementById('divRecWindow').value) || 5;
-
-        // Helper to calculate score for sorting
-        results.forEach(item => {
-            let totalRecDays = 0;
-            let totalRecPct = 0;
-            let recCount = 0;
-
-            if (item.dividends && item.dividends.length > 0) {
-                item.dividends.forEach(div => {
-                    if (div.recovered) {
-                        totalRecDays += div.recovery_days;
-                    } else {
-                        totalRecDays += 999;
-                    }
-                    // For score: Prioritize window_recv_pct
-                    totalRecPct += (div.window_recv_pct || 0);
-                });
-                item.avg_rec_pct = totalRecPct / item.dividends.length;
-                item.avg_rec_days = totalRecDays / item.dividends.length;
+            let results = [];
+            if (type === 'imbalance') {
+                results = dataStore.imbalanceResults || [];
+            } else if (type === 'dividend') {
+                // Use filtered results if available, otherwise all
+                results = dataStore.dividendFiltered || dataStore.dividend || [];
             } else {
-                item.avg_rec_pct = -1;
-                item.avg_rec_days = 9999;
+                results = dataStore[type];
             }
 
-            // Score Logic: High Pct is best. Low Days is tiebreaker.
-            // Let's make a combined score where Higher is Better
-            // Score = (AvgPct * 100) - AvgDays
-            item.rec_score = (item.avg_rec_pct * 1000) - item.avg_rec_days;
-        });
-
-        // SORTING
-        if (sortType === 'fastest') {
-            results.sort((a, b) => {
-                // Primary: Pct (Descending) - Higher is better
-                if (Math.abs(a.avg_rec_pct - b.avg_rec_pct) > 0.1) {
-                    return b.avg_rec_pct - a.avg_rec_pct;
-                }
-                // Secondary: Days (Ascending) - Lower is better
-                return a.avg_rec_days - b.avg_rec_days;
-            });
-        } else if (sortType === 'slowest') {
-            results.sort((a, b) => {
-                // Primary: Pct (Ascending) - Lower is worse (slowest)
-                if (Math.abs(a.avg_rec_pct - b.avg_rec_pct) > 0.1) {
-                    return a.avg_rec_pct - b.avg_rec_pct;
-                }
-                // Secondary: Days (Descending) - Higher is slower
-                return b.avg_rec_days - a.avg_rec_days;
+            if (!results || results.length === 0) return;
+            const text = results.map(r => r.ticker).sort().join(', ');
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = event.target;
+                const oldText = btn.innerText;
+                btn.innerText = "Copied!";
+                setTimeout(() => btn.innerText = oldText, 2000);
             });
         }
 
-        // STRICT FILTERING (RANGE LOGIC)
-        const strictFilter = document.getElementById('divStrictFilter').checked;
-
-        // Ensure Max >= Min logic? Or let user do whatever.
-        let minTarget = parseFloat(document.getElementById('divTargetPct').value) || 0;
-        let maxTarget = parseFloat(document.getElementById('divMaxTargetPct').value) || 100;
-
-        const isMinChecked = document.getElementById('chkMin').checked;
-        const isMaxChecked = document.getElementById('chkMax').checked;
-
-        // Logic:
-        // 1. If Unchecked -> Absolute Infinite Limit
-        // 2. If Checked but value at limit (0 or 100) -> Smart Infinite Limit
-        // 3. Else -> Use specific value
-
-        if (!isMinChecked) {
-            minTarget = -999999;
-        } else if (minTarget === 0) {
-            minTarget = -999999;
+        function resetUI() {
+            document.getElementById('analyzeBtn').disabled = false;
+            document.getElementById('analyzeBtn').innerText = "Run Intelligence Report";
+            document.getElementById('analyzeImbalanceBtn').disabled = false;
+            document.getElementById('analyzeImbalanceBtn').innerText = "Identify Imbalance Patterns";
+            document.getElementById('analyzeDividendBtn').disabled = false;
+            document.getElementById('analyzeDividendBtn').innerText = "Analyze Dividend Recovery";
         }
 
-        if (!isMaxChecked) {
-            maxTarget = 999999;
-        } else if (maxTarget === 100) {
-            maxTarget = 999999;
+        // --- Dividend Recovery Logic ---
+
+        async function startDividendAnalysis() {
+            const masterToggle = document.getElementById('divMasterList');
+            const cefToggle = document.getElementById('divCefList');
+            let tickers = [];
+
+            if (cefToggle.checked) {
+                document.getElementById('analyzeDividendBtn').disabled = true;
+                document.getElementById('analyzeDividendBtn').innerText = "Loading CEF List...";
+                try {
+                    const tRes = await fetch('/get_cef_tickers');
+                    const tData = await tRes.json();
+                    tickers = tData.tickers || [];
+                } catch (e) {
+                    alert("Failed to load CEF list: " + e.message);
+                    resetUI();
+                    return;
+                }
+            } else if (masterToggle.checked) {
+                document.getElementById('analyzeDividendBtn').disabled = true;
+                document.getElementById('analyzeDividendBtn').innerText = "Loading Master List...";
+                try {
+                    const tRes = await fetch('/get_tickers');
+                    const tData = await tRes.json();
+                    tickers = tData.tickers || [];
+                } catch (e) {
+                    alert("Failed to load master list: " + e.message);
+                    resetUI();
+                    return;
+                }
+            } else {
+                const tickersElement = document.getElementById('dividendTickers');
+                const rawTickers = tickersElement.value;
+                if (!rawTickers.trim()) {
+                    alert("Please enter tickers or select a list");
+                    return;
+                }
+                tickers = rawTickers.replace(/\n/g, ',').split(',').map(t => t.trim()).filter(t => t);
+            }
+
+            if (tickers.length === 0) {
+                alert("No tickers to analyze.");
+                resetUI();
+                return;
+            }
+
+            document.getElementById('analyzeDividendBtn').disabled = true;
+            document.getElementById('analyzeDividendBtn').innerText = "Analyzing Dividends...";
+            document.getElementById('divProgressContainer').style.display = 'block';
+            document.getElementById('dividendResultsCard').style.display = 'none';
+            document.getElementById('noResults').style.display = 'none';
+
+            // Clear data store
+            // Clear data store
+            dataStore.dividend = [];
+            dataStore.dividendFiltered = [];
+
+            let completed = 0;
+            const total = tickers.length;
+            const BATCH_SIZE = 4; // Slightly larger batch for dividend checks
+
+            updateDivProgress(0, `Initializing analysis for ${total} tickers...`);
+
+            const lookback = document.getElementById('divLookback').value;
+            const recWindow = document.getElementById('divRecWindow').value;
+
+            try {
+                for (let i = 0; i < total; i += BATCH_SIZE) {
+                    const batch = tickers.slice(i, i + BATCH_SIZE);
+                    const batchStr = batch.join(',');
+
+                    // Retry logic
+                    let data = null;
+                    let retries = 2;
+                    while (retries >= 0) {
+                        try {
+                            const formData = new FormData();
+                            formData.append('tickers', batchStr);
+                            formData.append('lookback', lookback);
+                            formData.append('recovery_window', recWindow);
+
+                            updateDivProgress(Math.round((completed / total) * 100), `Analyzing ${batch.join(', ')}...`);
+
+                            const res = await fetch('/analyze_dividend_recovery', { method: 'POST', body: formData });
+                            data = await res.json();
+                            if (data.error) throw new Error(data.error);
+                            break;
+                        } catch (err) {
+                            console.warn(`Retry ${2 - retries} for batch ${batchStr}: ${err.message}`);
+                            retries--;
+                            if (retries < 0) throw err;
+                            await new Promise(r => setTimeout(r, 1000));
+                        }
+                    }
+
+                    if (data.results && data.results.length > 0) {
+                        dataStore.dividend = [...(dataStore.dividend || []), ...data.results];
+                        renderDividendResults(dataStore.dividend);
+                    }
+
+                    completed += batch.length;
+                    updateDivProgress(Math.round((completed / total) * 100), `Analyzed ${completed}/${total}...`);
+
+                    await new Promise(r => setTimeout(r, 300));
+                }
+
+                updateDivProgress(100, "Analysis Complete");
+
+                if (!dataStore.dividend || dataStore.dividend.length === 0) {
+                    document.getElementById('noResults').style.display = 'block';
+                    document.getElementById('dividendResultsCard').style.display = 'none';
+                }
+
+            } catch (e) {
+                console.error(e);
+                alert("Analysis Error: " + e.message);
+            } finally {
+                resetUI();
+            }
         }
 
-        let filteredResults = results;
-        if (strictFilter) {
-            filteredResults = results.filter(item => {
-                let metCriteriaCount = 0;
+        function updateDivProgress(percent, text) {
+            document.getElementById('divProgressFill').style.width = percent + '%';
+            document.getElementById('divProgressPercent').innerText = percent + '%';
+            document.getElementById('divProgressText').innerText = text;
+        }
+
+        function renderDividendResults(results) {
+            if (!results || results.length === 0) return;
+
+            document.getElementById('dividendResultsCard').style.display = 'block';
+            document.getElementById('dividendResultsCard').style.display = 'block';
+
+            const table = document.getElementById('dividendResultsTable');
+            const thead = table.querySelector('thead tr');
+            const tbody = table.querySelector('tbody');
+
+            // Dynamic Headers based on lookback (max count of dividends found)
+            let maxDivs = 0;
+            results.forEach(r => {
+                if (r.dividends && r.dividends.length > maxDivs) maxDivs = r.dividends.length;
+            });
+
+            // Rebuild Headers
+            thead.innerHTML = '<th>Ticker</th>';
+            for (let i = 0; i < maxDivs; i++) {
+                thead.innerHTML += `<th>Div #${i + 1}</th>`;
+            }
+            thead.innerHTML += '<th>Stats</th><th>Action</th>';
+
+            tbody.innerHTML = '';
+
+            // Filter and Sort Logic
+            const sortType = document.getElementById('divSort').value;
+            const targetPct = parseFloat(document.getElementById('divTargetPct').value) || 90;
+            const recWindow = parseInt(document.getElementById('divRecWindow').value) || 5;
+
+            // Helper to calculate score for sorting
+            results.forEach(item => {
+                let totalRecDays = 0;
+                let totalRecPct = 0;
+                let recCount = 0;
+
                 if (item.dividends && item.dividends.length > 0) {
                     item.dividends.forEach(div => {
-                        // Check if recovery is within [min, max]
-                        const p = div.window_recv_pct || 0;
-                        if (p >= minTarget && p <= maxTarget) metCriteriaCount++;
+                        if (div.recovered) {
+                            totalRecDays += div.recovery_days;
+                        } else {
+                            totalRecDays += 999;
+                        }
+                        // For score: Prioritize window_recv_pct
+                        totalRecPct += (div.window_recv_pct || 0);
                     });
-                    // Strict means ALL dividends must be in that range?
-                    return metCriteriaCount === item.dividends.length;
+                    item.avg_rec_pct = totalRecPct / item.dividends.length;
+                    item.avg_rec_days = totalRecDays / item.dividends.length;
+                } else {
+                    item.avg_rec_pct = -1;
+                    item.avg_rec_days = 9999;
                 }
-                return false;
+
+                // Score Logic: High Pct is best. Low Days is tiebreaker.
+                // Let's make a combined score where Higher is Better
+                // Score = (AvgPct * 100) - AvgDays
+                item.rec_score = (item.avg_rec_pct * 1000) - item.avg_rec_days;
             });
-        }
 
-        // UPCOMING DIV FILTERING
-        const upcomingFilter = document.getElementById('divUpcomingFilter').checked;
-        const upcomingDaysLimit = parseInt(document.getElementById('divUpcomingDays').value) || 14;
-
-        if (upcomingFilter) {
-            filteredResults = filteredResults.filter(item => {
-                // Determine min days based on "Include Today" checkbox
-                const includeToday = document.getElementById('divIncludeToday').checked;
-                const minDays = includeToday ? 0 : 1;
-
-                // Must be between minDays and X days
-                return item.next_div_days !== null && item.next_div_days >= minDays && item.next_div_days <= upcomingDaysLimit;
-            });
-        }
-
-        filteredResults.forEach(item => {
-            const tr = document.createElement('tr');
-            const tvUrl = `https://www.tradingview.com/chart/?symbol=${item.tv_symbol}`;
-
-            let tds = `<td><span class="ticker-name">${item.ticker}</span>`;
-
-            // Check if it meets the specific "X% in Y days" criteria for ALL analyzed dividends?
-            // User request: "son 3 divinin ilk 5 gününde %90'ını recoverlayan kağıtları ayrıca göster"
-            // Let's count how many met the criteria
-            // Elite/Fast Badge Logic (Range Based)
-            let metCriteriaCount = 0;
-            if (item.dividends) {
-                let minT = parseFloat(document.getElementById('divTargetPct').value) || 0;
-                let maxT = parseFloat(document.getElementById('divMaxTargetPct').value) || 100;
-                const minC = document.getElementById('chkMin').checked;
-                const maxC = document.getElementById('chkMax').checked;
-
-                if (!minC || minT === 0) minT = -999999;
-                if (!maxC || maxT === 100) maxT = 999999;
-
-                item.dividends.forEach(div => {
-                    const p = div.window_recv_pct || 0;
-                    if (p >= minT && p <= maxT) metCriteriaCount++;
+            // SORTING
+            if (sortType === 'fastest') {
+                results.sort((a, b) => {
+                    // Primary: Pct (Descending) - Higher is better
+                    if (Math.abs(a.avg_rec_pct - b.avg_rec_pct) > 0.1) {
+                        return b.avg_rec_pct - a.avg_rec_pct;
+                    }
+                    // Secondary: Days (Ascending) - Lower is better
+                    return a.avg_rec_days - b.avg_rec_days;
+                });
+            } else if (sortType === 'slowest') {
+                results.sort((a, b) => {
+                    // Primary: Pct (Ascending) - Lower is worse (slowest)
+                    if (Math.abs(a.avg_rec_pct - b.avg_rec_pct) > 0.1) {
+                        return a.avg_rec_pct - b.avg_rec_pct;
+                    }
+                    // Secondary: Days (Descending) - Higher is slower
+                    return b.avg_rec_days - a.avg_rec_days;
                 });
             }
 
-            // Highlight if ALL met criteria (or maybe simplified to 'all')?
-            // Let's use a badge if it performed well in the window
-            // Strict check: Must have ACTUAL dividends to match (prevent 0/0 elite)
-            if (item.dividends && item.dividends.length > 0) {
-                if (metCriteriaCount === item.dividends.length) {
-                    tds += `<div style="margin-top:4px;"><span style="background:var(--success); color:white; font-size:0.6rem; padding:2px 4px; border-radius:3px; font-weight:800;">⚡ ELITE RECOVERY</span></div>`;
-                } else if (metCriteriaCount > 0) {
-                    tds += `<div style="margin-top:4px;"><span style="background:var(--accent-secondary); color:white; font-size:0.6rem; padding:2px 4px; border-radius:3px; font-weight:800;">⚡ ${metCriteriaCount}/${item.dividends.length} FAST</span></div>`;
-                }
+            // STRICT FILTERING (RANGE LOGIC)
+            const strictFilter = document.getElementById('divStrictFilter').checked;
+
+            // Ensure Max >= Min logic? Or let user do whatever.
+            let minTarget = parseFloat(document.getElementById('divTargetPct').value) || 0;
+            let maxTarget = parseFloat(document.getElementById('divMaxTargetPct').value) || 100;
+
+            const isMinChecked = document.getElementById('chkMin').checked;
+            const isMaxChecked = document.getElementById('chkMax').checked;
+
+            // Logic:
+            // 1. If Unchecked -> Absolute Infinite Limit
+            // 2. If Checked but value at limit (0 or 100) -> Smart Infinite Limit
+            // 3. Else -> Use specific value
+
+            if (!isMinChecked) {
+                minTarget = -999999;
+            } else if (minTarget === 0) {
+                minTarget = -999999;
             }
 
-            tds += `</td>`;
+            if (!isMaxChecked) {
+                maxTarget = 999999;
+            } else if (maxTarget === 100) {
+                maxTarget = 999999;
+            }
 
-            // Dividend Columns
-            if (item.dividends && item.dividends.length > 0) {
-                item.dividends.forEach(div => {
-                    let content = '';
+            let filteredResults = results;
+            if (strictFilter) {
+                filteredResults = results.filter(item => {
+                    let metCriteriaCount = 0;
+                    if (item.dividends && item.dividends.length > 0) {
+                        item.dividends.forEach(div => {
+                            // Check if recovery is within [min, max]
+                            const p = div.window_recv_pct || 0;
+                            if (p >= minTarget && p <= maxTarget) metCriteriaCount++;
+                        });
+                        // Strict means ALL dividends must be in that range?
+                        return metCriteriaCount === item.dividends.length;
+                    }
+                    return false;
+                });
+            }
 
-                    if (div.error) {
-                        content = `<div style="color:var(--error); font-size:0.7rem; font-weight:700;">DATA ERROR</div>
-                                   <div style="font-size:0.65rem; opacity:0.7;">No Price Data</div>`;
-                    } else {
-                        // Custom Window Recovery Stat (Only if not error)
-                        let minT = parseFloat(document.getElementById('divTargetPct').value) || 0;
-                        let maxT = parseFloat(document.getElementById('divMaxTargetPct').value) || 100;
-                        const minC = document.getElementById('chkMin').checked;
-                        const maxC = document.getElementById('chkMax').checked;
+            // UPCOMING DIV FILTERING
+            const upcomingFilter = document.getElementById('divUpcomingFilter').checked;
+            const upcomingDaysLimit = parseInt(document.getElementById('divUpcomingDays').value) || 14;
 
-                        if (!minC || minT === 0) minT = -999999;
-                        if (!maxC || maxT === 100) maxT = 999999;
+            if (upcomingFilter) {
+                filteredResults = filteredResults.filter(item => {
+                    // Determine min days based on "Include Today" checkbox
+                    const includeToday = document.getElementById('divIncludeToday').checked;
+                    const minDays = includeToday ? 0 : 1;
 
+                    // Must be between minDays and X days
+                    return item.next_div_days !== null && item.next_div_days >= minDays && item.next_div_days <= upcomingDaysLimit;
+                });
+            }
+
+            // Store filtered results for clipboard
+            dataStore.dividendFiltered = filteredResults;
+
+            // Update Counter
+            document.getElementById('divMatchCount').innerText = `${results.length} Analyzed, ${filteredResults.length} Found`;
+
+            filteredResults.forEach(item => {
+                const tr = document.createElement('tr');
+                const tvUrl = `https://www.tradingview.com/chart/?symbol=${item.tv_symbol}`;
+
+                let tds = `<td><span class="ticker-name">${item.ticker}</span>`;
+
+                // Check if it meets the specific "X% in Y days" criteria for ALL analyzed dividends?
+                // User request: "son 3 divinin ilk 5 gününde %90'ını recoverlayan kağıtları ayrıca göster"
+                // Let's count how many met the criteria
+                // Elite/Fast Badge Logic (Range Based)
+                let metCriteriaCount = 0;
+                if (item.dividends) {
+                    let minT = parseFloat(document.getElementById('divTargetPct').value) || 0;
+                    let maxT = parseFloat(document.getElementById('divMaxTargetPct').value) || 100;
+                    const minC = document.getElementById('chkMin').checked;
+                    const maxC = document.getElementById('chkMax').checked;
+
+                    if (!minC || minT === 0) minT = -999999;
+                    if (!maxC || maxT === 100) maxT = 999999;
+
+                    item.dividends.forEach(div => {
                         const p = div.window_recv_pct || 0;
+                        if (p >= minT && p <= maxT) metCriteriaCount++;
+                    });
+                }
 
-                        let pctClass = (p >= minT && p <= maxT) ? 'color:#10b981' : 'color:#94a3b8'; // Green if in range
-                        content += `<div style="font-size:0.7rem; margin-top:3px; ${pctClass}">
+                // Highlight if ALL met criteria (or maybe simplified to 'all')?
+                // Let's use a badge if it performed well in the window
+                // Strict check: Must have ACTUAL dividends to match (prevent 0/0 elite)
+                if (item.dividends && item.dividends.length > 0) {
+                    if (metCriteriaCount === item.dividends.length) {
+                        tds += `<div style="margin-top:4px;"><span style="background:var(--success); color:white; font-size:0.6rem; padding:2px 4px; border-radius:3px; font-weight:800;">⚡ ELITE RECOVERY</span></div>`;
+                    } else if (metCriteriaCount > 0) {
+                        tds += `<div style="margin-top:4px;"><span style="background:var(--accent-secondary); color:white; font-size:0.6rem; padding:2px 4px; border-radius:3px; font-weight:800;">⚡ ${metCriteriaCount}/${item.dividends.length} FAST</span></div>`;
+                    }
+                }
+
+                tds += `</td>`;
+
+                // Dividend Columns
+                if (item.dividends && item.dividends.length > 0) {
+                    item.dividends.forEach(div => {
+                        let content = '';
+
+                        if (div.error) {
+                            content = `<div style="color:var(--error); font-size:0.7rem; font-weight:700;">DATA ERROR</div>
+                                   <div style="font-size:0.65rem; opacity:0.7;">No Price Data</div>`;
+                        } else {
+                            // Custom Window Recovery Stat (Only if not error)
+                            let minT = parseFloat(document.getElementById('divTargetPct').value) || 0;
+                            let maxT = parseFloat(document.getElementById('divMaxTargetPct').value) || 100;
+                            const minC = document.getElementById('chkMin').checked;
+                            const maxC = document.getElementById('chkMax').checked;
+
+                            if (!minC || minT === 0) minT = -999999;
+                            if (!maxC || maxT === 100) maxT = 999999;
+
+                            const p = div.window_recv_pct || 0;
+
+                            let pctClass = (p >= minT && p <= maxT) ? 'color:#10b981' : 'color:#94a3b8'; // Green if in range
+                            content += `<div style="font-size:0.7rem; margin-top:3px; ${pctClass}">
                                       ${recWindow}d Rec: <strong>${div.window_recv_pct}%</strong>
                                     </div>`;
-                    }
+                        }
 
-                    // Tooltip or extra info
-                    content += `<div style="font-size:0.65rem; color:var(--text-secondary); margin-top:4px; border-top:1px solid rgba(255,255,255,0.05); padding-top:2px;">
+                        // Tooltip or extra info
+                        content += `<div style="font-size:0.65rem; color:var(--text-secondary); margin-top:4px; border-top:1px solid rgba(255,255,255,0.05); padding-top:2px;">
                                   Ex: ${div.ex_date} | <strong>$${div.amount}</strong>
                                 </div>`;
-                    tds += `<td>${content}</td>`;
-                });
+                        tds += `<td>${content}</td>`;
+                    });
 
-                // Fill empty cells if this ticker has fewer divs than max
-                for (let i = item.dividends.length; i < maxDivs; i++) {
-                    tds += `<td><span style="color:var(--glass-border)">--</span></td>`;
+                    // Fill empty cells if this ticker has fewer divs than max
+                    for (let i = item.dividends.length; i < maxDivs; i++) {
+                        tds += `<td><span style="color:var(--glass-border)">--</span></td>`;
+                    }
+                } else {
+                    // No dividends found
+                    tds += `<td colspan="${maxDivs}" style="color:var(--text-secondary)">No recent dividends found</td>`;
                 }
-            } else {
-                // No dividends found
-                tds += `<td colspan="${maxDivs}" style="color:var(--text-secondary)">No recent dividends found</td>`;
-            }
 
-            // Stats Column
-            tds += `<td>
+                // Stats Column
+                tds += `<td>
                         <div style="font-size:0.8rem;">
                            Price: <span style="font-weight:700;">$${item.current_price || 'N/A'}</span>
                         </div>
@@ -2173,44 +2187,44 @@
                         </div>` : ''}
                     </td>`;
 
-            tds += `<td><a href="${tvUrl}" target="_blank" class="tv-btn">View</a></td>`;
+                tds += `<td><a href="${tvUrl}" target="_blank" class="tv-btn">View</a></td>`;
 
-            tr.innerHTML = tds;
-            tbody.appendChild(tr);
-        });
-    }
-    // MOUSE SCROLL NUMERIC CONTROL
-    document.querySelectorAll('#dividendSection input[type="number"]').forEach(input => {
-        input.addEventListener('wheel', function (e) {
-            e.preventDefault();
-            const step = parseFloat(this.step) || 1;
-            const min = parseFloat(this.min);
-            const max = parseFloat(this.max);
-            let val = parseFloat(this.value) || 0;
-
-            if (e.deltaY < 0) {
-                val += step;
-            } else {
-                val -= step;
-            }
-
-            if (!isNaN(min) && val < min) val = min;
-            if (!isNaN(max) && val > max) val = max;
-
-            this.value = val;
-            this.dispatchEvent(new Event('change'));
-        });
-    });
-    function toggleInput(inputId, checkbox) {
-        const input = document.getElementById(inputId);
-        if (checkbox.checked) {
-            input.disabled = false;
-            input.parentElement.style.opacity = "1";
-        } else {
-            input.disabled = true;
-            input.parentElement.style.opacity = "0.5";
+                tr.innerHTML = tds;
+                tbody.appendChild(tr);
+            });
         }
-    }
+        // MOUSE SCROLL NUMERIC CONTROL
+        document.querySelectorAll('#dividendSection input[type="number"]').forEach(input => {
+            input.addEventListener('wheel', function (e) {
+                e.preventDefault();
+                const step = parseFloat(this.step) || 1;
+                const min = parseFloat(this.min);
+                const max = parseFloat(this.max);
+                let val = parseFloat(this.value) || 0;
+
+                if (e.deltaY < 0) {
+                    val += step;
+                } else {
+                    val -= step;
+                }
+
+                if (!isNaN(min) && val < min) val = min;
+                if (!isNaN(max) && val > max) val = max;
+
+                this.value = val;
+                this.dispatchEvent(new Event('change'));
+            });
+        });
+        function toggleInput(inputId, checkbox) {
+            const input = document.getElementById(inputId);
+            if (checkbox.checked) {
+                input.disabled = false;
+                input.parentElement.style.opacity = "1";
+            } else {
+                input.disabled = true;
+                input.parentElement.style.opacity = "0.5";
+            }
+        }
 </script>
 
 <div class="signature">@ORHANWOLDE</div>
