@@ -1247,7 +1247,7 @@
                 </div>
                 <div>
                     <span class="badge" id="rangeMatchCount">0 Symbols Found</span>
-                    <button class="tv-btn" onclick="copyToClipboard('custom')">Copy Symbols</button>
+                    <button class="tv-btn" onclick="copyToClipboard('custom', this)">Copy Symbols</button>
                 </div>
             </div>
             <div class="table-responsive">
@@ -1280,7 +1280,7 @@
                 </div>
                 <div>
                     <span id="imbMatchCount" class="badge">0 Symbols Found</span>
-                    <button class="tv-btn" onclick="copyToClipboard('imbalance')">Copy Symbols</button>
+                    <button class="tv-btn" onclick="copyToClipboard('imbalance', this)">Copy Symbols</button>
                 </div>
             </div>
             <div class="table-responsive">
@@ -1310,7 +1310,7 @@
                 </div>
                 <div>
                     <span id="divMatchCount" class="badge">0 Symbols Analyzed</span>
-                    <button class="tv-btn" onclick="copyToClipboard('dividend')">Copy Symbols</button>
+                    <button class="tv-btn" onclick="copyToClipboard('dividend', this)">Copy Symbols</button>
                 </div>
             </div>
             <div class="table-responsive">
@@ -1787,7 +1787,7 @@
         });
     }
 
-    function copyToClipboard(type) {
+    function copyToClipboard(type, btnElement) {
         let results = [];
         if (type === 'imbalance') {
             results = dataStore.imbalanceResults || [];
@@ -1800,11 +1800,18 @@
         if (!results || results.length === 0) return;
 
         const text = results.map(r => r.ticker).sort().join(', ');
+        // Use provided element or fallback to global event target (if available)
+        const btn = btnElement || (window.event ? window.event.target : null);
+
         navigator.clipboard.writeText(text).then(() => {
-            const btn = event.target;
-            const oldText = btn.innerText;
-            btn.innerText = "Copied!";
-            setTimeout(() => btn.innerText = oldText, 2000);
+            if (btn) {
+                const oldText = btn.innerText;
+                btn.innerText = "Copied!";
+                setTimeout(() => btn.innerText = oldText, 2000);
+            }
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
+            if (btn) btn.innerText = "Error!";
         });
     }
 
