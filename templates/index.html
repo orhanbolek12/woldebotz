@@ -1928,7 +1928,7 @@
                 completed += batch.length;
                 updateDivProgress(Math.round((completed / total) * 100), `Analyzed ${completed}/${total}...`);
 
-                await new Promise(r => setTimeout(r, 300));
+                await new Promise(r => setTimeout(r, 600));
             }
 
             updateDivProgress(100, "Analysis Complete");
