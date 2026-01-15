@@ -294,9 +294,25 @@ def fetch_range_ai(tickers, days=90, max_points=1.0, max_percent=5.0, progress_c
 def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
     yf_ticker = parse_ticker_yf(raw_ticker)
     logging.debug(f"Dividend Recovery: {raw_ticker} -> {yf_ticker}")
+    # Retry wrapper for robustness
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            ticker = yf.Ticker(yf_ticker)
+            dividends = ticker.dividends
+            
+            # If dividends found, we break the retry loop and proceed
+            # If strictly empty, it might just be empty, not an error.
+            # But if it crashes, we retry.
+            break
+        except Exception as e:
+            if attempt == max_retries - 1:
+                logging.error(f"Failed to fetch data for {raw_ticker} after retries: {e}")
+                tv_symbol = parse_ticker_tv(raw_ticker)
+                return {'ticker': raw_ticker, 'tv_symbol': tv_symbol, 'error': str(e), 'dividends': [], 'current_price': None, 'days_since_last_div': None}
+            time.sleep(1 * (attempt + 1))
+
     try:
-        ticker = yf.Ticker(yf_ticker)
-        dividends = ticker.dividends
         if dividends.empty:
             resolved = resolve_ticker_yf(raw_ticker)
             if resolved:
@@ -313,14 +329,21 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
             return {'ticker': raw_ticker, 'tv_symbol': tv_symbol, 'error': 'No dividend history found', 'dividends': [], 'current_price': None, 'days_since_last_div': None}
         
         recent_divs = dividends.tail(lookback)
-        # Fetching enough price history for the dividends we found
-        # If we got scraped dividends, let's make sure we have enough history
-        hist = ticker.history(period="2y", auto_adjust=False)
+        
+        # Fetch History with Retry
+        hist = pd.DataFrame()
+        for attempt in range(max_retries):
+            try:
+                hist = ticker.history(period="2y", auto_adjust=False)
+                if not hist.empty: break
+            except:
+                time.sleep(1)
+        
         if hist.empty:
             # If price history failed too, try the resolved ticker
             resolved = resolve_ticker_yf(raw_ticker)
             if resolved:
-                hist = yf.Ticker(resolved).history(period="2y", auto_adjust=False)
+                 hist = yf.Ticker(resolved).history(period="2y", auto_adjust=False)
         
         if hist.empty:
             tv_symbol = parse_ticker_tv(raw_ticker)
@@ -378,19 +401,39 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
         next_ex_date = None
         
         try:
-            ex_div_ts = ticker.info.get("exDividendDate")
+            # INFO FETCH WITH RETRY
+            ex_div_ts = None
+            cal = None
+            
+            for attempt in range(max_retries):
+                try:
+                    ex_div_ts = ticker.info.get("exDividendDate")
+                    if ex_div_ts: break
+                    
+                    cal = ticker.calendar
+                    if cal: break
+                except:
+                    time.sleep(1)
+
             if ex_div_ts:
                 next_ex_date = datetime.fromtimestamp(ex_div_ts)
-            else:
-                cal = ticker.calendar
-                if cal and 'Ex-Dividend Date' in cal:
-                    val = cal['Ex-Dividend Date']
-                    if hasattr(val, 'date'): # Could be date or datetime
-                        next_ex_date = datetime.combine(val, datetime.min.time()) if not isinstance(val, datetime) else val
-        except: pass
+            elif cal and 'Ex-Dividend Date' in cal:
+                val = cal['Ex-Dividend Date']
+                # Helper for Calendar List/Series
+                if hasattr(val, 'iloc'): # Series
+                    val = val.iloc[0]
+                elif isinstance(val, list) and val:
+                    val = val[0]
+                    
+                if hasattr(val, 'date'): # Could be date or datetime
+                    next_ex_date = datetime.combine(val, datetime.min.time()) if not isinstance(val, datetime) else val
+                elif isinstance(val, (str, datetime)): # Direct value
+                     next_ex_date = val
+        except Exception as e:
+             logging.error(f"Next Div Logic Error {raw_ticker}: {e}")
         
         # Estimation Fallback
-        if not next_ex_date or (next_ex_date.date() < datetime.now().date()):
+        if not next_ex_date or (isinstance(next_ex_date, datetime) and next_ex_date.date() < datetime.now().date()):
             if not dividends.empty:
                 last_ex = dividends.index[-1].replace(tzinfo=None)
                 freq = 91 # Default quarterly
