@@ -12,12 +12,25 @@ def parse_ticker_yf(raw_ticker):
     """
     Converts user format (e.g., ABR-D) to Yahoo Finance format (ABR-PD).
     Rule: SYMBOL-SUFFIX -> SYMBOL-PSUFFIX
+    Also handles common preferred suffixes like GOODO -> GOOD-PO
     """
     if '-' in raw_ticker:
         parts = raw_ticker.split('-')
         if len(parts) == 2:
             base, suffix = parts
-            return f"{base}-P{suffix}"
+            # If suffix is just a series letter, it needs -P prefix for YF
+            if len(suffix) == 1:
+                return f"{base}-P{suffix}"
+            return f"{base}-{suffix}"
+    
+    # Handle GOODO -> GOOD-PO or ADC-A -> ADC-PA
+    if len(raw_ticker) > 3:
+        # Common 4-5 char preferreds without hyphens
+        for suffix in ['O', 'P', 'N', 'M', 'L']:
+            if raw_ticker.endswith(suffix) and len(raw_ticker) <= 6:
+                base = raw_ticker[:-len(suffix)]
+                return f"{base}-P{suffix}"
+                
     return raw_ticker
 
 def fetch_dividends_fallback(raw_ticker):
@@ -436,10 +449,27 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
         if not next_ex_date or (isinstance(next_ex_date, datetime) and next_ex_date.date() < datetime.now().date()):
             if not dividends.empty:
                 last_ex = dividends.index[-1].replace(tzinfo=None)
-                freq = 91 # Default quarterly
+                
+                # Smarter Frequency Detection
+                offsets = []
                 if len(dividends) >= 2:
-                    freq = (dividends.index[-1] - dividends.index[-2]).days
-                if freq < 20: freq = 91
+                    # Calculate gaps between recent dividends to find periodicity
+                    for j in range(1, min(5, len(dividends))):
+                        gap = (dividends.index[-j] - dividends.index[-(j+1)]).days
+                        offsets.append(gap)
+                
+                # Median gap
+                freq = 91 
+                if offsets:
+                    offsets.sort()
+                    median_gap = offsets[len(offsets)//2]
+                    # Classify: Monthly (~30), Quarterly (~91), Semi-Annual (~182), Annual (~365)
+                    if 25 <= median_gap <= 35: freq = 30
+                    elif 80 <= median_gap <= 100: freq = 91
+                    elif 170 <= median_gap <= 195: freq = 182
+                    else: freq = median_gap
+                
+                if freq < 20: freq = 30 # Default to monthly if very low
                 
                 # Roll forward until we find a date in the future
                 next_ex_date = last_ex + timedelta(days=freq)
