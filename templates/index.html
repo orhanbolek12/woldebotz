@@ -1322,13 +1322,20 @@
                             <th>Div #1</th>
                             <th>Div #2</th>
                             <th>Div #3</th>
-                            <th onclick="document.getElementById('divSort').value='next_div'; renderDividendResults(dataStore.dividend);"
-                                style="cursor:pointer; position:relative;">
-                                STATS
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2" style="vertical-align:middle; margin-left:4px; opacity:0.7;">
-                                    <path d="M7 15l5 5 5-5M7 9l5-5 5 5"></path>
-                                </svg>
+                            <th>
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    STATS
+                                    <div onclick="document.getElementById('divSort').value='next_div'; renderDividendResults(dataStore.dividend); event.stopPropagation();"
+                                        title="Sort by Next Dividend Date"
+                                        style="cursor:pointer; background:rgba(255,255,255,0.1); border-radius:4px; padding:2px 4px; display:flex; align-items:center; transition:0.2s;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <path
+                                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                                            </path>
+                                        </svg>
+                                    </div>
+                                </div>
                             </th>
                             <th>Action</th>
                         </tr>
