@@ -2197,11 +2197,11 @@
                         // Full Recovery Status (Restore request: Check/X above percent)
                         if (div.recovered) {
                             content += `<div style="color:var(--success); font-size:0.7rem; font-weight:700; margin-bottom:1px;">
-                                            ✅ Recovered in ${div.recovery_days}d
+                                            ✅ ${div.recovery_days}d
                                         </div>`;
                         } else {
                             content += `<div style="color:var(--error); font-size:0.7rem; font-weight:700; margin-bottom:1px;">
-                                            ❌ Not recovered (${div.recovery_days}d)
+                                            ❌ ${div.recovery_days}d
                                         </div>`;
                         }
 
