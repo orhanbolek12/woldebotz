@@ -23,14 +23,8 @@ def parse_ticker_yf(raw_ticker):
                 return f"{base}-P{suffix}"
             return f"{base}-{suffix}"
     
-    # Handle GOODO -> GOOD-PO or ADC-A -> ADC-PA
-    if len(raw_ticker) > 3:
-        # Common 4-5 char preferreds without hyphens
-        for suffix in ['O', 'P', 'N', 'M', 'L']:
-            if raw_ticker.endswith(suffix) and len(raw_ticker) <= 6:
-                base = raw_ticker[:-len(suffix)]
-                return f"{base}-P{suffix}"
-                
+    # HYPHENLESS TICKERS (GOODO, GOODN, CCID, etc.)
+    # These often work directly in YF. If they fail, resolve_ticker_yf will try variations.
     return raw_ticker
 
 def fetch_dividends_fallback(raw_ticker):
