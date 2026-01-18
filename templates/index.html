@@ -1322,7 +1322,14 @@
                             <th>Div #1</th>
                             <th>Div #2</th>
                             <th>Div #3</th>
-                            <th>Current Status</th>
+                            <th onclick="document.getElementById('divSort').value='next_div'; renderDividendResults(dataStore.dividend);"
+                                style="cursor:pointer; position:relative;">
+                                STATS
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" style="vertical-align:middle; margin-left:4px; opacity:0.7;">
+                                    <path d="M7 15l5 5 5-5M7 9l5-5 5 5"></path>
+                                </svg>
+                            </th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -2068,6 +2075,12 @@
                 }
                 // Secondary: Days (Descending) - Higher is slower
                 return b.avg_rec_days - a.avg_rec_days;
+            });
+        } else if (sortType === 'next_div') {
+            results.sort((a, b) => {
+                const aDays = (a.next_div_days === null || a.next_div_days === undefined) ? 9999 : a.next_div_days;
+                const bDays = (b.next_div_days === null || b.next_div_days === undefined) ? 9999 : b.next_div_days;
+                return aDays - bDays;
             });
         }
 
