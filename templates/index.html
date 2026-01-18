@@ -2194,8 +2194,19 @@
 
                         const p = div.window_recv_pct || 0;
 
+                        // Full Recovery Status (Restore request: Check/X above percent)
+                        if (div.recovered) {
+                            content += `<div style="color:var(--success); font-size:0.7rem; font-weight:700; margin-bottom:1px;">
+                                            ✅ Recovered in ${div.recovery_days}d
+                                        </div>`;
+                        } else {
+                            content += `<div style="color:var(--error); font-size:0.7rem; font-weight:700; margin-bottom:1px;">
+                                            ❌ Not recovered (${div.recovery_days}d)
+                                        </div>`;
+                        }
+
                         let pctClass = (p >= minT && p <= maxT) ? 'color:#10b981' : 'color:#94a3b8'; // Green if in range
-                        content += `<div style="font-size:0.7rem; margin-top:3px; ${pctClass}">
+                        content += `<div style="font-size:0.7rem; ${pctClass}">
                                       ${recWindow}d Rec: <strong>${div.window_recv_pct}%</strong>
                                     </div>`;
                     }
