@@ -2026,7 +2026,20 @@
         for (let i = 0; i < maxDivs; i++) {
             thead.innerHTML += `<th>Div #${i + 1}</th>`;
         }
-        thead.innerHTML += '<th>Stats</th><th>Action</th>';
+        thead.innerHTML += `
+            <th>
+                <div style="display:flex; align-items:center; gap:6px;">
+                    STATS
+                    <div onclick="document.getElementById('divSort').value='next_div'; renderDividendResults(dataStore.dividend); event.stopPropagation();" 
+                         title="Sort by Next Dividend Date"
+                         style="cursor:pointer; background:rgba(255,255,255,0.1); border-radius:4px; padding:2px 4px; display:flex; align-items:center; transition:0.2s;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </th>
+            <th>Action</th>`;
 
         tbody.innerHTML = '';
 
