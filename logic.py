@@ -15,14 +15,36 @@ DIVIDEND_OVERRIDES = {
     'GS-PA': '2026-01-26'
 }
 
+# USER-DEFINED MAPPINGS (User Ticker -> Yahoo Ticker)
+TICKER_MAPPINGS = {
+    'PCG-I': 'PCG-PI',
+    'WRB-F': 'WRB-PF',
+    'CNO-A': 'CNO-PA',
+    'ETI-': 'ETI-P',
+    'NEE-N': 'NEE-PN',
+    'PBI-B': 'PBI-PB',
+    'WRB-E': 'WRB-PE',
+    'WRB-H': 'WRB-PH',
+    'F-D': 'F-PD',
+    'WRB-G': 'WRB-PG',
+    'ALL-B': 'ALL-PB',
+    'NEE-U': 'NEE-PU',
+    'F-C': 'F-PC',
+    'GL-D': 'GL-PD'
+}
+
 logging.basicConfig(filename='debug.log', level=logging.DEBUG)
 
 def parse_ticker_yf(raw_ticker):
     """
     Converts user format (e.g., ABR-D) to Yahoo Finance format (ABR-PD).
-    Rule: SYMBOL-SUFFIX -> SYMBOL-PSUFFIX
+    Rule 1: Check Manual Mappings
+    Rule 2: SYMBOL-SUFFIX -> SYMBOL-PSUFFIX
     Also handles common preferred suffixes like GOODO -> GOOD-PO
     """
+    if raw_ticker in TICKER_MAPPINGS:
+        return TICKER_MAPPINGS[raw_ticker]
+
     if '-' in raw_ticker:
         parts = raw_ticker.split('-')
         if len(parts) == 2:
