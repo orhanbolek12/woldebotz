@@ -6,6 +6,15 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 
+
+# MANUAL OVERRIDES for missing Yahoo Info
+# Format: Ticker (YF format): 'YYYY-MM-DD'
+DIVIDEND_OVERRIDES = {
+    'GS-PC': '2026-01-26',
+    'GS-PD': '2026-01-26',
+    'GS-PA': '2026-01-26'
+}
+
 logging.basicConfig(filename='debug.log', level=logging.DEBUG)
 
 def parse_ticker_yf(raw_ticker):
@@ -407,37 +416,46 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
         next_div_days = None
         next_ex_date = None
         
-        try:
-            # INFO FETCH WITH RETRY
-            ex_div_ts = None
-            cal = None
+        # 1. CHECK MANUAL OVERRIDES FIRST
+        if yf_ticker in DIVIDEND_OVERRIDES:
+            try:
+                next_ex_date = datetime.strptime(DIVIDEND_OVERRIDES[yf_ticker], '%Y-%m-%d')
+                logging.info(f"Using Manual Override for {yf_ticker}: {next_ex_date}")
+            except Exception as e:
+                logging.error(f"Invalid override format for {yf_ticker}: {e}")
+        
+        if not next_ex_date:
+            try:
+                # INFO FETCH WITH RETRY
+                ex_div_ts = None
+                cal = None
             
-            for attempt in range(max_retries):
-                try:
-                    ex_div_ts = ticker.info.get("exDividendDate")
-                    if ex_div_ts: break
-                    
-                    cal = ticker.calendar
-                    if cal: break
-                except:
-                    time.sleep(1)
-
-            if ex_div_ts:
-                next_ex_date = datetime.fromtimestamp(ex_div_ts)
-            elif cal and 'Ex-Dividend Date' in cal:
-                val = cal['Ex-Dividend Date']
-                # Helper for Calendar List/Series
-                if hasattr(val, 'iloc'): # Series
-                    val = val.iloc[0]
-                elif isinstance(val, list) and val:
-                    val = val[0]
-                    
-                if hasattr(val, 'date'): # Could be date or datetime
-                    next_ex_date = datetime.combine(val, datetime.min.time()) if not isinstance(val, datetime) else val
-                elif isinstance(val, (str, datetime)): # Direct value
-                     next_ex_date = val
-        except Exception as e:
-             logging.error(f"Next Div Logic Error {raw_ticker}: {e}")
+                for attempt in range(max_retries):
+                    try:
+                        ex_div_ts = ticker.info.get("exDividendDate")
+                        if ex_div_ts: break
+                        
+                        cal = ticker.calendar
+                        if cal: break
+                    except:
+                        time.sleep(1)
+    
+                if ex_div_ts:
+                    next_ex_date = datetime.fromtimestamp(ex_div_ts)
+                elif cal and 'Ex-Dividend Date' in cal:
+                    val = cal['Ex-Dividend Date']
+                    # Helper for Calendar List/Series
+                    if hasattr(val, 'iloc'): # Series
+                        val = val.iloc[0]
+                    elif isinstance(val, list) and val:
+                        val = val[0]
+                        
+                    if hasattr(val, 'date'): # Could be date or datetime
+                        next_ex_date = datetime.combine(val, datetime.min.time()) if not isinstance(val, datetime) else val
+                    elif isinstance(val, (str, datetime)): # Direct value
+                         next_ex_date = val
+            except Exception as e:
+                logging.error(f"Next Div Logic Error {raw_ticker}: {e}")
         
         # Estimation Fallback
         if not next_ex_date or (isinstance(next_ex_date, datetime) and next_ex_date.date() < datetime.now().date()):
