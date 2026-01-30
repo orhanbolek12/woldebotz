@@ -388,6 +388,9 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
             return {'ticker': raw_ticker, 'tv_symbol': tv_symbol, 'error': 'No price history found', 'dividends': [], 'current_price': None, 'days_since_last_div': None}
         
         current_price = hist['Close'].iloc[-1]
+        # Handle NaN values to prevent JSON serialization issues
+        if pd.isna(current_price):
+            current_price = None
         dividend_analysis = []
         for ex_date, amount in recent_divs.items():
             # Standardize ex_date to be naive if history index is naive, or match timezone
@@ -403,30 +406,40 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
                 if check_date in hist.index:
                     pre_div_close = hist.loc[check_date, 'Close']
                     break
-            if pre_div_close is None:
+            # Check for NaN in pre_div_close
+            if pre_div_close is None or pd.isna(pre_div_close):
                 dividend_analysis.append({'ex_date': ex_date_str, 'amount': round(amount, 3), 'error': 'Price data missing', 'recovered': False, 'recovery_days': 9999, 'current_distance': 0, 'window_recv_pct': 0})
                 continue
             recovered = False
             recovery_days = None
+            current_distance = 0
             future_dates = hist[hist.index >= ex_date]
             if not future_dates.empty:
                 for date, row in future_dates.iterrows():
                     days_elapsed = (date.date() - ex_date.date()).days
-                    if row['High'] >= pre_div_close:
+                    high_val = row['High']
+                    if pd.notna(high_val) and high_val >= pre_div_close:
                         recovered = True
                         recovery_days = days_elapsed
                         break
                 if not recovered:
                     latest_close = future_dates['Close'].iloc[-1]
-                    current_distance = round(pre_div_close - latest_close, 2)
+                    if pd.notna(latest_close):
+                        current_distance = round(pre_div_close - latest_close, 2)
+                    else:
+                        current_distance = 0
                     recovery_days = (datetime.now().date() - ex_date.date()).days
             future_dates_window = future_dates.head(recovery_window)
             window_recv_pct = 0.0
             if not future_dates_window.empty and amount > 0:
                 max_high_window = future_dates_window['High'].max()
-                theoretical_base = pre_div_close - amount
-                recovered_amt = max_high_window - theoretical_base
-                window_recv_pct = round((recovered_amt / amount) * 100, 1)
+                if pd.notna(max_high_window):
+                    theoretical_base = pre_div_close - amount
+                    recovered_amt = max_high_window - theoretical_base
+                    window_recv_pct = round((recovered_amt / amount) * 100, 1)
+                    # Handle NaN in window_recv_pct
+                    if pd.isna(window_recv_pct):
+                        window_recv_pct = 0.0
             dividend_analysis.append({'ex_date': ex_date_str, 'amount': round(amount, 3), 'pre_div_close': round(pre_div_close, 2), 'recovered': recovered, 'recovery_days': recovery_days, 'current_distance': 0 if recovered else current_distance, 'window_recv_pct': window_recv_pct})
         last_div_date = None
         days_since_last = None
@@ -518,7 +531,7 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
             'ticker': raw_ticker, 
             'tv_symbol': tv_symbol, 
             'dividends': dividend_analysis, 
-            'current_price': round(current_price, 2), 
+            'current_price': round(current_price, 2) if current_price is not None else None, 
             'days_since_last_div': days_since_last,
             'next_div_days': next_div_days,
             'next_ex_date': next_ex_date.strftime('%Y-%m-%d') if next_ex_date else None
