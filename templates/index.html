@@ -2249,6 +2249,38 @@
                     content += `<div style="font-size:0.65rem; color:var(--text-secondary); margin-top:4px; border-top:1px solid rgba(255,255,255,0.05); padding-top:2px;">
                                   Ex: ${div.ex_date} | <strong>$${div.amount}</strong>
                                 </div>`;
+
+                    // === PRE-DIVIDEND 7-DAY INTEL ===
+                    if (div.pre_div_7d) {
+                        const pd = div.pre_div_7d;
+                        let preDivContent = `<div style="font-size:0.6rem; margin-top:6px; padding:4px 6px; background:rgba(59,130,246,0.1); border-radius:4px; border:1px solid rgba(59,130,246,0.2);">`;
+
+                        // Best Buy Day
+                        if (pd.lowest_day !== null && pd.lowest_price !== null) {
+                            preDivContent += `<div style="color:#10b981; margin-bottom:2px;">
+                                🎯 Best Buy: <strong>${pd.lowest_day}d</strong> ($${pd.lowest_price})
+                            </div>`;
+                        }
+
+                        // Pump Detection
+                        if (pd.pump_detected) {
+                            preDivContent += `<div style="color:#f59e0b;">
+                                🔺 Pump <strong>+${pd.price_change_pct}%</strong>`;
+                            if (pd.pump_start_day !== null) {
+                                preDivContent += ` from ${pd.pump_start_day}d`;
+                            }
+                            preDivContent += `</div>`;
+                        } else if (pd.price_change_pct !== 0) {
+                            const changeColor = pd.price_change_pct > 0 ? '#10b981' : '#ef4444';
+                            preDivContent += `<div style="color:${changeColor};">
+                                7d: <strong>${pd.price_change_pct > 0 ? '+' : ''}${pd.price_change_pct}%</strong>
+                            </div>`;
+                        }
+
+                        preDivContent += `</div>`;
+                        content += preDivContent;
+                    }
+
                     tds += `<td>${content}</td>`;
                 });
 

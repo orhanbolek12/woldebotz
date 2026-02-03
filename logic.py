@@ -440,7 +440,76 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
                     # Handle NaN in window_recv_pct
                     if pd.isna(window_recv_pct):
                         window_recv_pct = 0.0
-            dividend_analysis.append({'ex_date': ex_date_str, 'amount': round(amount, 3), 'pre_div_close': round(pre_div_close, 2), 'recovered': recovered, 'recovery_days': recovery_days, 'current_distance': 0 if recovered else current_distance, 'window_recv_pct': window_recv_pct})
+            
+            # === PRE-DIVIDEND 7-DAY ANALYSIS ===
+            pre_div_7d_analysis = None
+            try:
+                # Get 7 trading days before ex_date
+                pre_div_dates = hist[hist.index < ex_date].tail(7)
+                if len(pre_div_dates) >= 3:
+                    lowest_price = pre_div_dates['Low'].min()
+                    highest_price = pre_div_dates['High'].max()
+                    
+                    # Find which day had the lowest price
+                    lowest_day = None
+                    highest_day = None
+                    if pd.notna(lowest_price):
+                        lowest_idx = pre_div_dates['Low'].idxmin()
+                        lowest_day = -(len(pre_div_dates) - pre_div_dates.index.get_loc(lowest_idx))
+                    if pd.notna(highest_price):
+                        highest_idx = pre_div_dates['High'].idxmax()
+                        highest_day = -(len(pre_div_dates) - pre_div_dates.index.get_loc(highest_idx))
+                    
+                    # Get close prices for 7-day change calculation
+                    close_on_ex_minus_1 = pre_div_dates['Close'].iloc[-1] if len(pre_div_dates) >= 1 else None
+                    close_on_ex_minus_7 = pre_div_dates['Close'].iloc[0] if len(pre_div_dates) >= 7 else pre_div_dates['Close'].iloc[0]
+                    
+                    # Calculate price change percentage
+                    price_change_pct = 0.0
+                    if pd.notna(close_on_ex_minus_1) and pd.notna(close_on_ex_minus_7) and close_on_ex_minus_7 > 0:
+                        price_change_pct = round(((close_on_ex_minus_1 - close_on_ex_minus_7) / close_on_ex_minus_7) * 100, 2)
+                    
+                    # Pump Detection: Compare first 3 days avg vs last 3 days avg
+                    pump_detected = False
+                    pump_start_day = None
+                    if len(pre_div_dates) >= 6:
+                        first_3_avg = pre_div_dates['Close'].iloc[:3].mean()
+                        last_3_avg = pre_div_dates['Close'].iloc[-3:].mean()
+                        if pd.notna(first_3_avg) and pd.notna(last_3_avg) and first_3_avg > 0:
+                            pump_pct = ((last_3_avg - first_3_avg) / first_3_avg) * 100
+                            if pump_pct >= 1.0:  # 1% or more increase
+                                pump_detected = True
+                                # Find pump start: first day where close > previous close
+                                for i in range(1, len(pre_div_dates)):
+                                    if pre_div_dates['Close'].iloc[i] > pre_div_dates['Close'].iloc[i-1]:
+                                        pump_start_day = -(len(pre_div_dates) - i)
+                                        break
+                    
+                    pre_div_7d_analysis = {
+                        'lowest_price': round(lowest_price, 2) if pd.notna(lowest_price) else None,
+                        'lowest_day': lowest_day,
+                        'highest_price': round(highest_price, 2) if pd.notna(highest_price) else None,
+                        'highest_day': highest_day,
+                        'close_ex_m1': round(close_on_ex_minus_1, 2) if pd.notna(close_on_ex_minus_1) else None,
+                        'close_ex_m7': round(close_on_ex_minus_7, 2) if pd.notna(close_on_ex_minus_7) else None,
+                        'price_change_pct': price_change_pct if pd.notna(price_change_pct) else 0.0,
+                        'pump_detected': pump_detected,
+                        'pump_start_day': pump_start_day
+                    }
+            except Exception as e:
+                logging.error(f"Pre-div 7d analysis error for {raw_ticker}: {e}")
+                pre_div_7d_analysis = None
+            
+            dividend_analysis.append({
+                'ex_date': ex_date_str, 
+                'amount': round(amount, 3), 
+                'pre_div_close': round(pre_div_close, 2), 
+                'recovered': recovered, 
+                'recovery_days': recovery_days, 
+                'current_distance': 0 if recovered else current_distance, 
+                'window_recv_pct': window_recv_pct,
+                'pre_div_7d': pre_div_7d_analysis
+            })
         last_div_date = None
         days_since_last = None
         if not recent_divs.empty:
