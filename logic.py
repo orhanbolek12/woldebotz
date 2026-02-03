@@ -464,10 +464,12 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
                     close_on_ex_minus_1 = pre_div_dates['Close'].iloc[-1] if len(pre_div_dates) >= 1 else None
                     close_on_ex_minus_7 = pre_div_dates['Close'].iloc[0] if len(pre_div_dates) >= 7 else pre_div_dates['Close'].iloc[0]
                     
-                    # Calculate price change percentage
+                    # Calculate price change percentage and dollar amount
                     price_change_pct = 0.0
+                    price_change_usd = 0.0
                     if pd.notna(close_on_ex_minus_1) and pd.notna(close_on_ex_minus_7) and close_on_ex_minus_7 > 0:
                         price_change_pct = round(((close_on_ex_minus_1 - close_on_ex_minus_7) / close_on_ex_minus_7) * 100, 2)
+                        price_change_usd = round(close_on_ex_minus_1 - close_on_ex_minus_7, 2)
                     
                     # Pump Detection: Compare first 3 days avg vs last 3 days avg
                     pump_detected = False
@@ -493,6 +495,7 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
                         'close_ex_m1': round(close_on_ex_minus_1, 2) if pd.notna(close_on_ex_minus_1) else None,
                         'close_ex_m7': round(close_on_ex_minus_7, 2) if pd.notna(close_on_ex_minus_7) else None,
                         'price_change_pct': price_change_pct if pd.notna(price_change_pct) else 0.0,
+                        'price_change_usd': price_change_usd if pd.notna(price_change_usd) else 0.0,
                         'pump_detected': pump_detected,
                         'pump_start_day': pump_start_day
                     }

@@ -2264,16 +2264,21 @@
 
                         // Pump Detection
                         if (pd.pump_detected) {
+                            const usdSign = pd.price_change_usd >= 0 ? '+$' : '-$';
+                            const usdVal = Math.abs(pd.price_change_usd || 0);
                             preDivContent += `<div style="color:#f59e0b;">
-                                🔺 Pump <strong>+${pd.price_change_pct}%</strong>`;
+                                🔺 Pump <strong>+${pd.price_change_pct}%</strong>, ${usdSign}${usdVal}`;
                             if (pd.pump_start_day !== null) {
                                 preDivContent += ` from ${pd.pump_start_day}d`;
                             }
                             preDivContent += `</div>`;
                         } else if (pd.price_change_pct !== 0) {
                             const changeColor = pd.price_change_pct > 0 ? '#10b981' : '#ef4444';
+                            const pctSign = pd.price_change_pct > 0 ? '+' : '';
+                            const usdSign = pd.price_change_usd >= 0 ? '+$' : '-$';
+                            const usdVal = Math.abs(pd.price_change_usd || 0);
                             preDivContent += `<div style="color:${changeColor};">
-                                7d: <strong>${pd.price_change_pct > 0 ? '+' : ''}${pd.price_change_pct}%</strong>
+                                7d: <strong>${pctSign}${pd.price_change_pct}%</strong>, ${usdSign}${usdVal}
                             </div>`;
                         }
 
