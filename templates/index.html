@@ -1106,6 +1106,18 @@
                                 <option value="slowest">Slowest Recovery</option>
                                 <option value="next_div">Upcoming Dividend</option>
                             </select>
+
+                            <!-- Volume Surge Filter -->
+                            <div
+                                style="margin-top:12px; display:flex; align-items:center; gap:8px; padding-top:8px; border-top:1px dashed rgba(255,255,255,0.1);">
+                                <label class="switch-pro" style="transform: scale(0.85);">
+                                    <input type="checkbox" id="divVolFilter">
+                                    <span class="slider-pro"></span>
+                                </label>
+                                <span style="font-size:0.7rem; font-weight:700; color:#f59e0b;">
+                                    VOL SURGE ONLY
+                                </span>
+                            </div>
                         </div>
 
                         <!-- Recovery Window Module -->
@@ -2148,6 +2160,18 @@
             });
         }
 
+        // VOLUME SURGE FILTERING
+        const volFilter = document.getElementById('divVolFilter').checked;
+        if (volFilter) {
+            filteredResults = filteredResults.filter(item => {
+                if (!item.dividends || item.dividends.length === 0) return false;
+                // Check if ALL dividends have a volume spike
+                return item.dividends.every(div => {
+                    return div.pre_div_7d && div.pre_div_7d.volume_spike_detected === true;
+                });
+            });
+        }
+
         // UPCOMING DIV FILTERING
         const upcomingFilter = document.getElementById('divUpcomingFilter').checked;
         const upcomingDaysLimit = parseInt(document.getElementById('divUpcomingDays').value) || 14;
@@ -2379,6 +2403,14 @@
             input.disabled = true;
             input.parentElement.style.opacity = "0.5";
         }
+    }
+
+    // Volume Filter Event Listener
+    const volFilterEl = document.getElementById('divVolFilter');
+    if (volFilterEl) {
+        volFilterEl.addEventListener('change', function () {
+            renderDividendResults(dataStore.dividend);
+        });
     }
 
 </script>
