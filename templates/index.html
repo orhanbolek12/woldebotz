@@ -2282,6 +2282,32 @@
                             </div>`;
                         }
 
+                        // Volume Analysis
+                        if (pd.avg_120d_volume > 0) {
+                            function formatVol(num) {
+                                if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+                                if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+                                return num.toString();
+                            }
+
+                            let volColor = 'rgba(255,255,255,0.5)';
+                            let volText = `Avg Vol: ${formatVol(pd.avg_120d_volume)}`;
+
+                            if (pd.volume_spike_detected) {
+                                volColor = '#f59e0b';
+                                volText = `🔊 Vol Surge: <strong>+${pd.volume_spike_pct}%</strong>`;
+                            }
+
+                            preDivContent += `<div style="color:${volColor}; margin-top:2px; font-size:0.55rem;">
+                                ${volText}
+                             </div>`;
+                            if (pd.volume_spike_detected) {
+                                preDivContent += `<div style="color:rgba(255,255,255,0.5); font-size:0.55rem;">
+                                     (vs ${formatVol(pd.avg_120d_volume)} avg)
+                                  </div>`;
+                            }
+                        }
+
                         preDivContent += `</div>`;
                         content += preDivContent;
                     }

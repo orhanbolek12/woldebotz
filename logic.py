@@ -497,8 +497,39 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
                         'price_change_pct': price_change_pct if pd.notna(price_change_pct) else 0.0,
                         'price_change_usd': price_change_usd if pd.notna(price_change_usd) else 0.0,
                         'pump_detected': pump_detected,
-                        'pump_start_day': pump_start_day
+                        'pump_start_day': pump_start_day,
+                        'avg_120d_volume': 0,
+                        'avg_7d_volume': 0,
+                        'volume_spike_detected': False,
+                        'volume_spike_pct': 0
                     }
+                    
+                    # Volume Analysis
+                    try:
+                        # 120 day average volume leading up to ex_date
+                        history_120d = hist[hist.index < ex_date].tail(120)
+                        if not history_120d.empty and 'Volume' in history_120d.columns:
+                            avg_120d = history_120d['Volume'].mean()
+                            
+                            # 7 day average volume before ex_date (same as pre_div_dates)
+                            if 'Volume' in pre_div_dates.columns:
+                                avg_7d = pre_div_dates['Volume'].mean()
+                                
+                                vol_spike = False
+                                spike_pct = 0
+                                if avg_120d > 0 and avg_7d > 0:
+                                    if avg_7d >= avg_120d * 1.10: # 10% or more increase
+                                        vol_spike = True
+                                        spike_pct = round(((avg_7d - avg_120d) / avg_120d) * 100, 1)
+                                
+                                pre_div_7d_analysis.update({
+                                    'avg_120d_volume': int(avg_120d),
+                                    'avg_7d_volume': int(avg_7d),
+                                    'volume_spike_detected': vol_spike,
+                                    'volume_spike_pct': spike_pct
+                                })
+                    except Exception as ve:
+                        logging.error(f"Volume analysis error: {ve}")
             except Exception as e:
                 logging.error(f"Pre-div 7d analysis error for {raw_ticker}: {e}")
                 pre_div_7d_analysis = None
