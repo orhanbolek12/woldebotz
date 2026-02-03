@@ -2253,32 +2253,36 @@
                     // === PRE-DIVIDEND 7-DAY INTEL ===
                     if (div.pre_div_7d) {
                         const pd = div.pre_div_7d;
-                        let preDivContent = `<div style="font-size:0.6rem; margin-top:6px; padding:4px 6px; background:rgba(59,130,246,0.1); border-radius:4px; border:1px solid rgba(59,130,246,0.2);">`;
+                        // Strip Color Logic
+                        let stripColor = 'rgba(255,255,255,0.3)';
+                        if (pd.pump_detected || pd.volume_spike_detected) stripColor = '#f59e0b';
+                        else if (pd.lowest_day !== null) stripColor = '#10b981';
+
+                        let preDivContent = `<div style="font-size:0.65rem; margin-top:8px; padding-left:8px; border-left:2px solid ${stripColor};">`;
 
                         // Best Buy Day
                         if (pd.lowest_day !== null && pd.lowest_price !== null) {
-                            preDivContent += `<div style="color:#10b981; margin-bottom:2px;">
-                                🎯 Best Buy: <strong>${pd.lowest_day}d</strong> ($${pd.lowest_price})
+                            preDivContent += `<div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                                <span style="color:var(--text-secondary);">Best Buy:</span>
+                                <span style="color:#fff;">${pd.lowest_day}d <span style="opacity:0.5;">($${pd.lowest_price})</span></span>
                             </div>`;
                         }
 
-                        // Pump Detection
+                        // Trend / Pump
+                        const usdSign = pd.price_change_usd >= 0 ? '+' : '-';
+                        const usdVal = Math.abs(pd.price_change_usd || 0);
+                        let trendColor = pd.price_change_pct > 0 ? '#10b981' : (pd.price_change_pct < 0 ? '#ef4444' : '#fff');
+                        let userTrendLabel = "Trend:";
+
                         if (pd.pump_detected) {
-                            const usdSign = pd.price_change_usd >= 0 ? '+$' : '-$';
-                            const usdVal = Math.abs(pd.price_change_usd || 0);
-                            preDivContent += `<div style="color:#f59e0b;">
-                                🔺 Pump <strong>+${pd.price_change_pct}%</strong>, ${usdSign}${usdVal}`;
-                            if (pd.pump_start_day !== null) {
-                                preDivContent += ` from ${pd.pump_start_day}d`;
-                            }
-                            preDivContent += `</div>`;
-                        } else if (pd.price_change_pct !== 0) {
-                            const changeColor = pd.price_change_pct > 0 ? '#10b981' : '#ef4444';
-                            const pctSign = pd.price_change_pct > 0 ? '+' : '';
-                            const usdSign = pd.price_change_usd >= 0 ? '+$' : '-$';
-                            const usdVal = Math.abs(pd.price_change_usd || 0);
-                            preDivContent += `<div style="color:${changeColor};">
-                                7d: <strong>${pctSign}${pd.price_change_pct}%</strong>, ${usdSign}${usdVal}
+                            userTrendLabel = "⚠ PUMP:";
+                            trendColor = "#f59e0b";
+                        }
+
+                        if (pd.price_change_pct !== 0 || pd.pump_detected) {
+                            preDivContent += `<div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                                <span style="color:${trendColor}; opacity:0.9;">${userTrendLabel}</span>
+                                <span style="color:${trendColor};">${pd.price_change_pct}% <span style="opacity:0.5;">(${usdSign}$${usdVal})</span></span>
                             </div>`;
                         }
 
