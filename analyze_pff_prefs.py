@@ -113,12 +113,51 @@ def search_preferred_stocks_by_name(company_name, base_ticker):
     
     return preferred_stocks
 
+def find_best_match_row(pref_ticker, company_rows):
+    """
+    Find the best matching row in the original CSV for a found preferred ticker.
+    Logic:
+    1. Check for Series match (e.g., 'PA' -> 'SERIES A')
+    2. Check for exact ticker match (if original had full ticker)
+    3. Fallback to row with largest weight (assuming it's the main holding)
+    """
+    if not company_rows:
+        return None
+        
+    # Extract suffix letter (e.g., 'A' from 'ABC-PA')
+    suffix = None
+    if '-' in pref_ticker:
+        parts = pref_ticker.split('-')
+        if len(parts) > 1 and parts[1].startswith('P') and len(parts[1]) == 2:
+            suffix = parts[1][1] # 'A'
+    
+    # 1. Try Series Match
+    if suffix:
+        series_str = f"SERIES {suffix}"
+        for row in company_rows:
+            if series_str in str(row['Name']).upper():
+                return row
+    
+    # 2. Try simple fuzzy match of ticker in name
+    for row in company_rows:
+        if pref_ticker in str(row['Ticker']):
+            return row
+            
+    # 3. Fallback: Largest weight
+    # Sort by Weight (descending)
+    try:
+        sorted_rows = sorted(company_rows, key=lambda x: float(str(x['Weight (%)']).replace(',','')) if pd.notna(x['Weight (%)']) else 0, reverse=True)
+        return sorted_rows[0]
+    except:
+        return company_rows[0]
+
 def analyze_pff_holdings(csv_path):
     """
-    Main analysis function to process PFF holdings and find preferred stocks.
+    Main analysis function to process PFF holdings and find matching preferred stocks.
+    Preserves Weight (%) and Market Value from the original CSV.
     """
     print("=" * 80)
-    print("PFF ETF PREFERRED STOCK ANALYZER (Company Name Based)")
+    print("PFF ETF PREFERRED STOCK ANALYZER (With Weight Integration)")
     print("=" * 80)
     print()
     
@@ -131,89 +170,97 @@ def analyze_pff_holdings(csv_path):
     print(f"[+] Loaded {len(df)} holdings")
     print()
     
-    # Extract unique companies
-    companies = {}
+    # Group rows by Base Ticker
+    # Structure: {'ABR': [{'Name':..., 'Weight':..., ...}, ...]}
+    company_groups = defaultdict(list)
+    company_info_map = {} # {'ABR': 'ARBOR REALTY TRUST'}
+    
     for idx, row in df.iterrows():
         ticker = row.get('Ticker')
         name = row.get('Name')
         
         if pd.isna(ticker) or ticker == '-':
             continue
-        
+            
         base_ticker = ticker.split('-')[0].strip()
-        company_name = extract_company_name(name)
         
-        if company_name and base_ticker:
-            # Store unique companies
-            if base_ticker not in companies:
-                companies[base_ticker] = {
-                    'name': company_name,
-                    'original_name': name
-                }
+        # Add to group
+        company_groups[base_ticker].append(row)
+        
+        # Extract name if not already done
+        if base_ticker not in company_info_map:
+            clean_name = extract_company_name(name)
+            if clean_name:
+                company_info_map[base_ticker] = clean_name
     
-    print(f"[*] Found {len(companies)} unique companies")
+    print(f"[*] Found {len(company_groups)} unique base tickers")
     print()
     
-    # Analyze each company for preferred stocks
-    results = {}
+    # Analyze and Map
+    results = {} # Key: Base Ticker
     
-    print("[*] Searching for preferred stock variants...")
+    print("[*] Searching for preferred stocks and mapping weights...")
     print("-" * 80)
     
-    for i, (base_ticker, company_info) in enumerate(sorted(companies.items()), 1):
-        print(f"\n[{i}/{len(companies)}] {base_ticker} - {company_info['name']}")
+    total_companies = len(company_info_map)
+    for i, (base_ticker, company_name) in enumerate(sorted(company_info_map.items()), 1):
+        print(f"\n[{i}/{total_companies}] {base_ticker} - {company_name}")
         
-        preferred_stocks = search_preferred_stocks_by_name(
-            company_info['name'], 
-            base_ticker
-        )
+        # 1. Search for Preferreds
+        preferred_stocks = search_preferred_stocks_by_name(company_name, base_ticker)
         
         if preferred_stocks:
+            mapped_prefs = []
+            rows = company_groups[base_ticker]
+            
+            # 2. Map found preferreds to original rows
+            for pref in preferred_stocks:
+                match = find_best_match_row(pref['ticker'], rows)
+                
+                weight = 0.0
+                market_value = 0.0
+                orig_name = "N/A"
+                
+                if match is not None:
+                    try:
+                        weight = float(str(match['Weight (%)']).replace(',', '')) if pd.notna(match['Weight (%)']) else 0.0
+                        # Market Value might be a string with commas e.g. "641,703,000.06"
+                        mv_str = str(match['Market Value'])
+                        market_value = float(mv_str.replace(',', '')) if pd.notna(match['Market Value']) else 0.0
+                        orig_name = match['Name']
+                    except Exception as e:
+                        print(f"    [!] Error parsing weight/mv: {e}")
+                
+                pref['weight'] = weight
+                pref['market_value'] = market_value
+                pref['original_name'] = orig_name
+                mapped_prefs.append(pref)
+            
             results[base_ticker] = {
-                'company_name': company_info['name'],
-                'preferred_stocks': preferred_stocks
+                'company_name': company_name,
+                'preferred_stocks': mapped_prefs
             }
-            print(f"  [+] Total found: {len(preferred_stocks)} preferred stock(s)")
+            print(f"  [+] Mapped {len(mapped_prefs)} preferred stock(s)")
         else:
             print(f"  [-] No preferred stocks found")
-    
+            
     print()
     print("=" * 80)
     print("ANALYSIS COMPLETE")
     print("=" * 80)
     print()
     
-    # Display results summary
+    # Export
     if results:
-        print(f"[SUMMARY] {len(results)} companies have preferred stocks")
-        print()
-        print("-" * 80)
-        
-        total_prefs = 0
-        for base_ticker, data in sorted(results.items()):
-            prefs = data['preferred_stocks']
-            total_prefs += len(prefs)
-            print(f"\n[{base_ticker}] {data['company_name']}")
-            print(f"  ({len(prefs)} preferred stock{'s' if len(prefs) > 1 else ''})")
-            for pref in prefs:
-                price_str = f"${pref['last_price']}" if pref['last_price'] else "N/A"
-                print(f"   - {pref['ticker']:10s} - {price_str:>8s}")
-        
-        print()
-        print("-" * 80)
-        print(f"[TOTAL] {total_prefs} preferred stocks found across {len(results)} companies")
-        print()
-        
-        # Export to CSV
         export_results(results)
     else:
-        print("[!] No preferred stocks found in the analysis")
-    
+        print("[!] No preferred stocks found.")
+        
     return results
 
 def export_results(results):
     """
-    Export results to a CSV file for easy reference.
+    Export results to a CSV file including Weight and Market Value.
     """
     output_file = "pff_preferred_stocks_analysis.csv"
     
@@ -225,10 +272,16 @@ def export_results(results):
                 'Company Name': data['company_name'],
                 'Preferred Stock': pref['ticker'],
                 'Last Price': pref['last_price'],
-                'Full Name': pref['name']
+                'Full Name': pref['name'],
+                'Weight (%)': pref['weight'],
+                'Market Value': pref['market_value'],
+                'Original Name': pref['original_name']
             })
     
     df_export = pd.DataFrame(rows)
+    # Sort by Weight descending
+    df_export.sort_values(by='Weight (%)', ascending=False, inplace=True)
+    
     df_export.to_csv(output_file, index=False)
     
     print(f"[*] Results exported to: {output_file}")

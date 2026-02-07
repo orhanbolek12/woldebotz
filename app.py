@@ -598,13 +598,17 @@ def get_pff_holdings():
                     ticker = row.get('Preferred Stock')
                     name = row.get('Full Name')
                     last_price = row.get('Last Price')
+                    weight = row.get('Weight (%)')
+                    market_value = row.get('Market Value')
                     
                     if pd.notna(ticker):
                         holdings.append({
                             'ticker': ticker,
                             'name': name if pd.notna(name) else '',
-                            'weight': float(last_price) if pd.notna(last_price) else 0.0, # Sending Price as 'weight' for now
-                            'is_analyzed': True # Flag to indicate this is analyzed data
+                            'price': float(last_price) if pd.notna(last_price) else 0.0,
+                            'weight': float(weight) if pd.notna(weight) else 0.0,
+                            'market_value': float(market_value) if pd.notna(market_value) else 0.0,
+                            'is_analyzed': True 
                         })
                 return jsonify({'holdings': holdings, 'source': 'analysis'})
             except Exception as e:
@@ -626,12 +630,22 @@ def get_pff_holdings():
             ticker = row.get('Ticker')
             name = row.get('Name')
             weight = row.get('Weight (%)')
+            market_value = row.get('Market Value')
             
             if pd.notna(ticker) and ticker != '-':
+                # Handle Market Value string format "1,234.56"
+                mv_val = 0.0
+                if pd.notna(market_value):
+                    try:
+                        mv_val = float(str(market_value).replace(',', ''))
+                    except:
+                        pass
+
                 holdings.append({
                     'ticker': ticker,
                     'name': name if pd.notna(name) else '',
                     'weight': float(weight) if pd.notna(weight) else 0.0,
+                    'market_value': mv_val,
                     'is_analyzed': False
                 })
         
