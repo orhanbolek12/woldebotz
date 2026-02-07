@@ -61,23 +61,52 @@ CUSIP_MAP = {
     '038923850': 'ABR-F',
     '038923876': 'ABR-D',
     '038923868': 'ABR-E',
-    # Banks/Others can be added here or resolved via name heuristics
+    '060505682': 'BAC-L',  # Bank of America Series L (1.37% weight)
+    '94974B851': 'WFC-L',  # Wells Fargo Series L (2.39% weight)
+    '65339F663': 'NEE-N',  # NextEra Energy Units Series N (1.21% weight)
 }
+
+# Cache for yfinance lookups to avoid redundant API calls
+RESOLUTION_CACHE = {}
 
 def resolve_series_ticker(ticker, name, price, cusip=None):
     """
     Financial-grade resolution using CUSIP, Price, and Name.
     """
+    # Normalize ticker
+    ticker = ticker.upper().split('-')[0].strip()
+
     # 0. Primary: CUSIP Matching (Gold Standard)
     if cusip:
         normalized_cusip = str(cusip).strip().zfill(9) # Ensure 9-digit format
         if normalized_cusip in CUSIP_MAP:
             return CUSIP_MAP[normalized_cusip]
+            
+        # Optional: Dynamic resolution via yfinance if CUSIP is unknown
+        if normalized_cusip not in RESOLUTION_CACHE:
+            try:
+                search = yf.Search(normalized_cusip)
+                if search.quotes:
+                    resolved = search.quotes[0].get('symbol', ticker)
+                    # Convert Yahoo format (BAC-PL) to QuantumOnline format (BAC-L)
+                    if '-P' in resolved:
+                        resolved = resolved.replace('-P', '-')
+                    RESOLUTION_CACHE[normalized_cusip] = resolved
+                else:
+                    RESOLUTION_CACHE[normalized_cusip] = ticker
+            except:
+                RESOLUTION_CACHE[normalized_cusip] = ticker
+        return RESOLUTION_CACHE[normalized_cusip]
 
     if not name or pd.isna(name): return ticker
     name = name.upper()
     
-    # 1. Parse Series from Name (e.g. "SERIES D")
+    # 1. Hardcoded Heuristics for top holdings (if CUSIP missing)
+    if ticker == 'BAC' and 1200 < price < 1300: return 'BAC-L' # 060505682
+    if ticker == 'WFC' and price > 1000: return 'WFC-L' # 94974B851
+    if ticker == 'NEE' and 50 < price < 60: return 'NEE-N' # 65339F663
+    
+    # 2. Parse Series from Name (e.g. "SERIES D")
     if ' SERIES ' in name:
         series_part = name.split(' SERIES ')[1].strip()
         if series_part and len(series_part) >= 1:
@@ -85,7 +114,7 @@ def resolve_series_ticker(ticker, name, price, cusip=None):
             if letter.isalpha():
                 return f"{ticker}-{letter}"
     
-    # 2. Price-based Fallback for ABR (Verified against CUSIPs)
+    # 3. Price-based Fallback for ABR (Verified against CUSIPs)
     if ticker == 'ABR':
         if price > 20: return 'ABR-F' # CUSIP 038923850
         if price > 17.52: return 'ABR-E' # CUSIP 038923868
