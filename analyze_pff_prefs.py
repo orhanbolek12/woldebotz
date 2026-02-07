@@ -1,6 +1,7 @@
 import pandas as pd
 import yfinance as yf
 import os
+import json
 from collections import defaultdict
 import time
 
@@ -61,66 +62,97 @@ CUSIP_MAP = {
     '038923850': 'ABR-F',
     '038923876': 'ABR-D',
     '038923868': 'ABR-E',
-    '060505682': 'BAC-L',
-    '94974B851': 'WFC-L',
-    '65339F663': 'NEE-S',  # 1.21% Weight
 }
 
-# Weight/Price Fingerprints for Top Holdings (Fallback for missing CUSIP)
-FINGERPRINTS = {
-    # (Ticker, Weight, Price_Range_Start, Price_Range_End): Resolved Ticker
-    ('WFC', 2.39, 1200, 1300): 'WFC-L',
-    ('BAC', 1.37, 1200, 1300): 'BAC-L',
-    ('NEE', 1.21, 55, 58): 'NEE-S',
-    ('NEE', 0.83, 50, 53): 'NEE-N',
-    ('JPM', 1.00, 24, 26): 'JPM-C',
-    ('JPM', 0.91, 24, 26): 'JPM-D',
-}
+# Persistent Resolution Maps
+RESOLUTION_MAP = {}
+MANUAL_OVERRIDES = {}
 
-# Cache for yfinance lookups
-RESOLUTION_CACHE = {}
+def load_resolution_maps():
+    global RESOLUTION_MAP, MANUAL_OVERRIDES
+    try:
+        if os.path.exists('pff_resolution_map.json'):
+            with open('pff_resolution_map.json', 'r') as f:
+                RESOLUTION_MAP = json.load(f)
+        if os.path.exists('pff_manual_overrides.json'):
+            with open('pff_manual_overrides.json', 'r') as f:
+                MANUAL_OVERRIDES = json.load(f)
+    except:
+        pass
+
+def normalize_ticker(t):
+    """Normalize symbols to QuantumOnline format (e.g. BAC-L)"""
+    if not t: return t
+    t = str(t).upper().strip()
+    
+    # 1. Handle Yahoo-style series with prefixes: TICKER.PRL -> TICKER-L, JPM/PR/L -> JPM-L
+    for prefix in ['.PR', '/PR/', '-PR']:
+        if prefix in t:
+            parts = t.split(prefix)
+            if len(parts) > 1 and parts[1]:
+                return f"{parts[0]}-{parts[1]}"
+            return parts[0]
+
+    # 2. Handle Yahoo -PL style (e.g. BAC-PL -> BAC-L)
+    if '-P' in t and not t.endswith('-P'):
+        parts = t.split('-P')
+        if len(parts) > 1 and parts[1]:
+             return f"{parts[0]}-{parts[1]}"
+
+    # 3. Handle simple separators (e.g. MS^P -> MS-P)
+    t = t.replace('^', '-')
+    
+    # Final cleanup: Only remove trailing dash if it's not preceded by a letter we want
+    if t.endswith('-') and len(t) > 1:
+        # Check if it was something like MS-
+        return t.rstrip('-')
+        
+    return t
 
 def resolve_series_ticker(ticker, name, price, weight=None, cusip=None):
     """
-    Financial-grade resolution using CUSIP, Price, Weight and Name.
+    Financial-grade resolution using Mapping, CUSIP, Price, Weight and Name.
     """
     ticker = ticker.upper().split('-')[0].strip()
     name = str(name).upper()
+    
+    # Ensure maps are loaded
+    if not RESOLUTION_MAP: load_resolution_maps()
 
-    # 1. Primary: CUSIP Matching (Gold Standard)
+    # 1. Primary: Manual Overrides (Gold Standard for top weights)
+    if weight is not None:
+        key = f"{ticker}|{weight:.2f}|{price:.2f}"
+        if key in MANUAL_OVERRIDES:
+            return normalize_ticker(MANUAL_OVERRIDES[key])
+        
+        # 2. Secondary: Automated Deep Resolution Map
+        if key in RESOLUTION_MAP:
+            m_ticker = normalize_ticker(RESOLUTION_MAP[key])
+            if '-' in m_ticker: return m_ticker # Keep map if it found a series
+
+    # 3. Tertiary: CUSIP Matching
     if cusip:
         normalized_cusip = str(cusip).strip().zfill(9)
         if normalized_cusip in CUSIP_MAP:
             return CUSIP_MAP[normalized_cusip]
-            
-        if normalized_cusip not in RESOLUTION_CACHE:
-            try:
-                search = yf.Search(normalized_cusip)
-                if search.quotes:
-                    resolved = search.quotes[0].get('symbol', ticker)
-                    if '-P' in resolved: resolved = resolved.replace('-P', '-')
-                    RESOLUTION_CACHE[normalized_cusip] = resolved
-                else:
-                    RESOLUTION_CACHE[normalized_cusip] = ticker
-            except:
-                RESOLUTION_CACHE[normalized_cusip] = ticker
-        return RESOLUTION_CACHE[normalized_cusip]
 
-    # 2. Fingerprint Matching (Weight + Price) - Prevents Duplicates like NEE-N
-    if weight is not None:
-        for (f_ticker, f_weight, p_start, p_end), resolved in FINGERPRINTS.items():
-            if ticker == f_ticker and abs(weight - f_weight) < 0.02 and p_start <= price <= p_end:
-                return resolved
-
-    # 3. Parse Series from Name (e.g. "SERIES L")
-    if ' SERIES ' in name:
-        series_part = name.split(' SERIES ')[1].strip()
-        if series_part and len(series_part) >= 1:
-            letter = series_part[0]
-            if letter.isalpha():
-                return f"{ticker}-{letter}"
+    # 4. Deep Name Parsing
+    # Look for "SERIES L", "SER L", "SERIES-L", "REPSTG L", "CLASS L", "PR L"
+    for pattern in [' SERIES ', ' SER ', ' SERIES-', ' REPSTG ', ' CLASS ', ' PR ']:
+        if pattern in name:
+            parts = name.split(pattern)
+            if len(parts) > 1:
+                potential = parts[1].strip()
+                if potential and potential[0].isalpha():
+                    return f"{ticker}-{potential[0]}"
     
-    # 4. Hardcoded Fallbacks for known high-price series
+    # Check for trailing single letters like "REPSTG T"
+    if name.endswith(' T'): return f"{ticker}-T"
+    if name.endswith(' L'): return f"{ticker}-L"
+    if name.endswith(' Q'): return f"{ticker}-Q"
+    if name.endswith(' P'): return f"{ticker}-P"
+
+    # 5. Specialized Fallback Logic
     if ticker == 'ABR':
         if price > 20: return 'ABR-F'
         if price > 17.52: return 'ABR-E'
