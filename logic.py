@@ -657,6 +657,88 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
         tv_symbol = parse_ticker_tv(raw_ticker)
         return {'ticker': raw_ticker, 'tv_symbol': tv_symbol, 'error': str(e), 'dividends': [], 'current_price': None, 'days_since_last_div': None}
 
+def fetch_rebalance_patterns(tickers, months_back=12, progress_callback=None):
+    results = []
+    total = len(tickers)
+    for i, raw_ticker in enumerate(tickers):
+        if progress_callback:
+            if progress_callback(i, total) == 'STOP': return results
+        
+        yf_ticker = parse_ticker_yf(raw_ticker)
+        tv_symbol = parse_ticker_tv(raw_ticker)
+        
+        try:
+            ticker_obj = yf.Ticker(yf_ticker)
+            # Fetch 2 years to ensure enough data for months_back
+            df = ticker_obj.history(period="2y", interval="1d", auto_adjust=True)
+            if df.empty:
+                resolved = resolve_ticker_yf(raw_ticker)
+                if resolved:
+                    yf_ticker = resolved
+                    df = yf.Ticker(resolved).history(period="2y", interval="1d", auto_adjust=True)
+            
+            df = df.dropna(how='all')
+            if df.empty or len(df) < 50: continue
+            
+            # Identify month-end rebalance days (last trading day of each month)
+            df['Month'] = df.index.month
+            df['Year'] = df.index.year
+            # Group by year/month and get the last record of each group
+            reb_indices = df.groupby(['Year', 'Month']).tail(1).index
+            
+            events = []
+            for reb_day in reb_indices:
+                try:
+                    idx = df.index.get_loc(reb_day)
+                    
+                    # Check bounds for -3 and +3 (we need idx-4 for pre-window base, and idx+3 for post-window end)
+                    if idx < 4 or idx + 3 >= len(df):
+                        continue
+                    
+                    # -3 Window Performance: from close of idx-4 to close of idx
+                    p_base_pre = df.iloc[idx-4]['Close']
+                    p_end_pre = df.iloc[idx]['Close']
+                    perf_pre = ((p_end_pre - p_base_pre) / p_base_pre) * 100 if p_base_pre > 0 else 0
+                    
+                    # +3 Window Performance: from close of idx to close of idx+3
+                    p_base_post = df.iloc[idx]['Close']
+                    p_end_post = df.iloc[idx+3]['Close']
+                    perf_post = ((p_end_post - p_base_post) / p_base_post) * 100 if p_base_post > 0 else 0
+                    
+                    events.append({
+                        'date': reb_day.strftime('%Y-%m-%d'),
+                        'pre_3_perf': round(perf_pre, 2),
+                        'post_3_perf': round(perf_post, 2)
+                    })
+                except Exception as ex:
+                    logging.error(f"Error processing reb_day {reb_day} for {raw_ticker}: {ex}")
+                    continue
+            
+            # Analyze recent events
+            recent_events = events[-months_back:]
+            if not recent_events: continue
+            
+            pre_perfs = [e['pre_3_perf'] for e in recent_events]
+            post_perfs = [e['post_3_perf'] for e in recent_events]
+            
+            results.append({
+                'ticker': raw_ticker,
+                'yf_symbol': yf_ticker,
+                'tv_symbol': tv_symbol,
+                'avg_pre_3': round(sum(pre_perfs) / len(pre_perfs), 2),
+                'avg_post_3': round(sum(post_perfs) / len(post_perfs), 2),
+                'win_rate_pre': round(len([p for p in pre_perfs if p > 0]) / len(pre_perfs) * 100, 1),
+                'win_rate_post': round(len([p for p in post_perfs if p > 0]) / len(post_perfs) * 100, 1),
+                'sample_size': len(recent_events),
+                'details': recent_events
+            })
+            
+        except Exception as e:
+            logging.error(f"Error in Rebalance Patterns for {raw_ticker}: {e}")
+            
+    if progress_callback: progress_callback(total, total)
+    return results
+
 def parse_ticker_tv(raw_ticker):
     """
     Converts user format (e.g., ABR-D) to TradingView format (ABR/PD).

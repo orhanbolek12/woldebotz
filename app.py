@@ -5,7 +5,7 @@ import os
 os.environ['XDG_CACHE_HOME'] = '/tmp'
 
 from flask import Flask, render_template, request, jsonify
-from logic import fetch_and_process, fetch_imbalance, fetch_range_ai, analyze_dividend_recovery
+from logic import fetch_and_process, fetch_imbalance, fetch_range_ai, analyze_dividend_recovery, fetch_rebalance_patterns
 import threading
 import uuid
 import time
