@@ -41,13 +41,17 @@ def resolve():
         base_ticker = str(row['Base Ticker']).strip().upper()
         pff_price = clean_price(row['Last Price'])
         
+        if pff_price > 32.25:
+            # Leave empty as requested
+            df_pff.at[idx, 'Preferred Stock'] = ""
+            df_pff.at[idx, 'Company Name'] = ""
+            continue
+            
         # Find candidates in Master List where Ticker starts with base_ticker
         # E.g. if base is JPM, match JPM-A, JPM-D etc.
-        # We also handle exactly JPM if it exists as such.
         candidates = df_master[df_master['Ticker'].str.startswith(base_ticker, na=False)].copy()
         
         # Filter candidates to ensure it's a prefix match or exact match followed by dash/nothing
-        # e.g. 'JPM' should not match 'JPMORGAN'
         candidates = candidates[candidates['Ticker'].apply(lambda t: t == base_ticker or t.startswith(f"{base_ticker}-"))]
         
         if not candidates.empty:
