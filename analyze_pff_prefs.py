@@ -268,13 +268,38 @@ def analyze_pff_holdings(csv_path):
     
     total_companies = len(company_info_map)
     for i, (base_ticker, company_name) in enumerate(sorted(company_info_map.items()), 1):
-        # Focus output for verification
         is_focus = base_ticker == 'ABR'
         if is_focus or i % 10 == 0:
             print(f"\n[{i}/{total_companies}] {base_ticker} - {company_name}")
         
-        # Search for Preferreds (Yahoo)
+        # 1. Search for Preferreds (Yahoo)
         preferred_stocks = search_preferred_stocks_by_name(company_name, base_ticker)
+        
+        # 2. Add Preferreds from Scraped Data (if not found by Yahoo)
+        # This handles rate limit issues like with ABR
+        for cusip, row in scraped_holdings.items():
+            mapped_ticker = cusip_map.get(cusip)
+            if mapped_ticker and mapped_ticker.startswith(base_ticker):
+                # If Yahoo didn't find it, add it manually from scraped data
+                if not any(p['ticker'] == mapped_ticker for p in preferred_stocks):
+                    if is_focus:
+                        print(f"    [+] Adding {mapped_ticker} from scraped data (Yahoo failed/skipped)")
+                    
+                    # Calculate price from MV/Shares if available
+                    price = 0.0
+                    try:
+                        mv = float(str(row.get('Market Value', '0')).replace('$', '').replace(',', ''))
+                        shares = float(str(row.get('Shares', '0')).replace(',', ''))
+                        if shares > 0:
+                            price = round(mv / shares, 2)
+                    except:
+                        pass
+                    
+                    preferred_stocks.append({
+                        'ticker': mapped_ticker,
+                        'name': f"{company_name} Preferred",
+                        'last_price': price
+                    })
         
         if preferred_stocks:
             mapped_prefs = []
@@ -287,7 +312,7 @@ def analyze_pff_holdings(csv_path):
                 # STRATEGY 1: CUSIP Mapping
                 mapped_via_cusip = False
                 
-                # Check mapping for this ticker
+                # Check mapping for this ticker (handles both -P and ^ formats)
                 target_cusips = [c for c, t in cusip_map.items() if t == pref['ticker']]
                 
                 for cusip in target_cusips:
@@ -347,9 +372,10 @@ def analyze_pff_holdings(csv_path):
             }
             if is_focus:
                 print(f"  [+] Mapped {len(mapped_prefs)} preferred stock(s)")
-        else:
-            if is_focus:
-                print(f"  [-] No preferred stocks found for {base_ticker}")
+        
+        # Incremental Export every 10 companies or for focus ticker
+        if is_focus or i % 10 == 0:
+            export_results(results, silent=True)
             
     print()
     print("=" * 80)
@@ -364,7 +390,7 @@ def analyze_pff_holdings(csv_path):
         
     return results
 
-def export_results(results):
+def export_results(results, silent=False):
     """
     Export results to a CSV file including Weight and Market Value.
     """
@@ -384,14 +410,18 @@ def export_results(results):
                 'Original Name': pref['original_name']
             })
     
+    if not rows:
+        return
+
     df_export = pd.DataFrame(rows)
     # Sort by Weight descending
     df_export.sort_values(by='Weight (%)', ascending=False, inplace=True)
     
     df_export.to_csv(output_file, index=False)
     
-    print(f"[*] Results exported to: {output_file}")
-    print()
+    if not silent:
+        print(f"[*] Results exported to: {output_file}")
+        print()
 
 if __name__ == "__main__":
     # Get the CSV file path
