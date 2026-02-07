@@ -629,6 +629,18 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
         if next_ex_date:
             next_div_days = (next_ex_date.date() - datetime.now().date()).days
 
+        # Calculate 30-day average volume
+        avg_volume_30d = None
+        try:
+            if not hist.empty and 'Volume' in hist.columns:
+                last_30_days = hist.tail(30)
+                if not last_30_days.empty:
+                    avg_vol = last_30_days['Volume'].mean()
+                    if pd.notna(avg_vol):
+                        avg_volume_30d = int(avg_vol)
+        except Exception as e:
+            logging.error(f"Error calculating 30d avg volume for {raw_ticker}: {e}")
+
         tv_symbol = parse_ticker_tv(raw_ticker)
         return {
             'ticker': raw_ticker, 
@@ -637,7 +649,8 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
             'current_price': round(current_price, 2) if current_price is not None else None, 
             'days_since_last_div': days_since_last,
             'next_div_days': next_div_days,
-            'next_ex_date': next_ex_date.strftime('%Y-%m-%d') if next_ex_date else None
+            'next_ex_date': next_ex_date.strftime('%Y-%m-%d') if next_ex_date else None,
+            'avg_volume_30d': avg_volume_30d
         }
     except Exception as e:
         logging.error(f"Error in Dividend Recovery for {raw_ticker}: {e}")
