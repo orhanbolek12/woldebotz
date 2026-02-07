@@ -2630,20 +2630,22 @@
                 container.innerHTML = '';
                 countSpan.innerText = data.holdings.length;
 
-                // Update Grid Columns for 4 columns
-                // Ticker | Price | Weight | Mkt Val
-                headerRow.style.gridTemplateColumns = '80px 80px 100px 1fr';
+                // Update Grid Columns for 5 columns
+                // Ticker | Name | Price | Weight | Mkt Val
+                // Adjusted widths: Ticker fixed, Name takes flex space, others fixed/right-aligned
+                headerRow.style.gridTemplateColumns = '80px 1fr 80px 80px 100px';
                 headerRow.innerHTML = `
                     <div>TICKER</div>
+                    <div>NAME</div>
                     <div style="text-align:right;">PRICE</div>
-                    <div style="text-align:right;">WEIGHT</div>
+                    <div style="text-align:right;">WGT %</div>
                     <div style="text-align:right;">MKT VAL</div>
                 `;
 
                 data.holdings.forEach(item => {
                     const row = document.createElement('div');
                     row.style.display = 'grid';
-                    row.style.gridTemplateColumns = '80px 80px 100px 1fr';
+                    row.style.gridTemplateColumns = '80px 1fr 80px 80px 100px';
                     row.style.gap = '1rem';
                     row.style.padding = '0.5rem 1rem';
                     row.style.borderBottom = '1px solid var(--glass-border)';
@@ -2663,12 +2665,13 @@
                     // Market Value
                     let mvDisplay = '-';
                     if (item.market_value) {
-                        // Format explicitly as currency
-                        mvDisplay = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(item.market_value);
+                        // Compact format for Market Value if needed, but user asked for Mkt Val column
+                        mvDisplay = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: "compact", maximumFractionDigits: 1 }).format(item.market_value);
                     }
 
                     row.innerHTML = `
                         <div style="font-weight:700;">${item.ticker}</div>
+                        <div style="color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.name}</div>
                         <div style="text-align:right; font-family:'Outfit'; color:var(--text-secondary);">${priceDisplay}</div>
                         <div style="text-align:right; font-family:'Outfit';">${weightDisplay}</div>
                         <div style="text-align:right; font-family:'Outfit'; color:var(--text-secondary);">${mvDisplay}</div>
