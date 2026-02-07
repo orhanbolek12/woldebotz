@@ -900,31 +900,33 @@
                     <div class="master-list-control">
                         <div style="display:flex; align-items:center; gap:0.5rem;">
                             <label class="switch">
-                                <input type="checkbox" id="rangeMasterList">
+                                <input type="checkbox" id="rangeMasterList" onchange="updateControlColors()">
                                 <span class="slider"></span>
                             </label>
-                            <span onclick="openMasterListModal()"
-                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer; text-decoration:underline; text-decoration-style:dotted;">Analyze
+                            <span id="labelMasterList" onclick="openMasterListModal()"
+                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
                                 Master
                                 List</span>
                         </div>
 
                         <div style="display:flex; align-items:center; gap:0.5rem; margin-left:1rem;">
                             <label class="switch">
-                                <input type="checkbox" id="rangeCefList">
+                                <input type="checkbox" id="rangeCefList" onchange="updateControlColors()">
                                 <span class="slider"></span>
                             </label>
-                            <span style="font-size:0.85rem; font-weight:700; color:var(--text-secondary)">Analyze CEF
+                            <span id="labelCefList" onclick="openCEFListModal()"
+                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
+                                CEF
                                 List</span>
                         </div>
 
                         <div style="display:flex; align-items:center; gap:0.5rem; margin-left:1rem;">
                             <label class="switch">
-                                <input type="checkbox" id="rangePffList">
+                                <input type="checkbox" id="rangePffList" onchange="updateControlColors()">
                                 <span class="slider"></span>
                             </label>
-                            <span onclick="openPFFModal()"
-                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer; text-decoration:underline; text-decoration-style:dotted;">Analyze
+                            <span id="labelPffList" onclick="openPFFModal()"
+                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
                                 PFF
                                 Holdings</span>
                         </div>
@@ -983,31 +985,33 @@
                     <div class="master-list-control">
                         <div style="display:flex; align-items:center; gap:0.5rem;">
                             <label class="switch">
-                                <input type="checkbox" id="imbMasterList">
+                                <input type="checkbox" id="imbMasterList" onchange="updateControlColors()">
                                 <span class="slider"></span>
                             </label>
-                            <span onclick="openMasterListModal()"
-                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer; text-decoration:underline; text-decoration-style:dotted;">Analyze
+                            <span id="imbLabelMasterList" onclick="openMasterListModal()"
+                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
                                 Master
                                 List</span>
                         </div>
 
                         <div style="display:flex; align-items:center; gap:0.5rem; margin-left:1rem;">
                             <label class="switch">
-                                <input type="checkbox" id="imbCefList">
+                                <input type="checkbox" id="imbCefList" onchange="updateControlColors()">
                                 <span class="slider"></span>
                             </label>
-                            <span style="font-size:0.85rem; font-weight:700; color:var(--text-secondary)">Analyze CEF
+                            <span id="imbLabelCefList" onclick="openCEFListModal()"
+                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
+                                CEF
                                 List</span>
                         </div>
 
                         <div style="display:flex; align-items:center; gap:0.5rem; margin-left:1rem;">
                             <label class="switch">
-                                <input type="checkbox" id="imbPffList">
+                                <input type="checkbox" id="imbPffList" onchange="updateControlColors()">
                                 <span class="slider"></span>
                             </label>
-                            <span onclick="openPFFModal()"
-                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer; text-decoration:underline; text-decoration-style:dotted;">Analyze
+                            <span id="imbLabelPffList" onclick="openPFFModal()"
+                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
                                 PFF
                                 Holdings</span>
                         </div>
@@ -1064,31 +1068,33 @@
                     <div class="master-list-control">
                         <div style="display:flex; align-items:center; gap:0.5rem;">
                             <label class="switch">
-                                <input type="checkbox" id="divMasterList">
+                                <input type="checkbox" id="divMasterList" onchange="updateControlColors()">
                                 <span class="slider"></span>
                             </label>
-                            <span onclick="openMasterListModal()"
-                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer; text-decoration:underline; text-decoration-style:dotted;">Analyze
+                            <span id="divLabelMasterList" onclick="openMasterListModal()"
+                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
                                 Master
                                 List</span>
                         </div>
 
                         <div style="display:flex; align-items:center; gap:0.5rem; margin-left:1rem;">
                             <label class="switch">
-                                <input type="checkbox" id="divCefList">
+                                <input type="checkbox" id="divCefList" onchange="updateControlColors()">
                                 <span class="slider"></span>
                             </label>
-                            <span style="font-size:0.85rem; font-weight:700; color:var(--text-secondary)">Analyze CEF
+                            <span id="divLabelCefList" onclick="openCEFListModal()"
+                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
+                                CEF
                                 List</span>
                         </div>
 
                         <div style="display:flex; align-items:center; gap:0.5rem; margin-left:1rem;">
                             <label class="switch">
-                                <input type="checkbox" id="divPffList">
+                                <input type="checkbox" id="divPffList" onchange="updateControlColors()">
                                 <span class="slider"></span>
                             </label>
-                            <span onclick="openPFFModal()"
-                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer; text-decoration:underline; text-decoration-style:dotted;">Analyze
+                            <span id="divLabelPffList" onclick="openPFFModal()"
+                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
                                 PFF
                                 Holdings</span>
                         </div>
@@ -2502,6 +2508,33 @@
         });
     }
 
+    // --- UI Control Panel Colors ---
+    function updateControlColors() {
+        const controls = [
+            { checkbox: 'rangeMasterList', label: 'labelMasterList' },
+            { checkbox: 'rangeCefList', label: 'labelCefList' },
+            { checkbox: 'rangePffList', label: 'labelPffList' },
+            { checkbox: 'imbMasterList', label: 'imbLabelMasterList' },
+            { checkbox: 'imbCefList', label: 'imbLabelCefList' },
+            { checkbox: 'imbPffList', label: 'imbLabelPffList' },
+            { checkbox: 'divMasterList', label: 'divLabelMasterList' },
+            { checkbox: 'divCefList', label: 'divLabelCefList' },
+            { checkbox: 'divPffList', label: 'divLabelPffList' }
+        ];
+
+        controls.forEach(control => {
+            const cb = document.getElementById(control.checkbox);
+            const lb = document.getElementById(control.label);
+            if (cb && lb) {
+                if (cb.checked) {
+                    lb.style.color = 'var(--success)';
+                } else {
+                    lb.style.color = 'var(--text-secondary)';
+                }
+            }
+        });
+    }
+
     // --- Master List Management ---
     function openMasterListModal() {
         document.getElementById('masterListModal').style.display = 'flex';
@@ -2597,6 +2630,109 @@
 
             if (data.success) {
                 loadMasterListInModal();
+            } else {
+                alert(data.message || 'Failed to delete ticker');
+            }
+        } catch (e) {
+            alert('Error deleting ticker: ' + e.message);
+        }
+    }
+
+    // --- CEF List Management ---
+    function openCEFListModal() {
+        document.getElementById('cefListModal').style.display = 'flex';
+        loadCEFListInModal();
+    }
+
+    function closeCEFListModal() {
+        document.getElementById('cefListModal').style.display = 'none';
+        document.getElementById('newCEFTicker').value = '';
+    }
+
+    async function loadCEFListInModal() {
+        const container = document.getElementById('cefListContainer');
+        const countSpan = document.getElementById('cefListCount');
+
+        container.innerHTML = '<div style="color:var(--text-secondary); text-align:center; grid-column:1/-1; padding:2rem;">Loading...</div>';
+
+        try {
+            const res = await fetch('/get_cef_list_tickers');
+            const data = await res.json();
+
+            if (data.tickers && data.tickers.length > 0) {
+                container.innerHTML = '';
+                countSpan.innerText = data.tickers.length;
+
+                data.tickers.forEach(ticker => {
+                    const item = document.createElement('div');
+                    item.style.background = 'rgba(255,255,255,0.05)';
+                    item.style.border = '1px solid var(--glass-border)';
+                    item.style.borderRadius = '4px';
+                    item.style.padding = '0.5rem';
+                    item.style.display = 'flex';
+                    item.style.justifyContent = 'space-between';
+                    item.style.alignItems = 'center';
+                    item.style.fontSize = '0.85rem';
+                    item.style.fontWeight = '700';
+                    item.style.color = 'white';
+
+                    item.innerHTML = `
+                        <span>${ticker}</span>
+                        <button onclick="deleteCEFListTicker('${ticker}')" style="background:transparent; border:none; color:var(--error); cursor:pointer; font-weight:bold; font-size:1.2rem; line-height:1;">&times;</button>
+                    `;
+                    container.appendChild(item);
+                });
+            } else {
+                container.innerHTML = '<div style="color:var(--text-secondary); text-align:center; grid-column:1/-1; padding:2rem;">No tickers in CEF List</div>';
+                countSpan.innerText = '0';
+            }
+        } catch (e) {
+            container.innerHTML = `<div style="color:var(--error); text-align:center; grid-column:1/-1; padding:2rem;">Error: ${e.message}</div>`;
+        }
+    }
+
+    async function addCEFListTicker() {
+        const input = document.getElementById('newCEFTicker');
+        const ticker = input.value.trim();
+
+        if (!ticker) return;
+
+        try {
+            const formData = new FormData();
+            formData.append('ticker', ticker);
+
+            const res = await fetch('/add_cef_list_ticker', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                input.value = '';
+                loadCEFListInModal();
+            } else {
+                alert(data.message || 'Failed to add ticker');
+            }
+        } catch (e) {
+            alert('Error adding ticker: ' + e.message);
+        }
+    }
+
+    async function deleteCEFListTicker(ticker) {
+        if (!confirm(`Remove ${ticker} from CEF List?`)) return;
+
+        try {
+            const formData = new FormData();
+            formData.append('ticker', ticker);
+
+            const res = await fetch('/delete_cef_list_ticker', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                loadCEFListInModal();
             } else {
                 alert(data.message || 'Failed to delete ticker');
             }
@@ -2740,9 +2876,45 @@
         });
     }
 
+    // Initialize UI
+    document.addEventListener('DOMContentLoaded', () => {
+        updateControlColors();
+        // Load initial data if needed
+    });
 </script>
 
-<!-- Master List Management Modal -->
+<!-- CEF List Management Modal -->
+<div id="cefListModal" class="modal-overlay"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; backdrop-filter:blur(5px); align-items:center; justify-content:center;">
+    <div class="glass-card"
+        style="width:90%; max-width:600px; max-height:85vh; display:flex; flex-direction:column; padding:2rem; margin:0;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+            <h2 style="margin:0; font-family:'Outfit'; font-weight:800; font-size:1.5rem;">Manage CEF List</h2>
+            <button onclick="closeCEFListModal()"
+                style="background:transparent; border:none; color:var(--text-secondary); cursor:pointer; font-size:1.5rem;">&times;</button>
+        </div>
+
+        <div class="input-group" style="margin-bottom:1rem;">
+            <div style="display:flex; gap:0.5rem;">
+                <input type="text" id="newCEFTicker" placeholder="TICKER"
+                    style="flex:1; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; padding:0.8rem; border-radius:4px; font-weight:700; text-transform:uppercase;">
+                <button onclick="addCEFListTicker()" class="btn-primary"
+                    style="padding:0.8rem 1.5rem; width:auto;">ADD</button>
+            </div>
+        </div>
+
+        <div id="cefListContainer"
+            style="flex:1; overflow-y:auto; background:rgba(0,0,0,0.3); border-radius:8px; padding:1rem; display:grid; grid-template-columns:repeat(auto-fill, minmax(100px, 1fr)); gap:0.8rem; align-content:start;">
+            <!-- Tickers will be loaded here -->
+            <div style="color:var(--text-secondary); text-align:center; grid-column:1/-1; padding:2rem;">Loading...
+            </div>
+        </div>
+
+        <div style="margin-top:1rem; text-align:right; font-size:0.8rem; color:var(--text-secondary);">
+            Total: <span id="cefListCount">0</span> tickers
+        </div>
+    </div>
+</div>
 <div id="masterListModal" class="modal-overlay"
     style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; backdrop-filter:blur(5px); align-items:center; justify-content:center;">
     <div class="glass-card"

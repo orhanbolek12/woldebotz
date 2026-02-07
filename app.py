@@ -20,11 +20,78 @@ app = Flask(__name__)
 HISTORY_FILE = 'results_history.json'
 IMBALANCE_FILE = 'imbalance_history.json'
 
-CEF_TICKERS = ["NAD", "ECF", "FAX", "AOD", "OPP", "NVG", "NEA", "BGB", "CEV", "ETW", "PDI", "RA", "FPF", "DIAX", "HYT", "NMZ", "AWF", "EVV", "BOE", "WIW", "VFL", "VCV", "EMD", "NCZ", "ARDC", "VMO", "BFK", "GLU", "VKI", "LGI", "PDT", "HQL", "ETV", "NMCO", "THQ", "NAC", "ERH", "BMEZ", "NQP", "BBN", "GDV", "MVT", "HTD", "BCX", "NAZ", "MMU", "EOT", "HPS", "HPI", "NML", "MEGI", "KTF", "AFB", "JPI", "NXP", "AIO", "RSF", "RQI", "HPF", "NMS", "LDP", "HQH", "PAI", "NRK", "IFN", "PTA", "NDMO", "ETJ", "ECAT", "BKT", "MQT", "ETG", "IIM", "NPV", "DPG", "BHV", "MUE", "RMM", "FTHY", "KIO", "RFM", "BCAT", "ASGI", "VGM", "GHY", "FMY", "MYD", "PCQ", "PFD", "EVM", "MQY", "MYN", "BDJ", "NMAI", "EVG", "RMMZ", "NKX", "EVN", "GDL", "BHK", "WEA", "BTT", "MUJ", "MAV", "SDHY", "EFR", "MIY", "BGT", "IGA", "NPFD", "BKN", "RIV", "IQI", "RMT", "IDE", "HNW", "JHI", "BNY", "BLE", "ETY", "DSU", "MHD", "BUI", "EXG", "TDF", "DBL", "EIM", "NPCT", "RFI", "ISD", "JCE", "NBB", "CAF", "MMD", "ADX", "MHI", "WDI", "MXF", "CEE", "PHD", "RNP", "BCV", "SPE", "GRX", "GF", "FMN", "THW", "JRI", "DNP", "UTF", "NMI", "SPXX", "BFZ", "PSF", "NFJ", "AGD", "DSL", "EOS", "VKQ", "PDO", "VBF", "MCI", "NUV", "GDO", "TEAF", "DLY", "NZF", "NBXG", "NCA", "BIT", "NXC", "JGH", "FINS", "KF", "NMT", "IGI", "HGLB", "RLTY", "VPV", "FFC", "NBH", "CII", "ENX", "BYM", "EMF", "EVT", "FFA", "ETX", "DFP", "BGX", "ERC", "MUC", "ETO", "PCN", "RGT", "TPZ", "RMI", "RFMZ", "PAXS", "STEW", "VLT", "SCD", "PHYS", "PFO", "PMO", "RVT", "VTN", "PFL", "SPPP", "PEO", "TBLD", "PSLV", "PTY", "QQQX", "PGZ", "DMB", "DMO", "DTF", "EEA", "EFT", "EIC", "EOI", "ETB", "FCT", "FLC", "FOF", "CSQ", "ACV", "AVK", "BANX", "BGH", "BGR", "BLW", "BSL", "BSTZ", "BTA", "BTZ", "BXMX", "CCD", "CEF", "CGO", "CHI", "CHN", "CHY", "CPZ", "FRA", "MHN", "MIO", "MPA", "MPV", "MUA", "MXE", "MYI", "NAN", "NCV", "NIE", "NIM", "NNY", "NOM", "NUW", "NXJ", "NXN", "GBAB", "GOF", "GUG", "HEQ", "HYI", "JHS", "JLS", "JOF", "IIF"]
+# Helper to get tickers from file
+def get_tickers_from_file(filename):
+    try:
+        if os.path.exists(filename):
+            with open(filename, 'r') as f:
+                content = f.read()
+            return sorted(list(set([t.strip().upper() for t in content.replace('\n', ',').split(',') if t.strip()])))
+        return []
+    except Exception as e:
+        print(f"Error reading {filename}: {e}")
+        return []
+
+def save_tickers_to_file(filename, tickers):
+    try:
+        with open(filename, 'w') as f:
+            f.write(','.join(sorted(list(set(tickers)))))
+        return True
+    except Exception as e:
+        print(f"Error saving to {filename}: {e}")
+        return False
 
 @app.route('/get_cef_tickers', methods=['GET'])
 def get_cef_tickers():
-    return jsonify({'tickers': CEF_TICKERS})
+    return jsonify({'tickers': get_tickers_from_file('cef_tickers.txt')})
+
+@app.route('/add_cef_ticker', methods=['POST'])
+def add_cef_ticker():
+    data = request.get_json()
+    ticker = data.get('ticker', '').strip().upper()
+    if not ticker:
+        return jsonify({'error': 'Ticker cannot be empty'}), 400
+    
+    current_tickers = get_tickers_from_file('cef_tickers.txt')
+    if ticker not in current_tickers:
+        current_tickers.append(ticker)
+        if save_tickers_to_file('cef_tickers.txt', current_tickers):
+            return jsonify({'message': f'Ticker {ticker} added.', 'tickers': sorted(current_tickers)}), 200
+        else:
+            return jsonify({'error': 'Failed to save tickers'}), 500
+    else:
+        return jsonify({'message': f'Ticker {ticker} already exists.', 'tickers': sorted(current_tickers)}), 200
+
+@app.route('/remove_cef_ticker', methods=['POST'])
+def remove_cef_ticker():
+    data = request.get_json()
+    ticker = data.get('ticker', '').strip().upper()
+    if not ticker:
+        return jsonify({'error': 'Ticker cannot be empty'}), 400
+    
+    current_tickers = get_tickers_from_file('cef_tickers.txt')
+    if ticker in current_tickers:
+        current_tickers.remove(ticker)
+        if save_tickers_to_file('cef_tickers.txt', current_tickers):
+            return jsonify({'message': f'Ticker {ticker} removed.', 'tickers': sorted(current_tickers)}), 200
+        else:
+            return jsonify({'error': 'Failed to save tickers'}), 500
+    else:
+        return jsonify({'message': f'Ticker {ticker} not found.', 'tickers': sorted(current_tickers)}), 200
+
+@app.route('/update_cef_tickers', methods=['POST'])
+def update_cef_tickers():
+    data = request.get_json()
+    tickers_list = data.get('tickers', [])
+    if not isinstance(tickers_list, list):
+        return jsonify({'error': 'Invalid input, expected a list of tickers'}), 400
+    
+    cleaned_tickers = sorted(list(set([t.strip().upper() for t in tickers_list if t.strip()])))
+    
+    if save_tickers_to_file('cef_tickers.txt', cleaned_tickers):
+        return jsonify({'message': 'CEF tickers updated successfully.', 'tickers': cleaned_tickers}), 200
+    else:
+        return jsonify({'error': 'Failed to save tickers'}), 500
 
 # In-memory storage
 jobs = {}
@@ -559,20 +626,66 @@ def delete_master_list_ticker():
         return jsonify({'error': 'No ticker provided'}), 400
     
     try:
-        if os.path.exists('tickers.txt'):
-            with open('tickers.txt', 'r') as f:
-                content = f.read()
-            tickers = [t.strip() for t in content.replace('\n', ',').split(',') if t.strip()]
-            
-            if ticker in tickers:
-                tickers.remove(ticker)
-                # Write back to file
-                with open('tickers.txt', 'w') as f:
-                    f.write(','.join(sorted(tickers)))
+        tickers = get_tickers_from_file('tickers.txt')
+        if ticker in tickers:
+            tickers.remove(ticker)
+            if save_tickers_to_file('tickers.txt', tickers):
                 return jsonify({'success': True, 'message': f'{ticker} removed from Master List'})
-            else:
-                return jsonify({'success': False, 'message': f'{ticker} not found in Master List'})
-        return jsonify({'error': 'Master List file not found'}), 404
+            return jsonify({'success': False, 'message': 'Failed to save changes'}), 500
+        else:
+            return jsonify({'success': False, 'message': f'{ticker} not found in Master List'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/get_cef_list_tickers', methods=['GET'])
+def get_cef_list_tickers():
+    """
+    Returns the current CEF List tickers from cef_tickers.txt
+    """
+    return jsonify({'tickers': get_tickers_from_file('cef_tickers.txt')})
+
+
+@app.route('/add_cef_list_ticker', methods=['POST'])
+def add_cef_list_ticker():
+    """
+    Adds a new ticker to the CEF List (cef_tickers.txt)
+    """
+    ticker = request.form.get('ticker', '').strip().upper()
+    if not ticker:
+        return jsonify({'error': 'No ticker provided'}), 400
+    
+    try:
+        tickers = get_tickers_from_file('cef_tickers.txt')
+        if ticker not in tickers:
+            tickers.append(ticker)
+            if save_tickers_to_file('cef_tickers.txt', tickers):
+                return jsonify({'success': True, 'message': f'{ticker} added to CEF List'})
+            return jsonify({'success': False, 'message': 'Failed to save changes'}), 500
+        else:
+            return jsonify({'success': False, 'message': f'{ticker} already exists in CEF List'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/delete_cef_list_ticker', methods=['POST'])
+def delete_cef_list_ticker():
+    """
+    Removes a ticker from the CEF List (cef_tickers.txt)
+    """
+    ticker = request.form.get('ticker', '').strip().upper()
+    if not ticker:
+        return jsonify({'error': 'No ticker provided'}), 400
+    
+    try:
+        tickers = get_tickers_from_file('cef_tickers.txt')
+        if ticker in tickers:
+            tickers.remove(ticker)
+            if save_tickers_to_file('cef_tickers.txt', tickers):
+                return jsonify({'success': True, 'message': f'{ticker} removed from CEF List'})
+            return jsonify({'success': False, 'message': 'Failed to save changes'}), 500
+        else:
+            return jsonify({'success': False, 'message': f'{ticker} not found in CEF List'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
