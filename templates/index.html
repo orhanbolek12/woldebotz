@@ -2850,7 +2850,7 @@
         pffData.forEach(item => {
             const row = document.createElement('div');
             row.style.display = 'grid';
-            row.style.gridTemplateColumns = '100px 1fr 100px 100px 120px';
+            row.style.gridTemplateColumns = '90px 1fr 80px 80px 70px 90px';
             row.style.gap = '1rem';
             row.style.padding = '0.7rem 1rem';
             row.style.borderBottom = '1px solid var(--glass-border)';
@@ -2862,6 +2862,9 @@
             const weightClass = item.weight > 1.0 ? 'var(--success)' : 'white';
             const weightDisplay = `<span style="color:${weightClass}; font-weight:700;">${item.weight.toFixed(2)}%</span>`;
 
+            const qtyDisplay = item.quantity ?
+                new Intl.NumberFormat('en-US', { notation: "compact", maximumFractionDigits: 1 }).format(item.quantity) : '-';
+
             const mvDisplay = item.market_value ?
                 new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: "compact", maximumFractionDigits: 1 }).format(item.market_value) : '-';
 
@@ -2869,6 +2872,7 @@
                 <div style="font-weight:800; color:var(--accent-primary);">${item.ticker}</div>
                 <div style="color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${item.name}">${item.name}</div>
                 <div style="text-align:right; font-family:'Outfit'; color:var(--text-secondary); font-weight:600;">${priceDisplay}</div>
+                <div style="text-align:right; font-family:'Outfit'; color:var(--text-secondary);">${qtyDisplay}</div>
                 <div style="text-align:right; font-family:'Outfit';">${weightDisplay}</div>
                 <div style="text-align:right; font-family:'Outfit'; color:var(--text-secondary); font-size:0.8rem;">${mvDisplay}</div>
             `;
@@ -3004,13 +3008,15 @@
         </style>
 
         <div id="pffHeaderRow"
-            style="display:grid; grid-template-columns: 100px 1fr 100px 100px 120px; gap:1rem; padding:0.8rem 1rem; background:rgba(255,255,255,0.05); border-radius:4px; margin-bottom:0.8rem; font-weight:800; font-size:0.75rem; color:var(--text-secondary); letter-spacing:1px; text-transform:uppercase;">
+            style="display:grid; grid-template-columns: 90px 1fr 80px 80px 70px 90px; gap:1rem; padding:0.8rem 1rem; background:rgba(255,255,255,0.05); border-radius:4px; margin-bottom:0.8rem; font-weight:800; font-size:0.75rem; color:var(--text-secondary); letter-spacing:1px; text-transform:uppercase;">
             <div class="pff-header-cell" onclick="sortPFFData('ticker')">TICKER <span class="sort-icon"
                     id="sort-ticker">▲▼</span></div>
             <div class="pff-header-cell" onclick="sortPFFData('name')">NAME <span class="sort-icon"
                     id="sort-name">▲▼</span></div>
             <div class="pff-header-cell" style="justify-content:flex-end;" onclick="sortPFFData('price')">PRICE <span
                     class="sort-icon" id="sort-price">▲▼</span></div>
+            <div class="pff-header-cell" style="justify-content:flex-end;" onclick="sortPFFData('quantity')">QTY <span
+                    class="sort-icon" id="sort-quantity">▲▼</span></div>
             <div class="pff-header-cell" style="justify-content:flex-end;" onclick="sortPFFData('weight')">WGT % <span
                     class="sort-icon" id="sort-weight">▲▼</span></div>
             <div class="pff-header-cell" style="justify-content:flex-end;" onclick="sortPFFData('market_value')">MKT VAL

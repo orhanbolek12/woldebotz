@@ -713,6 +713,7 @@ def get_pff_holdings():
                     last_price = row.get('Last Price')
                     weight = row.get('Weight (%)')
                     market_value = row.get('Market Value')
+                    quantity = row.get('Quantity')
                     
                     if pd.notna(ticker):
                         holdings.append({
@@ -721,6 +722,7 @@ def get_pff_holdings():
                             'price': float(last_price) if pd.notna(last_price) else 0.0,
                             'weight': float(weight) if pd.notna(weight) else 0.0,
                             'market_value': float(market_value) if pd.notna(market_value) else 0.0,
+                            'quantity': float(quantity) if pd.notna(quantity) else 0.0,
                             'is_analyzed': True 
                         })
                 return jsonify({'holdings': holdings, 'source': 'analysis'})

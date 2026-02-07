@@ -215,14 +215,20 @@ def export_results(results, silent=False):
     rows = []
     for base_ticker, data in sorted(results.items()):
         for pref in data['preferred_stocks']:
+            # Calculate Quantity
+            last_price = pref['last_price']
+            market_value = pref['market_value']
+            qty = market_value / last_price if last_price and last_price > 0 else 0
+            
             rows.append({
                 'Base Ticker': base_ticker,
                 'Company Name': data['company_name'],
                 'Preferred Stock': pref['ticker'],
-                'Last Price': pref['last_price'],
+                'Last Price': last_price,
                 'Full Name': pref['name'],
                 'Weight (%)': pref['weight'],
-                'Market Value': pref['market_value'],
+                'Market Value': market_value,
+                'Quantity': qty,
                 'Original Name': pref['original_name']
             })
     
