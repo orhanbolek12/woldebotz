@@ -4,6 +4,11 @@ import os
 from collections import defaultdict
 import time
 
+# Global Constants
+PFF_OUTPUT = "pff_preferred_stocks_analysis.csv"
+PFF_SOURCE_DEFAULT = os.path.join(os.path.expanduser("~"), "Downloads", "PFF_holdings.csv")
+PFF_SOURCE_DETAILED = os.path.join(os.path.expanduser("~"), "Downloads", "PFF_holdings_detailed.csv")
+
 def extract_company_name(name_str):
     """
     Extract clean company name from the holdings name field.
@@ -150,7 +155,7 @@ def export_results(results, silent=False):
     """
     Export results to a CSV file.
     """
-    output_file = "pff_preferred_stocks_analysis.csv"
+    output_file = PFF_OUTPUT
     
     rows = []
     for base_ticker, data in sorted(results.items()):
