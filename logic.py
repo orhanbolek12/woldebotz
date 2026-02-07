@@ -669,57 +669,101 @@ def fetch_rebalance_patterns(tickers, months_back=12, progress_callback=None):
         
         try:
             ticker_obj = yf.Ticker(yf_ticker)
-            # Fetch 2 years to ensure enough data for months_back
+            # Fetch 2 years for context and rolling averages
             df = ticker_obj.history(period="2y", interval="1d", auto_adjust=True)
             if df.empty:
                 resolved = resolve_ticker_yf(raw_ticker)
                 if resolved:
                     yf_ticker = resolved
-                    df = yf.Ticker(resolved).history(period="2y", interval="1d", auto_adjust=True)
+                    ticker_obj = yf.Ticker(resolved)
+                    df = ticker_obj.history(period="2y", interval="1d", auto_adjust=True)
             
             df = df.dropna(how='all')
-            if df.empty or len(df) < 50: continue
+            if df.empty or len(df) < 100: continue # Need enough for 90d avg
             
-            # Identify month-end rebalance days (last trading day of each month)
+            # 90-day rolling volume average
+            df['AvgVol90'] = df['Volume'].rolling(window=90).mean()
+            
+            # Get dividends
+            dividends = ticker_obj.dividends
+            
+            # Identify month-end rebalance days
             df['Month'] = df.index.month
             df['Year'] = df.index.year
-            # Group by year/month and get the last record of each group
             reb_indices = df.groupby(['Year', 'Month']).tail(1).index
             
             events = []
             for reb_day in reb_indices:
                 try:
                     idx = df.index.get_loc(reb_day)
+                    if idx < 90 or idx + 3 >= len(df): continue
                     
-                    # Check bounds for -3 and +3 (we need idx-4 for pre-window base, and idx+3 for post-window end)
-                    if idx < 4 or idx + 3 >= len(df):
-                        continue
+                    window_indices = df.index[idx-3 : idx+4] # [-3, +3]
                     
-                    # -3 Window Performance: from close of idx-4 to close of idx
-                    p_base_pre = df.iloc[idx-4]['Close']
-                    p_end_pre = df.iloc[idx]['Close']
-                    perf_pre = ((p_end_pre - p_base_pre) / p_base_pre) * 100 if p_base_pre > 0 else 0
+                    # Volume Analysis
+                    avg_vol_90 = df.iloc[idx]['AvgVol90']
+                    reb_vol = df.iloc[idx]['Volume']
                     
-                    # +3 Window Performance: from close of idx to close of idx+3
-                    p_base_post = df.iloc[idx]['Close']
-                    p_end_post = df.iloc[idx+3]['Close']
-                    perf_post = ((p_end_post - p_base_post) / p_base_post) * 100 if p_base_post > 0 else 0
+                    vol_anomalies = []
+                    for w_idx in range(idx-3, idx+4):
+                        d_vol = df.iloc[w_idx]['Volume']
+                        d_date = df.index[w_idx]
+                        if avg_vol_90 > 0:
+                            diff_pct = ((d_vol - avg_vol_90) / avg_vol_90) * 100
+                            if abs(diff_pct) >= 10:
+                                vol_anomalies.append({
+                                    'date': d_date.strftime('%Y-%m-%d'),
+                                    'diff_pct': round(diff_pct, 1),
+                                    'is_reb_day': (w_idx == idx)
+                                })
+                    
+                    # Dividend Analysis
+                    window_divs = []
+                    start_date = df.index[idx-3]
+                    end_date = df.index[idx+3]
+                    for div_date, amount in dividends.items():
+                        # div_date is typically midnight, so we just check date range
+                        if start_date <= div_date <= end_date:
+                            window_divs.append({
+                                'date': div_date.strftime('%Y-%m-%d'),
+                                'amount': float(amount)
+                            })
+                    
+                    # Price Trends
+                    p_minus_4 = df.iloc[idx-4]['Close']
+                    p_reb = df.iloc[idx]['Close']
+                    p_plus_3 = df.iloc[idx+3]['Close']
+                    
+                    perf_pre = ((p_reb - p_minus_4) / p_minus_4) * 100 if p_minus_4 > 0 else 0
+                    perf_post = ((p_plus_3 - p_reb) / p_reb) * 100 if p_reb > 0 else 0
+                    
+                    # Trend description
+                    trend = "Flat"
+                    if perf_pre < -0.5 and perf_post > 0.5: trend = "Sell-off then Recovery"
+                    elif perf_pre > 0.5 and perf_post < -0.5: trend = "Pump then Dump"
+                    elif perf_pre < -1: trend = "Strong Selling"
+                    elif perf_post > 1: trend = "Strong Buying"
                     
                     events.append({
                         'date': reb_day.strftime('%Y-%m-%d'),
                         'pre_3_perf': round(perf_pre, 2),
-                        'post_3_perf': round(perf_post, 2)
+                        'post_3_perf': round(perf_post, 2),
+                        'avg_vol_90': round(avg_vol_90, 0),
+                        'reb_vol': round(reb_vol, 0),
+                        'vol_anomalies': vol_anomalies,
+                        'dividends': window_divs,
+                        'trend': trend
                     })
                 except Exception as ex:
                     logging.error(f"Error processing reb_day {reb_day} for {raw_ticker}: {ex}")
                     continue
             
-            # Analyze recent events
             recent_events = events[-months_back:]
             if not recent_events: continue
             
             pre_perfs = [e['pre_3_perf'] for e in recent_events]
             post_perfs = [e['post_3_perf'] for e in recent_events]
+            reb_vol_ratios = [ (e['reb_vol'] / e['avg_vol_90']) if e['avg_vol_90'] > 0 else 1 for e in recent_events ]
             
             results.append({
                 'ticker': raw_ticker,
@@ -729,6 +773,7 @@ def fetch_rebalance_patterns(tickers, months_back=12, progress_callback=None):
                 'avg_post_3': round(sum(post_perfs) / len(post_perfs), 2),
                 'win_rate_pre': round(len([p for p in pre_perfs if p > 0]) / len(pre_perfs) * 100, 1),
                 'win_rate_post': round(len([p for p in post_perfs if p > 0]) / len(post_perfs) * 100, 1),
+                'avg_reb_vol_ratio': round(sum(reb_vol_ratios) / len(reb_vol_ratios), 2),
                 'sample_size': len(recent_events),
                 'details': recent_events
             })

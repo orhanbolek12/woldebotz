@@ -569,6 +569,30 @@ def analyze_dividend_recovery_endpoint():
     
     return jsonify({'results': results})
 
+@app.route('/analyze_rebalance_batch', methods=['POST'])
+def analyze_rebalance_batch():
+    """
+    Synchronous endpoint for month-end rebalance pattern analysis.
+    Designed for small batches to avoid timeouts.
+    """
+    tickers_str = request.form.get('tickers', '')
+    months_back = int(request.form.get('months_back', 12))
+    
+    if not tickers_str.strip():
+        return jsonify({'results': []})
+        
+    tickers = [t.strip().upper() for t in tickers_str.replace('\n', ',').split(',') if t.strip()]
+    
+    try:
+        results = fetch_rebalance_patterns(tickers, months_back=months_back)
+    except Exception as e:
+        import traceback
+        trace = traceback.format_exc()
+        print(f"Rebalance Analysis Failed: {e}\n{trace}")
+        return jsonify({'results': [], 'error': str(e), 'trace': trace})
+        
+    return jsonify({'results': results})
+
 
 @app.route('/get_master_list_tickers', methods=['GET'])
 def get_master_list_tickers():

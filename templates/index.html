@@ -1537,6 +1537,8 @@
                             <th>Win Rate (Pre)</th>
                             <th>Avg Post-3</th>
                             <th>Win Rate (Post)</th>
+                            <th title="Average Volume Ratio on Rebalance Day vs 90d Avg">Reb Vol Ratio</th>
+                            <th>Indicators</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -2819,6 +2821,20 @@
             const preColor = item.avg_pre_3 > 0 ? 'var(--success)' : (item.avg_pre_3 < 0 ? 'var(--error)' : 'white');
             const postColor = item.avg_post_3 > 0 ? 'var(--success)' : (item.avg_post_3 < 0 ? 'var(--error)' : 'white');
 
+            // Find anomalies/dividends in recent events
+            let hasSpikes = false;
+            let hasDivs = false;
+            if (item.details && item.details.length > 0) {
+                item.details.forEach(ev => {
+                    if (ev.vol_anomalies && ev.vol_anomalies.length > 0) hasSpikes = true;
+                    if (ev.dividends && ev.dividends.length > 0) hasDivs = true;
+                });
+            }
+
+            const indicators = [];
+            if (hasSpikes) indicators.push('<span class="badge" style="background:rgba(59,130,246,0.1); color:#3b82f6; border:none;" title="Volume anomalies detected in rebalance window">VOL</span>');
+            if (hasDivs) indicators.push('<span class="badge" style="background:rgba(168,85,247,0.1); color:#a855f7; border:none;" title="Dividend ex-dates detected in rebalance window">DIV</span>');
+
             tr.innerHTML = `
                 <td>
                     <div style="display:flex; align-items:center;">
@@ -2836,6 +2852,14 @@
                 <td>
                     <div class="win-rate-pill" style="background:${item.win_rate_post >= 50 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'}">
                         ${item.win_rate_post}% Wins
+                    </div>
+                </td>
+                <td style="font-weight:700; color:${item.avg_reb_vol_ratio > 1.1 ? 'var(--accent)' : 'inherit'};">
+                    ${item.avg_reb_vol_ratio}x
+                </td>
+                <td>
+                    <div style="display:flex; gap:4px;">
+                        ${indicators.join('') || '<span style="opacity:0.3">-</span>'}
                     </div>
                 </td>
                 <td>
