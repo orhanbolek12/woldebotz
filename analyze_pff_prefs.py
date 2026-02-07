@@ -141,10 +141,14 @@ def search_preferred_stocks_by_name(company_name, base_ticker):
     
     return preferred_stocks
 
-def find_best_match_row(pref_ticker, company_rows, claimed_indices):
+def find_best_match_row(pref_ticker, company_rows, claimed_indices, pref_price=None):
     """
     Find the best matching row in the original CSV for a found preferred ticker.
-    Respects claimed_indices to avoid double-counting.
+    Logic:
+    1. Try Series Match (e.g. 'Series A')
+    2. Try Price Match (if price is provided within 5% tolerance)
+    3. Try exact ticker match
+    4. Fallback to largest unclaimed row
     """
     if not company_rows:
         return None, None
@@ -154,7 +158,9 @@ def find_best_match_row(pref_ticker, company_rows, claimed_indices):
     if '-' in pref_ticker:
         parts = pref_ticker.split('-')
         if len(parts) > 1 and parts[1].startswith('P') and len(parts[1]) == 2:
-            suffix = parts[1][1] # 'A'
+            suffix = parts[1][1] 
+    elif '^' in pref_ticker:
+        suffix = pref_ticker.split('^')[1]
     
     # 1. Try Series Match on Unclaimed Rows
     if suffix:
@@ -164,14 +170,33 @@ def find_best_match_row(pref_ticker, company_rows, claimed_indices):
             if series_str in str(row['Name']).upper():
                 return row, idx
     
-    # 2. Try simple fuzzy match of ticker in name on Unclaimed Rows
+    # 2. Try Price Match (High priority if multiple rows exist)
+    if pref_price and len(company_rows) > 1:
+        best_price_match = None
+        min_diff = float('inf')
+        
+        for idx, row in enumerate(company_rows):
+            if idx in claimed_indices: continue
+            try:
+                row_price = float(str(row['Price']).replace(',', ''))
+                diff = abs(row_price - pref_price)
+                # If within 5% tolerance
+                if diff < (pref_price * 0.05) and diff < min_diff:
+                    min_diff = diff
+                    best_price_match = (row, idx)
+            except:
+                continue
+        
+        if best_price_match:
+            return best_price_match
+    
+    # 3. Try simple fuzzy match of ticker in name
     for idx, row in enumerate(company_rows):
         if idx in claimed_indices: continue
         if pref_ticker in str(row['Ticker']):
             return row, idx
             
-    # 3. Fallback: Any Unclaimed Row (Generic Match)
-    # This handles "ARBOR REALTY TRUST" -> "ABR-PD"
+    # 4. Fallback: Any Unclaimed Row
     for idx, row in enumerate(company_rows):
         if idx in claimed_indices: continue
         return row, idx
@@ -380,7 +405,7 @@ def analyze_pff_holdings(csv_path):
                     continue
 
                 # STRATEGY 2: Fallback to CSV Matching
-                match, match_idx = find_best_match_row(pref['ticker'], rows, claimed_indices)
+                match, match_idx = find_best_match_row(pref['ticker'], rows, claimed_indices, pref_price=pref['last_price'])
                 
                 weight = 0.0
                 market_value = 0.0
@@ -461,8 +486,11 @@ def export_results(results, silent=False):
         print()
 
 if __name__ == "__main__":
-    # Get the CSV file path
-    csv_path = os.path.join(os.environ['TEMP'], 'pff_holdings.csv')
+    # Prefer the file in Downloads if it exists
+    downloads_path = os.path.join(os.path.expanduser('~'), 'Downloads', 'PFF_holdings.csv')
+    temp_path = os.path.join(os.environ['TEMP'], 'pff_holdings.csv')
+    
+    csv_path = downloads_path if os.path.exists(downloads_path) else temp_path
     
     if not os.path.exists(csv_path):
         print(f"[!] Error: CSV file not found at {csv_path}")
