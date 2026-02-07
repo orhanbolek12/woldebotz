@@ -687,6 +687,11 @@ def fetch_rebalance_patterns(tickers, months_back=12, progress_callback=None):
             # Get dividends
             dividends = ticker_obj.dividends
             
+            # Identify month-end rebalance days
+            df['Month'] = df.index.month
+            df['Year'] = df.index.year
+            reb_indices = df.groupby(['Year', 'Month']).tail(1).index
+            
             events = []
             for reb_day in reb_indices:
                 try:
