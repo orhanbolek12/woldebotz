@@ -580,14 +580,42 @@ def delete_master_list_ticker():
 @app.route('/get_pff_holdings', methods=['GET'])
 def get_pff_holdings():
     """
-    Returns PFF holdings from the CSV file, sorted by weight (descending)
+    Returns PFF holdings. 
+    Prioritizes 'pff_preferred_stocks_analysis.csv' (Analyzed Preferred Stocks).
+    Falls back to 'pff_holdings.csv' (Raw ETF Holdings) if analysis not found.
     """
     try:
         import pandas as pd
+        
+        # 1. Try to load the Analyzed Preferred Stocks file first
+        analysis_path = 'pff_preferred_stocks_analysis.csv'
+        if os.path.exists(analysis_path):
+            try:
+                # Format: Base Ticker,Company Name,Preferred Stock,Last Price,Full Name
+                df = pd.read_csv(analysis_path)
+                holdings = []
+                for _, row in df.iterrows():
+                    ticker = row.get('Preferred Stock')
+                    name = row.get('Full Name')
+                    last_price = row.get('Last Price')
+                    
+                    if pd.notna(ticker):
+                        holdings.append({
+                            'ticker': ticker,
+                            'name': name if pd.notna(name) else '',
+                            'weight': float(last_price) if pd.notna(last_price) else 0.0, # Sending Price as 'weight' for now
+                            'is_analyzed': True # Flag to indicate this is analyzed data
+                        })
+                return jsonify({'holdings': holdings, 'source': 'analysis'})
+            except Exception as e:
+                logging.error(f"Failed to read analysis file: {e}")
+                # Fallthrough to raw file
+        
+        # 2. Fallback to Raw PFF Holdings CSV
         csv_path = os.path.join(os.environ.get('TEMP', '/tmp'), 'pff_holdings.csv')
         
         if not os.path.exists(csv_path):
-            return jsonify({'error': 'PFF holdings CSV not found. Please run the analyzer script first.'}), 404
+            return jsonify({'error': 'No PFF data found. Please run the analyzer script.'}), 404
         
         # Read CSV (skip first 9 rows which are metadata)
         df = pd.read_csv(csv_path, skiprows=9)
@@ -603,13 +631,14 @@ def get_pff_holdings():
                 holdings.append({
                     'ticker': ticker,
                     'name': name if pd.notna(name) else '',
-                    'weight': float(weight) if pd.notna(weight) else 0.0
+                    'weight': float(weight) if pd.notna(weight) else 0.0,
+                    'is_analyzed': False
                 })
         
         # Sort by weight descending
         holdings.sort(key=lambda x: x['weight'], reverse=True)
         
-        return jsonify({'holdings': holdings})
+        return jsonify({'holdings': holdings, 'source': 'raw'})
     except Exception as e:
         import traceback
         return jsonify({'error': str(e), 'trace': traceback.format_exc()}), 500

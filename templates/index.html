@@ -2618,6 +2618,7 @@
     async function loadPFFListInModal() {
         const container = document.getElementById('pffListContainer');
         const countSpan = document.getElementById('pffListCount');
+        const headerRow = document.querySelector('#pffListModal .glass-card > div:nth-child(2)');
 
         container.innerHTML = '<div style="color:var(--text-secondary); text-align:center; padding:2rem;">Loading...</div>';
 
@@ -2629,6 +2630,21 @@
                 container.innerHTML = '';
                 countSpan.innerText = data.holdings.length;
 
+                // Dynamic Header based on Source
+                if (data.source === 'analysis') {
+                    headerRow.innerHTML = `
+                        <div>TICKER</div>
+                        <div>NAME</div>
+                        <div style="text-align:right;">LAST PRICE</div>
+                    `;
+                } else {
+                    headerRow.innerHTML = `
+                        <div>TICKER</div>
+                        <div>NAME</div>
+                        <div style="text-align:right;">WEIGHT (%)</div>
+                    `;
+                }
+
                 data.holdings.forEach(item => {
                     const row = document.createElement('div');
                     row.style.display = 'grid';
@@ -2639,10 +2655,17 @@
                     row.style.fontSize = '0.85rem';
                     row.style.color = 'white';
 
+                    let valueDisplay = '';
+                    if (data.source === 'analysis') {
+                        valueDisplay = `<span style="color:var(--success); font-family:'Outfit';">$${item.weight.toFixed(2)}</span>`;
+                    } else {
+                        valueDisplay = `<span style="color:${item.weight > 1.0 ? 'var(--success)' : 'white'}; font-family:'Outfit';">${item.weight.toFixed(2)}%</span>`;
+                    }
+
                     row.innerHTML = `
                         <div style="font-weight:700;">${item.ticker}</div>
                         <div style="color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.name}</div>
-                        <div style="text-align:right; font-family:'Outfit'; color:${item.weight > 1.0 ? 'var(--success)' : 'white'};">${item.weight.toFixed(2)}%</div>
+                        <div style="text-align:right;">${valueDisplay}</div>
                     `;
                     container.appendChild(row);
                 });
