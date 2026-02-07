@@ -687,70 +687,76 @@ def fetch_rebalance_patterns(tickers, months_back=12, progress_callback=None):
             # Get dividends
             dividends = ticker_obj.dividends
             
-            # Identify month-end rebalance days
-            df['Month'] = df.index.month
-            df['Year'] = df.index.year
-            reb_indices = df.groupby(['Year', 'Month']).tail(1).index
-            
             events = []
             for reb_day in reb_indices:
                 try:
                     idx = df.index.get_loc(reb_day)
                     if idx < 90 or idx + 3 >= len(df): continue
                     
-                    window_indices = df.index[idx-3 : idx+4] # [-3, +3]
-                    
-                    # Volume Analysis
+                    # Window: idx-3 to idx+3
+                    # Baseline Volume
                     avg_vol_90 = df.iloc[idx]['AvgVol90']
+                    
+                    # 1. Volume Breakdown
+                    pre_vols = df.iloc[idx-3:idx]['Volume']
+                    pre_vol_avg = pre_vols.mean()
                     reb_vol = df.iloc[idx]['Volume']
+                    post_vols = df.iloc[idx+1:idx+4]['Volume']
+                    post_vol_avg = post_vols.mean()
                     
-                    vol_anomalies = []
-                    for w_idx in range(idx-3, idx+4):
-                        d_vol = df.iloc[w_idx]['Volume']
-                        d_date = df.index[w_idx]
-                        if avg_vol_90 > 0:
-                            diff_pct = ((d_vol - avg_vol_90) / avg_vol_90) * 100
-                            if abs(diff_pct) >= 10:
-                                vol_anomalies.append({
-                                    'date': d_date.strftime('%Y-%m-%d'),
-                                    'diff_pct': round(diff_pct, 1),
-                                    'is_reb_day': (w_idx == idx)
-                                })
-                    
-                    # Dividend Analysis
-                    window_divs = []
+                    # 2. Dividend Intersection
                     start_date = df.index[idx-3]
                     end_date = df.index[idx+3]
+                    window_divs = []
                     for div_date, amount in dividends.items():
-                        # div_date is typically midnight, so we just check date range
                         if start_date <= div_date <= end_date:
+                            # Specific volume on the dividend day
+                            try:
+                                d_idx = df.index.get_loc(div_date)
+                                d_vol = df.iloc[d_idx]['Volume']
+                            except:
+                                d_vol = 0
                             window_divs.append({
                                 'date': div_date.strftime('%Y-%m-%d'),
-                                'amount': float(amount)
+                                'amount': float(amount),
+                                'volume': int(d_vol)
                             })
                     
-                    # Price Trends
-                    p_minus_4 = df.iloc[idx-4]['Close']
-                    p_reb = df.iloc[idx]['Close']
-                    p_plus_3 = df.iloc[idx+3]['Close']
+                    # 3. Dollar-Based Pricing (High/Low Logic)
+                    # Pre-window: Base is idx-4 (close before window starts) vs idx (reb day)
+                    p_base_close = df.iloc[idx-4]['Close']
+                    p_reb_close = df.iloc[idx]['Close']
                     
-                    perf_pre = ((p_reb - p_minus_4) / p_minus_4) * 100 if p_minus_4 > 0 else 0
-                    perf_post = ((p_plus_3 - p_reb) / p_reb) * 100 if p_reb > 0 else 0
+                    if p_reb_close < p_base_close: # Decreasing
+                        diff_pre = df.iloc[idx]['Low'] - df.iloc[idx-4]['Low']
+                    else: # Increasing or Flat
+                        diff_pre = df.iloc[idx]['High'] - df.iloc[idx-4]['High']
+                        
+                    # Post-window: Base is idx (reb day close) vs idx+3 (post window end)
+                    p_post_close = df.iloc[idx+3]['Close']
                     
-                    # Trend description
+                    if p_post_close < p_reb_close: # Decreasing
+                        diff_post = df.iloc[idx+3]['Low'] - df.iloc[idx]['Low']
+                    else: # Increasing or Flat
+                        diff_post = df.iloc[idx+3]['High'] - df.iloc[idx]['High']
+                    
+                    # Trend description (using closes for general trend)
+                    perf_pre_pct = ((p_reb_close - p_base_close) / p_base_close) * 100 if p_base_close > 0 else 0
+                    perf_post_pct = ((p_post_close - p_reb_close) / p_reb_close) * 100 if p_reb_close > 0 else 0
                     trend = "Flat"
-                    if perf_pre < -0.5 and perf_post > 0.5: trend = "Sell-off then Recovery"
-                    elif perf_pre > 0.5 and perf_post < -0.5: trend = "Pump then Dump"
-                    elif perf_pre < -1: trend = "Strong Selling"
-                    elif perf_post > 1: trend = "Strong Buying"
+                    if perf_pre_pct < -0.5 and perf_post_pct > 0.5: trend = "Sell-off then Recovery"
+                    elif perf_pre_pct > 0.5 and perf_post_pct < -0.5: trend = "Pump then Dump"
+                    elif perf_pre_pct < -1: trend = "Strong Selling"
+                    elif perf_post_pct > 1: trend = "Strong Buying"
                     
                     events.append({
                         'date': reb_day.strftime('%Y-%m-%d'),
-                        'pre_3_perf': round(perf_pre, 2),
-                        'post_3_perf': round(perf_post, 2),
+                        'pre_3_diff': round(diff_pre, 3),
+                        'post_3_diff': round(diff_post, 3),
                         'avg_vol_90': round(avg_vol_90, 0),
+                        'pre_vol_avg': round(pre_vol_avg, 0),
                         'reb_vol': round(reb_vol, 0),
-                        'vol_anomalies': vol_anomalies,
+                        'post_vol_avg': round(post_vol_avg, 0),
                         'dividends': window_divs,
                         'trend': trend
                     })
@@ -761,19 +767,19 @@ def fetch_rebalance_patterns(tickers, months_back=12, progress_callback=None):
             recent_events = events[-months_back:]
             if not recent_events: continue
             
-            pre_perfs = [e['pre_3_perf'] for e in recent_events]
-            post_perfs = [e['post_3_perf'] for e in recent_events]
-            reb_vol_ratios = [ (e['reb_vol'] / e['avg_vol_90']) if e['avg_vol_90'] > 0 else 1 for e in recent_events ]
+            pre_diffs = [e['pre_3_diff'] for e in recent_events]
+            post_diffs = [e['post_3_diff'] for e in recent_events]
             
             results.append({
                 'ticker': raw_ticker,
                 'yf_symbol': yf_ticker,
                 'tv_symbol': tv_symbol,
-                'avg_pre_3': round(sum(pre_perfs) / len(pre_perfs), 2),
-                'avg_post_3': round(sum(post_perfs) / len(post_perfs), 2),
-                'win_rate_pre': round(len([p for p in pre_perfs if p > 0]) / len(pre_perfs) * 100, 1),
-                'win_rate_post': round(len([p for p in post_perfs if p > 0]) / len(post_perfs) * 100, 1),
-                'avg_reb_vol_ratio': round(sum(reb_vol_ratios) / len(reb_vol_ratios), 2),
+                'avg_pre_3_diff': round(sum(pre_diffs) / len(pre_diffs), 3),
+                'avg_post_3_diff': round(sum(post_diffs) / len(post_diffs), 3),
+                'avg_vol_90': round(sum([e['avg_vol_90'] for e in recent_events]) / len(recent_events), 0),
+                'avg_pre_vol': round(sum([e['pre_vol_avg'] for e in recent_events]) / len(recent_events), 0),
+                'avg_reb_vol': round(sum([e['reb_vol'] for e in recent_events]) / len(recent_events), 0),
+                'avg_post_vol': round(sum([e['post_vol_avg'] for e in recent_events]) / len(recent_events), 0),
                 'sample_size': len(recent_events),
                 'details': recent_events
             })

@@ -1373,9 +1373,12 @@
                         </div>
                         <select id="rebMonths"
                             style="width:100%; background:rgba(0,0,0,0.5); border:1px solid var(--glass-border); border-radius:4px; padding:0.8rem; color:white;">
+                            <option value="1">Last 1 Month</option>
+                            <option value="2">Last 2 Months</option>
+                            <option value="3" selected>Last 3 Months</option>
+                            <option value="4">Last 4 Months</option>
+                            <option value="5">Last 5 Months</option>
                             <option value="6">Last 6 Months</option>
-                            <option value="12" selected>Last 12 Months</option>
-                            <option value="24">Last 24 Months</option>
                         </select>
                     </div>
                     <div style="margin-top:1rem; color:var(--text-secondary); font-size:0.85rem; line-height: 1.5;">
@@ -1533,11 +1536,9 @@
                     <thead>
                         <tr>
                             <th>Ticker</th>
-                            <th>Avg Pre-3</th>
-                            <th>Win Rate (Pre)</th>
-                            <th>Avg Post-3</th>
-                            <th>Win Rate (Post)</th>
-                            <th title="Average Volume Ratio on Rebalance Day vs 90d Avg">Reb Vol Ratio</th>
+                            <th>Avg Pre-3 ($)</th>
+                            <th>Avg Post-3 ($)</th>
+                            <th title="90d Avg | Pre Avg | Reb Day | Post Avg">Volume Detailed</th>
                             <th>Indicators</th>
                             <th>Action</th>
                         </tr>
@@ -2818,22 +2819,34 @@
             const tr = document.createElement('tr');
             const tvUrl = `https://www.tradingview.com/chart/?symbol=${item.tv_symbol}`;
 
-            const preColor = item.avg_pre_3 > 0 ? 'var(--success)' : (item.avg_pre_3 < 0 ? 'var(--error)' : 'white');
-            const postColor = item.avg_post_3 > 0 ? 'var(--success)' : (item.avg_post_3 < 0 ? 'var(--error)' : 'white');
+            const preColor = item.avg_pre_3_diff > 0 ? 'var(--success)' : (item.avg_pre_3_diff < 0 ? 'var(--error)' : 'white');
+            const postColor = item.avg_post_3_diff > 0 ? 'var(--success)' : (item.avg_post_3_diff < 0 ? 'var(--error)' : 'white');
 
-            // Find anomalies/dividends in recent events
-            let hasSpikes = false;
+            // Indicators & Div details
             let hasDivs = false;
+            let divDetails = [];
             if (item.details && item.details.length > 0) {
                 item.details.forEach(ev => {
-                    if (ev.vol_anomalies && ev.vol_anomalies.length > 0) hasSpikes = true;
-                    if (ev.dividends && ev.dividends.length > 0) hasDivs = true;
+                    if (ev.dividends && ev.dividends.length > 0) {
+                        hasDivs = true;
+                        ev.dividends.forEach(d => {
+                            divDetails.push(`${d.date}: $${d.amount} (Vol: ${formatDetailedVol(d.volume)})`);
+                        });
+                    }
                 });
             }
 
             const indicators = [];
-            if (hasSpikes) indicators.push('<span class="badge" style="background:rgba(59,130,246,0.1); color:#3b82f6; border:none;" title="Volume anomalies detected in rebalance window">VOL</span>');
-            if (hasDivs) indicators.push('<span class="badge" style="background:rgba(168,85,247,0.1); color:#a855f7; border:none;" title="Dividend ex-dates detected in rebalance window">DIV</span>');
+            if (hasDivs) {
+                const title = "Div Events:\n" + divDetails.join('\n');
+                indicators.push(`<span class="badge" style="background:rgba(168,85,247,0.1); color:#a855f7; border:none;" title="${title}">DIV</span>`);
+            }
+
+            // Volume Formatting
+            const vol90 = formatDetailedVol(item.avg_vol_90);
+            const volPre = formatDetailedVol(item.avg_pre_vol);
+            const volReb = formatDetailedVol(item.avg_reb_vol);
+            const volPost = formatDetailedVol(item.avg_post_vol);
 
             tr.innerHTML = `
                 <td>
@@ -2842,20 +2855,15 @@
                         <span style="font-size:0.6rem; opacity:0.5; margin-left:8px;">${item.sample_size} events</span>
                     </div>
                 </td>
-                <td style="color:${preColor}; font-weight:700;">${item.avg_pre_3 > 0 ? '+' : ''}${item.avg_pre_3}%</td>
+                <td style="color:${preColor}; font-weight:700;">${item.avg_pre_3_diff > 0 ? '+' : ''}${item.avg_pre_3_diff}$</td>
+                <td style="color:${postColor}; font-weight:700;">${item.avg_post_3_diff > 0 ? '+' : ''}${item.avg_post_3_diff}$</td>
                 <td>
-                    <div class="win-rate-pill" style="background:${item.win_rate_pre >= 50 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'}">
-                        ${item.win_rate_pre}% Wins
+                    <div style="font-size:0.75rem; white-space:nowrap;">
+                        <span style="opacity:0.5;">90d:</span> ${vol90} | 
+                        <span style="opacity:0.5;">Pre:</span> ${volPre} | 
+                        <span style="font-weight:700; color:var(--accent);">Reb: ${volReb}</span> | 
+                        <span style="opacity:0.5;">Post:</span> ${volPost}
                     </div>
-                </td>
-                <td style="color:${postColor}; font-weight:700;">${item.avg_post_3 > 0 ? '+' : ''}${item.avg_post_3}%</td>
-                <td>
-                    <div class="win-rate-pill" style="background:${item.win_rate_post >= 50 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'}">
-                        ${item.win_rate_post}% Wins
-                    </div>
-                </td>
-                <td style="font-weight:700; color:${item.avg_reb_vol_ratio > 1.1 ? 'var(--accent)' : 'inherit'};">
-                    ${item.avg_reb_vol_ratio}x
                 </td>
                 <td>
                     <div style="display:flex; gap:4px;">
@@ -2868,6 +2876,13 @@
             `;
             tbody.appendChild(tr);
         });
+    }
+
+    function formatDetailedVol(val) {
+        if (!val) return '0';
+        if (val >= 1000000) return (val / 1000000).toFixed(1) + 'M';
+        if (val >= 1000) return (val / 1000).toFixed(1) + 'K';
+        return Math.round(val).toString();
     }
 
     // --- Master List Management ---
