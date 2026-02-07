@@ -8,6 +8,28 @@ import time
 PFF_OUTPUT = "pff_preferred_stocks_analysis.csv"
 PFF_SOURCE_DEFAULT = os.path.join(os.path.expanduser("~"), "Downloads", "PFF_holdings.csv")
 PFF_SOURCE_DETAILED = os.path.join(os.path.expanduser("~"), "Downloads", "PFF_holdings_detailed.csv")
+TICKERS_FILE = "tickers.txt"
+
+def load_master_base_tickers():
+    """
+    Load tickers from tickers.txt and return a set of unique base tickers.
+    e.g. if 'BAC-Q' is in file, it adds 'BAC' to the set.
+    """
+    if not os.path.exists(TICKERS_FILE):
+        print(f"[!] Warning: {TICKERS_FILE} not found. Filtering disabled.")
+        return None
+    
+    with open(TICKERS_FILE, 'r') as f:
+        content = f.read()
+    
+    raw_tickers = [t.strip() for t in content.replace('\n', ',').split(',') if t.strip()]
+    base_tickers = set()
+    for t in raw_tickers:
+        base = t.split('-')[0].strip().upper()
+        if base:
+            base_tickers.add(base)
+    
+    return base_tickers
 
 def extract_company_name(name_str):
     """
@@ -78,9 +100,13 @@ def analyze_pff_holdings(csv_path):
     - Fallback to Name/Price heuristics if CUSIP is missing.
     """
     print("=" * 80)
-    print("PFF CUSIP-BASED ACCURACY ANALYZER")
+    print("PFF MASTER-FILTERED ACCURACY ANALYZER")
     print("=" * 80)
     print()
+    
+    master_bases = load_master_base_tickers()
+    if master_bases:
+        print(f"[*] Loaded {len(master_bases)} base tickers from Master List for filtering.")
     
     # 1. Read Original CSV file (Robustly find header)
     print(f"[*] Reading source: {csv_path}")
@@ -115,8 +141,12 @@ def analyze_pff_holdings(csv_path):
         if raw_ticker == '-' or pd.isna(raw_ticker) or "Ticker" in raw_ticker:
             continue
             
-        base_ticker = raw_ticker.split('-')[0].strip()
+        base_ticker = raw_ticker.split('-')[0].strip().upper()
         
+        # Filtering: Only keep if in Master List base tickers
+        if master_bases is not None and base_ticker not in master_bases:
+            continue
+            
         try:
             w_raw = str(row.get('Weight (%)', '0')).replace(',', '')
             mv_raw = str(row.get('Market Value', '0')).replace(',', '')
