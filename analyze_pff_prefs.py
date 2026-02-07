@@ -5,7 +5,7 @@ from collections import defaultdict
 import time
 
 # Global Constants
-PFF_OUTPUT = "pff_preferred_stocks_analysis.csv"
+PFF_OUTPUT = "pff_holdings_tickers.csv"
 PFF_SOURCE_DEFAULT = os.path.join(os.path.expanduser("~"), "Downloads", "PFF_holdings.csv")
 PFF_SOURCE_DETAILED = os.path.join(os.path.expanduser("~"), "Downloads", "PFF_holdings_detailed.csv")
 TICKERS_FILE = "tickers.txt"

@@ -588,7 +588,7 @@ def get_pff_holdings():
         import pandas as pd
         
         # 1. Try to load the Analyzed Preferred Stocks file first
-        analysis_path = 'pff_preferred_stocks_analysis.csv'
+        analysis_path = 'pff_holdings_tickers.csv'
         if os.path.exists(analysis_path):
             try:
                 # Format: Base Ticker,Company Name,Preferred Stock,Last Price,Full Name
