@@ -903,7 +903,9 @@
                                 <input type="checkbox" id="rangeMasterList">
                                 <span class="slider"></span>
                             </label>
-                            <span style="font-size:0.85rem; font-weight:700; color:var(--text-secondary)">Analyze Master
+                            <span onclick="openMasterListModal()"
+                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer; text-decoration:underline; text-decoration-style:dotted;">Analyze
+                                Master
                                 List</span>
                         </div>
 
@@ -914,6 +916,17 @@
                             </label>
                             <span style="font-size:0.85rem; font-weight:700; color:var(--text-secondary)">Analyze CEF
                                 List</span>
+                        </div>
+
+                        <div style="display:flex; align-items:center; gap:0.5rem; margin-left:1rem;">
+                            <label class="switch">
+                                <input type="checkbox" id="rangePffList">
+                                <span class="slider"></span>
+                            </label>
+                            <span onclick="openPFFModal()"
+                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer; text-decoration:underline; text-decoration-style:dotted;">Analyze
+                                PFF
+                                Holdings</span>
                         </div>
                     </div>
                 </div>
@@ -973,7 +986,9 @@
                                 <input type="checkbox" id="imbMasterList">
                                 <span class="slider"></span>
                             </label>
-                            <span style="font-size:0.85rem; font-weight:700; color:var(--text-secondary)">Analyze Master
+                            <span onclick="openMasterListModal()"
+                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer; text-decoration:underline; text-decoration-style:dotted;">Analyze
+                                Master
                                 List</span>
                         </div>
 
@@ -984,6 +999,17 @@
                             </label>
                             <span style="font-size:0.85rem; font-weight:700; color:var(--text-secondary)">Analyze CEF
                                 List</span>
+                        </div>
+
+                        <div style="display:flex; align-items:center; gap:0.5rem; margin-left:1rem;">
+                            <label class="switch">
+                                <input type="checkbox" id="imbPffList">
+                                <span class="slider"></span>
+                            </label>
+                            <span onclick="openPFFModal()"
+                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer; text-decoration:underline; text-decoration-style:dotted;">Analyze
+                                PFF
+                                Holdings</span>
                         </div>
                     </div>
                 </div>
@@ -1041,7 +1067,9 @@
                                 <input type="checkbox" id="divMasterList">
                                 <span class="slider"></span>
                             </label>
-                            <span style="font-size:0.85rem; font-weight:700; color:var(--text-secondary)">Analyze Master
+                            <span onclick="openMasterListModal()"
+                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer; text-decoration:underline; text-decoration-style:dotted;">Analyze
+                                Master
                                 List</span>
                         </div>
 
@@ -1052,6 +1080,17 @@
                             </label>
                             <span style="font-size:0.85rem; font-weight:700; color:var(--text-secondary)">Analyze CEF
                                 List</span>
+                        </div>
+
+                        <div style="display:flex; align-items:center; gap:0.5rem; margin-left:1rem;">
+                            <label class="switch">
+                                <input type="checkbox" id="divPffList">
+                                <span class="slider"></span>
+                            </label>
+                            <span onclick="openPFFModal()"
+                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer; text-decoration:underline; text-decoration-style:dotted;">Analyze
+                                PFF
+                                Holdings</span>
                         </div>
                     </div>
                 </div>
@@ -1428,6 +1467,7 @@
     async function startRangeAnalysis() {
         const masterToggle = document.getElementById('rangeMasterList');
         const cefToggle = document.getElementById('rangeCefList');
+        const pffToggle = document.getElementById('rangePffList');
         let tickers = [];
 
         if (cefToggle.checked) {
@@ -1439,6 +1479,18 @@
                 tickers = tData.tickers || [];
             } catch (e) {
                 alert("Failed to load CEF list: " + e.message);
+                resetUI();
+                return;
+            }
+        } else if (pffToggle.checked) {
+            document.getElementById('analyzeBtn').disabled = true;
+            document.getElementById('analyzeBtn').innerText = "Loading PFF List...";
+            try {
+                const tRes = await fetch('/get_pff_holdings');
+                const tData = await tRes.json();
+                tickers = tData.holdings ? tData.holdings.map(h => h.ticker) : [];
+            } catch (e) {
+                alert("Failed to load PFF list: " + e.message);
                 resetUI();
                 return;
             }
@@ -1554,6 +1606,7 @@
     async function startImbalanceAnalysis() {
         const masterToggle = document.getElementById('imbMasterList');
         const cefToggle = document.getElementById('imbCefList');
+        const pffToggle = document.getElementById('imbPffList');
         let tickers = [];
 
         if (cefToggle.checked) {
@@ -1565,6 +1618,18 @@
                 tickers = tData.tickers || [];
             } catch (e) {
                 alert("Failed to load CEF list: " + e.message);
+                resetUI();
+                return;
+            }
+        } else if (pffToggle.checked) {
+            document.getElementById('analyzeImbalanceBtn').disabled = true;
+            document.getElementById('analyzeImbalanceBtn').innerText = "Loading PFF List...";
+            try {
+                const tRes = await fetch('/get_pff_holdings');
+                const tData = await tRes.json();
+                tickers = tData.holdings ? tData.holdings.map(h => h.ticker) : [];
+            } catch (e) {
+                alert("Failed to load PFF list: " + e.message);
                 resetUI();
                 return;
             }
@@ -1894,6 +1959,7 @@
     async function startDividendAnalysis() {
         const masterToggle = document.getElementById('divMasterList');
         const cefToggle = document.getElementById('divCefList');
+        const pffToggle = document.getElementById('divPffList');
         let tickers = [];
 
         if (cefToggle.checked) {
@@ -1905,6 +1971,18 @@
                 tickers = tData.tickers || [];
             } catch (e) {
                 alert("Failed to load CEF list: " + e.message);
+                resetUI();
+                return;
+            }
+        } else if (pffToggle.checked) {
+            document.getElementById('analyzeDividendBtn').disabled = true;
+            document.getElementById('analyzeDividendBtn').innerText = "Loading PFF List...";
+            try {
+                const tRes = await fetch('/get_pff_holdings');
+                const tData = await tRes.json();
+                tickers = tData.holdings ? tData.holdings.map(h => h.ticker) : [];
+            } catch (e) {
+                alert("Failed to load PFF list: " + e.message);
                 resetUI();
                 return;
             }
@@ -2360,7 +2438,7 @@
                 if (vol >= 1000) return (vol / 1000).toFixed(1) + 'K';
                 return vol.toString();
             }
-            
+
             tds += `<td>
                         <div style="font-size:0.8rem;">
                            Price: <span style="font-weight:700;">$${item.current_price || 'N/A'}</span>
@@ -2424,7 +2502,223 @@
         });
     }
 
+    // --- Master List Management ---
+    function openMasterListModal() {
+        document.getElementById('masterListModal').style.display = 'flex';
+        loadMasterListInModal();
+    }
+
+    function closeMasterListModal() {
+        document.getElementById('masterListModal').style.display = 'none';
+        document.getElementById('newMasterTicker').value = '';
+    }
+
+    async function loadMasterListInModal() {
+        const container = document.getElementById('masterListContainer');
+        const countSpan = document.getElementById('masterListCount');
+
+        container.innerHTML = '<div style="color:var(--text-secondary); text-align:center; grid-column:1/-1; padding:2rem;">Loading...</div>';
+
+        try {
+            const res = await fetch('/get_master_list_tickers');
+            const data = await res.json();
+
+            if (data.tickers && data.tickers.length > 0) {
+                container.innerHTML = '';
+                countSpan.innerText = data.tickers.length;
+
+                data.tickers.forEach(ticker => {
+                    const item = document.createElement('div');
+                    item.style.background = 'rgba(255,255,255,0.05)';
+                    item.style.border = '1px solid var(--glass-border)';
+                    item.style.borderRadius = '4px';
+                    item.style.padding = '0.5rem';
+                    item.style.display = 'flex';
+                    item.style.justifyContent = 'space-between';
+                    item.style.alignItems = 'center';
+                    item.style.fontSize = '0.85rem';
+                    item.style.fontWeight = '700';
+                    item.style.color = 'white';
+
+                    item.innerHTML = `
+                        <span>${ticker}</span>
+                        <button onclick="deleteMasterListTicker('${ticker}')" style="background:transparent; border:none; color:var(--error); cursor:pointer; font-weight:bold; font-size:1.2rem; line-height:1;">&times;</button>
+                    `;
+                    container.appendChild(item);
+                });
+            } else {
+                container.innerHTML = '<div style="color:var(--text-secondary); text-align:center; grid-column:1/-1; padding:2rem;">No tickers in Master List</div>';
+                countSpan.innerText = '0';
+            }
+        } catch (e) {
+            container.innerHTML = `<div style="color:var(--error); text-align:center; grid-column:1/-1; padding:2rem;">Error: ${e.message}</div>`;
+        }
+    }
+
+    async function addMasterListTicker() {
+        const input = document.getElementById('newMasterTicker');
+        const ticker = input.value.trim();
+
+        if (!ticker) return;
+
+        try {
+            const formData = new FormData();
+            formData.append('ticker', ticker);
+
+            const res = await fetch('/add_master_list_ticker', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                input.value = '';
+                loadMasterListInModal();
+            } else {
+                alert(data.message || 'Failed to add ticker');
+            }
+        } catch (e) {
+            alert('Error adding ticker: ' + e.message);
+        }
+    }
+
+    async function deleteMasterListTicker(ticker) {
+        if (!confirm(`Remove ${ticker} from Master List?`)) return;
+
+        try {
+            const formData = new FormData();
+            formData.append('ticker', ticker);
+
+            const res = await fetch('/delete_master_list_ticker', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                loadMasterListInModal();
+            } else {
+                alert(data.message || 'Failed to delete ticker');
+            }
+        } catch (e) {
+            alert('Error deleting ticker: ' + e.message);
+        }
+    }
+
+    // --- PFF Holdings List ---
+    function openPFFModal() {
+        document.getElementById('pffListModal').style.display = 'flex';
+        loadPFFListInModal();
+    }
+
+    function closePFFModal() {
+        document.getElementById('pffListModal').style.display = 'none';
+    }
+
+    async function loadPFFListInModal() {
+        const container = document.getElementById('pffListContainer');
+        const countSpan = document.getElementById('pffListCount');
+
+        container.innerHTML = '<div style="color:var(--text-secondary); text-align:center; padding:2rem;">Loading...</div>';
+
+        try {
+            const res = await fetch('/get_pff_holdings');
+            const data = await res.json();
+
+            if (data.holdings && data.holdings.length > 0) {
+                container.innerHTML = '';
+                countSpan.innerText = data.holdings.length;
+
+                data.holdings.forEach(item => {
+                    const row = document.createElement('div');
+                    row.style.display = 'grid';
+                    row.style.gridTemplateColumns = '100px 1fr 100px';
+                    row.style.gap = '1rem';
+                    row.style.padding = '0.5rem 1rem';
+                    row.style.borderBottom = '1px solid var(--glass-border)';
+                    row.style.fontSize = '0.85rem';
+                    row.style.color = 'white';
+
+                    row.innerHTML = `
+                        <div style="font-weight:700;">${item.ticker}</div>
+                        <div style="color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.name}</div>
+                        <div style="text-align:right; font-family:'Outfit'; color:${item.weight > 1.0 ? 'var(--success)' : 'white'};">${item.weight.toFixed(2)}%</div>
+                    `;
+                    container.appendChild(row);
+                });
+            } else {
+                container.innerHTML = '<div style="color:var(--text-secondary); text-align:center; padding:2rem;">No holdings found or file missing. <br>Please run the PFF Analyzer script first.</div>';
+                countSpan.innerText = '0';
+            }
+        } catch (e) {
+            container.innerHTML = `<div style="color:var(--error); text-align:center; padding:2rem;">Error: ${e.message}</div>`;
+        }
+    }
+
 </script>
+
+<!-- Master List Management Modal -->
+<div id="masterListModal" class="modal-overlay"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; backdrop-filter:blur(5px); align-items:center; justify-content:center;">
+    <div class="glass-card"
+        style="width:90%; max-width:600px; max-height:85vh; display:flex; flex-direction:column; padding:2rem; margin:0;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+            <h2 style="margin:0; font-family:'Outfit'; font-weight:800; font-size:1.5rem;">Manage Master List</h2>
+            <button onclick="closeMasterListModal()"
+                style="background:transparent; border:none; color:var(--text-secondary); cursor:pointer; font-size:1.5rem;">&times;</button>
+        </div>
+
+        <div class="input-group" style="margin-bottom:1rem;">
+            <div style="display:flex; gap:0.5rem;">
+                <input type="text" id="newMasterTicker" placeholder="TICKER"
+                    style="flex:1; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; padding:0.8rem; border-radius:4px; font-weight:700; text-transform:uppercase;">
+                <button onclick="addMasterListTicker()" class="btn-primary"
+                    style="padding:0.8rem 1.5rem; width:auto;">ADD</button>
+            </div>
+        </div>
+
+        <div id="masterListContainer"
+            style="flex:1; overflow-y:auto; background:rgba(0,0,0,0.3); border-radius:8px; padding:1rem; display:grid; grid-template-columns:repeat(auto-fill, minmax(100px, 1fr)); gap:0.8rem; align-content:start;">
+            <!-- Tickers will be loaded here -->
+            <div style="color:var(--text-secondary); text-align:center; grid-column:1/-1; padding:2rem;">Loading...
+            </div>
+        </div>
+
+        <div style="margin-top:1rem; text-align:right; font-size:0.8rem; color:var(--text-secondary);">
+            Total: <span id="masterListCount">0</span> tickers
+        </div>
+    </div>
+</div>
+
+<!-- PFF Holdings View Modal -->
+<div id="pffListModal" class="modal-overlay"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; backdrop-filter:blur(5px); align-items:center; justify-content:center;">
+    <div class="glass-card"
+        style="width:90%; max-width:800px; max-height:85vh; display:flex; flex-direction:column; padding:2rem; margin:0;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+            <h2 style="margin:0; font-family:'Outfit'; font-weight:800; font-size:1.5rem;">PFF ETF Holdings</h2>
+            <button onclick="closePFFModal()"
+                style="background:transparent; border:none; color:var(--text-secondary); cursor:pointer; font-size:1.5rem;">&times;</button>
+        </div>
+
+        <div
+            style="display:grid; grid-template-columns: 100px 1fr 100px; gap:1rem; padding:0.5rem 1rem; background:rgba(255,255,255,0.05); border-radius:4px; margin-bottom:0.5rem; font-weight:700; font-size:0.85rem; color:var(--text-secondary);">
+            <div>TICKER</div>
+            <div>NAME</div>
+            <div style="text-align:right;">WEIGHT (%)</div>
+        </div>
+
+        <div id="pffListContainer"
+            style="flex:1; overflow-y:auto; background:rgba(0,0,0,0.3); border-radius:8px; padding:0.5rem;">
+            <!-- Holdings will be loaded here -->
+            <div style="color:var(--text-secondary); text-align:center; padding:2rem;">Loading...</div>
+        </div>
+
+        <div style="margin-top:1rem; text-align:right; font-size:0.8rem; color:var(--text-secondary);">
+            Total: <span id="pffListCount">0</span> holdings
+        </div>
+    </div>
+</div>
 
 <div class="signature">@ORHANWOLDE</div>
 

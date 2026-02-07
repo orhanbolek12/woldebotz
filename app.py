@@ -503,6 +503,118 @@ def analyze_dividend_recovery_endpoint():
     return jsonify({'results': results})
 
 
+@app.route('/get_master_list_tickers', methods=['GET'])
+def get_master_list_tickers():
+    """
+    Returns the current Master List tickers from tickers.txt
+    """
+    try:
+        if os.path.exists('tickers.txt'):
+            with open('tickers.txt', 'r') as f:
+                content = f.read()
+            tickers = [t.strip() for t in content.replace('\n', ',').split(',') if t.strip()]
+            return jsonify({'tickers': sorted(list(set(tickers)))})
+        return jsonify({'tickers': []})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/add_master_list_ticker', methods=['POST'])
+def add_master_list_ticker():
+    """
+    Adds a new ticker to the Master List (tickers.txt)
+    """
+    ticker = request.form.get('ticker', '').strip().upper()
+    if not ticker:
+        return jsonify({'error': 'No ticker provided'}), 400
+    
+    try:
+        # Read existing tickers
+        tickers = []
+        if os.path.exists('tickers.txt'):
+            with open('tickers.txt', 'r') as f:
+                content = f.read()
+            tickers = [t.strip() for t in content.replace('\n', ',').split(',') if t.strip()]
+        
+        # Add new ticker if not already present
+        if ticker not in tickers:
+            tickers.append(ticker)
+            # Write back to file
+            with open('tickers.txt', 'w') as f:
+                f.write(','.join(sorted(tickers)))
+            return jsonify({'success': True, 'message': f'{ticker} added to Master List'})
+        else:
+            return jsonify({'success': False, 'message': f'{ticker} already exists in Master List'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/delete_master_list_ticker', methods=['POST'])
+def delete_master_list_ticker():
+    """
+    Removes a ticker from the Master List (tickers.txt)
+    """
+    ticker = request.form.get('ticker', '').strip().upper()
+    if not ticker:
+        return jsonify({'error': 'No ticker provided'}), 400
+    
+    try:
+        if os.path.exists('tickers.txt'):
+            with open('tickers.txt', 'r') as f:
+                content = f.read()
+            tickers = [t.strip() for t in content.replace('\n', ',').split(',') if t.strip()]
+            
+            if ticker in tickers:
+                tickers.remove(ticker)
+                # Write back to file
+                with open('tickers.txt', 'w') as f:
+                    f.write(','.join(sorted(tickers)))
+                return jsonify({'success': True, 'message': f'{ticker} removed from Master List'})
+            else:
+                return jsonify({'success': False, 'message': f'{ticker} not found in Master List'})
+        return jsonify({'error': 'Master List file not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/get_pff_holdings', methods=['GET'])
+def get_pff_holdings():
+    """
+    Returns PFF holdings from the CSV file, sorted by weight (descending)
+    """
+    try:
+        import pandas as pd
+        csv_path = os.path.join(os.environ.get('TEMP', '/tmp'), 'pff_holdings.csv')
+        
+        if not os.path.exists(csv_path):
+            return jsonify({'error': 'PFF holdings CSV not found. Please run the analyzer script first.'}), 404
+        
+        # Read CSV (skip first 9 rows which are metadata)
+        df = pd.read_csv(csv_path, skiprows=9)
+        
+        # Extract relevant columns and sort by weight
+        holdings = []
+        for _, row in df.iterrows():
+            ticker = row.get('Ticker')
+            name = row.get('Name')
+            weight = row.get('Weight (%)')
+            
+            if pd.notna(ticker) and ticker != '-':
+                holdings.append({
+                    'ticker': ticker,
+                    'name': name if pd.notna(name) else '',
+                    'weight': float(weight) if pd.notna(weight) else 0.0
+                })
+        
+        # Sort by weight descending
+        holdings.sort(key=lambda x: x['weight'], reverse=True)
+        
+        return jsonify({'holdings': holdings})
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e), 'trace': traceback.format_exc()}), 500
+
+
 if __name__ == '__main__':
     # Railway uses PORT environment variable
     port = int(os.environ.get('PORT', 5000))
