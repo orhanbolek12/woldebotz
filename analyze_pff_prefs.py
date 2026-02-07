@@ -219,6 +219,40 @@ def get_cusip_mappings():
         # Add others as found/needed
     }
 
+def load_previous_analysis():
+    """
+    Load previous analysis results from CSV to avoid restarting from scratch.
+    """
+    output_file = "pff_preferred_stocks_analysis.csv"
+    results = {}
+    if os.path.exists(output_file):
+        print(f"[*] Loading previous analysis from {output_file}...")
+        try:
+            df = pd.read_csv(output_file)
+            for _, row in df.iterrows():
+                base_ticker = row['Base Ticker']
+                if base_ticker not in results:
+                    results[base_ticker] = {
+                        'company_name': row['Company Name'],
+                        'preferred_stocks': []
+                    }
+                
+                # Normalize ticker immediately upon loading: Replace ^ with -
+                normalized_ticker = str(row['Preferred Stock']).replace('^', '-')
+                
+                results[base_ticker]['preferred_stocks'].append({
+                    'ticker': normalized_ticker,
+                    'name': row['Full Name'],
+                    'last_price': row['Last Price'],
+                    'weight': row['Weight (%)'],
+                    'market_value': row['Market Value'],
+                    'original_name': row['Original Name']
+                })
+            print(f"    [+] Loaded results for {len(results)} companies")
+        except Exception as e:
+            print(f"    [!] Error loading previous analysis: {e}")
+    return results
+
 def analyze_pff_holdings(csv_path):
     """
     Main analysis function to process PFF holdings and find matching preferred stocks.
@@ -233,7 +267,10 @@ def analyze_pff_holdings(csv_path):
     scraped_holdings = load_scraped_holdings()
     cusip_map = get_cusip_mappings()
     
-    # 2. Read Original CSV file (still needed for other companies)
+    # 2. Load Previous Results (Persistence)
+    results = load_previous_analysis()
+    
+    # 3. Read Original CSV file (still needed for other companies)
     print(f"[*] Reading main CSV file: {csv_path}")
     df = pd.read_csv(csv_path, skiprows=9)
     print(f"[+] Loaded {len(df)} holdings from main file")
@@ -261,13 +298,15 @@ def analyze_pff_holdings(csv_path):
     print(f"[*] Found {len(company_groups)} unique base tickers")
     print()
     
-    results = {}
-    
     print("[*] Analysis via CUSIPs and Smart Mapping...")
     print("-" * 80)
     
     total_companies = len(company_info_map)
     for i, (base_ticker, company_name) in enumerate(sorted(company_info_map.items()), 1):
+        # SKIP if already analyzed in previous run
+        if base_ticker in results:
+            continue
+
         is_focus = base_ticker == 'ABR'
         if is_focus or i % 10 == 0:
             print(f"\n[{i}/{total_companies}] {base_ticker} - {company_name}")
@@ -276,16 +315,13 @@ def analyze_pff_holdings(csv_path):
         preferred_stocks = search_preferred_stocks_by_name(company_name, base_ticker)
         
         # 2. Add Preferreds from Scraped Data (if not found by Yahoo)
-        # This handles rate limit issues like with ABR
         for cusip, row in scraped_holdings.items():
             mapped_ticker = cusip_map.get(cusip)
             if mapped_ticker and mapped_ticker.startswith(base_ticker):
-                # If Yahoo didn't find it, add it manually from scraped data
                 if not any(p['ticker'] == mapped_ticker for p in preferred_stocks):
                     if is_focus:
                         print(f"    [+] Adding {mapped_ticker} from scraped data (Yahoo failed/skipped)")
                     
-                    # Calculate price from MV/Shares if available
                     price = 0.0
                     try:
                         mv = float(str(row.get('Market Value', '0')).replace('$', '').replace(',', ''))
@@ -322,7 +358,6 @@ def analyze_pff_holdings(csv_path):
                             print(f"    [+] CUSIP MATCH {cusip} -> {pref['ticker']}")
                         
                         try:
-                            # Use scraped data
                             w_val = scraped_row.get('Weight (%)', 0)
                             if isinstance(w_val, str):
                                 w_val = float(w_val.replace(',', ''))
@@ -344,7 +379,7 @@ def analyze_pff_holdings(csv_path):
                     mapped_prefs.append(pref)
                     continue
 
-                # STRATEGY 2: Fallback to CSV Matching (Name/Claim)
+                # STRATEGY 2: Fallback to CSV Matching
                 match, match_idx = find_best_match_row(pref['ticker'], rows, claimed_indices)
                 
                 weight = 0.0
@@ -373,7 +408,7 @@ def analyze_pff_holdings(csv_path):
             if is_focus:
                 print(f"  [+] Mapped {len(mapped_prefs)} preferred stock(s)")
         
-        # Incremental Export every 10 companies or for focus ticker
+        # Incremental Export
         if is_focus or i % 10 == 0:
             export_results(results, silent=True)
             
@@ -393,16 +428,20 @@ def analyze_pff_holdings(csv_path):
 def export_results(results, silent=False):
     """
     Export results to a CSV file including Weight and Market Value.
+    Normalizes ticker symbols (e.g. ABR^D -> ABR-D)
     """
     output_file = "pff_preferred_stocks_analysis.csv"
     
     rows = []
     for base_ticker, data in sorted(results.items()):
         for pref in data['preferred_stocks']:
+            # Normalize ticker: Replace ^ with - for display
+            display_ticker = pref['ticker'].replace('^', '-')
+            
             rows.append({
                 'Base Ticker': base_ticker,
                 'Company Name': data['company_name'],
-                'Preferred Stock': pref['ticker'],
+                'Preferred Stock': display_ticker,
                 'Last Price': pref['last_price'],
                 'Full Name': pref['name'],
                 'Weight (%)': pref['weight'],
@@ -414,9 +453,7 @@ def export_results(results, silent=False):
         return
 
     df_export = pd.DataFrame(rows)
-    # Sort by Weight descending
     df_export.sort_values(by='Weight (%)', ascending=False, inplace=True)
-    
     df_export.to_csv(output_file, index=False)
     
     if not silent:
