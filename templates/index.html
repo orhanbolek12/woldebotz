@@ -2606,8 +2606,13 @@
     }
 
     // --- PFF Holdings List ---
+    let pffRawData = [];
+    let pffData = [];
+    let pffSortState = { column: 'weight', direction: 'desc' };
+
     function openPFFModal() {
         document.getElementById('pffListModal').style.display = 'flex';
+        document.getElementById('pffSearchInput').value = '';
         loadPFFListInModal();
     }
 
@@ -2617,74 +2622,122 @@
 
     async function loadPFFListInModal() {
         const container = document.getElementById('pffListContainer');
-        const countSpan = document.getElementById('pffListCount');
-        const headerRow = document.querySelector('#pffListModal .glass-card > div:nth-child(2)');
-
-        container.innerHTML = '<div style="color:var(--text-secondary); text-align:center; padding:2rem;">Loading...</div>';
+        container.innerHTML = '<div style="color:var(--text-secondary); text-align:center; padding:2rem;">Loading holdings...</div>';
 
         try {
             const res = await fetch('/get_pff_holdings');
             const data = await res.json();
 
             if (data.holdings && data.holdings.length > 0) {
-                container.innerHTML = '';
-                countSpan.innerText = data.holdings.length;
-
-                // Update Grid Columns for 5 columns
-                // Ticker | Name | Price | Weight | Mkt Val
-                // Adjusted widths: Ticker fixed, Name takes flex space, others fixed/right-aligned
-                headerRow.style.gridTemplateColumns = '80px 1fr 80px 80px 100px';
-                headerRow.innerHTML = `
-                    <div>TICKER</div>
-                    <div>NAME</div>
-                    <div style="text-align:right;">PRICE</div>
-                    <div style="text-align:right;">WGT %</div>
-                    <div style="text-align:right;">MKT VAL</div>
-                `;
-
-                data.holdings.forEach(item => {
-                    const row = document.createElement('div');
-                    row.style.display = 'grid';
-                    row.style.gridTemplateColumns = '80px 1fr 80px 80px 100px';
-                    row.style.gap = '1rem';
-                    row.style.padding = '0.5rem 1rem';
-                    row.style.borderBottom = '1px solid var(--glass-border)';
-                    row.style.fontSize = '0.85rem';
-                    row.style.color = 'white';
-
-                    // Price
-                    let priceDisplay = '-';
-                    if (item.price) {
-                        priceDisplay = `$${item.price.toFixed(2)}`;
-                    }
-
-                    // Weight
-                    const weightClass = item.weight > 1.0 ? 'var(--success)' : 'white';
-                    const weightDisplay = `<span style="color:${weightClass}">${item.weight.toFixed(2)}%</span>`;
-
-                    // Market Value
-                    let mvDisplay = '-';
-                    if (item.market_value) {
-                        // Compact format for Market Value if needed, but user asked for Mkt Val column
-                        mvDisplay = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: "compact", maximumFractionDigits: 1 }).format(item.market_value);
-                    }
-
-                    row.innerHTML = `
-                        <div style="font-weight:700;">${item.ticker}</div>
-                        <div style="color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.name}</div>
-                        <div style="text-align:right; font-family:'Outfit'; color:var(--text-secondary);">${priceDisplay}</div>
-                        <div style="text-align:right; font-family:'Outfit';">${weightDisplay}</div>
-                        <div style="text-align:right; font-family:'Outfit'; color:var(--text-secondary);">${mvDisplay}</div>
-                    `;
-                    container.appendChild(row);
-                });
+                pffRawData = data.holdings;
+                pffData = [...pffRawData];
+                // Default sort: Weight descending
+                pffSortState = { column: 'weight', direction: 'desc' };
+                applyPFFSort();
             } else {
-                container.innerHTML = '<div style="color:var(--text-secondary); text-align:center; padding:2rem;">No holdings found or file missing. <br>Please run the PFF Analyzer script first.</div>';
-                countSpan.innerText = '0';
+                container.innerHTML = '<div style="color:var(--text-secondary); text-align:center; padding:2rem;">No holdings found or file missing.</div>';
+                document.getElementById('pffListCount').innerText = '0';
             }
         } catch (e) {
             container.innerHTML = `<div style="color:var(--error); text-align:center; padding:2rem;">Error: ${e.message}</div>`;
         }
+    }
+
+    function sortPFFData(column) {
+        if (pffSortState.column === column) {
+            pffSortState.direction = pffSortState.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            pffSortState.column = column;
+            pffSortState.direction = 'asc';
+        }
+        applyPFFSort();
+    }
+
+    function applyPFFSort() {
+        const col = pffSortState.column;
+        const dir = pffSortState.direction === 'asc' ? 1 : -1;
+
+        pffData.sort((a, b) => {
+            let valA = a[col];
+            let valB = b[col];
+
+            // Case-insensitive for strings
+            if (typeof valA === 'string') valA = valA.toLowerCase();
+            if (typeof valB === 'string') valB = valB.toLowerCase();
+
+            if (valA < valB) return -1 * dir;
+            if (valA > valB) return 1 * dir;
+            return 0;
+        });
+
+        // Update UI Sort Icons
+        document.querySelectorAll('.pff-header-cell').forEach(cell => cell.classList.remove('active-sort'));
+        const activeCell = document.querySelector(`.pff-header-cell[onclick*="${col}"]`);
+        if (activeCell) {
+            activeCell.classList.add('active-sort');
+            const icon = activeCell.querySelector('.sort-icon');
+            if (icon) icon.innerText = pffSortState.direction === 'asc' ? ' ▲' : ' ▼';
+        }
+
+        renderPFFList();
+    }
+
+    function filterPFFList(query) {
+        query = query.trim().toUpperCase();
+        if (!query) {
+            pffData = [...pffRawData];
+        } else {
+            pffData = pffRawData.filter(item =>
+                (item.ticker && item.ticker.toUpperCase().includes(query)) ||
+                (item.name && item.name.toUpperCase().includes(query))
+            );
+        }
+        applyPFFSort(); // Re-sort the filtered data
+    }
+
+    function renderPFFList() {
+        const container = document.getElementById('pffListContainer');
+        const countSpan = document.getElementById('pffListCount');
+        const showingText = document.getElementById('pffShowingText');
+
+        container.innerHTML = '';
+        countSpan.innerText = pffRawData.length;
+
+        if (pffData.length === 0) {
+            container.innerHTML = '<div style="color:var(--text-secondary); text-align:center; padding:2rem;">No matching tickers found.</div>';
+            showingText.innerText = `Matched 0 of ${pffRawData.length} holdings`;
+            return;
+        }
+
+        showingText.innerText = `Showing ${pffData.length} of ${pffRawData.length} holdings`;
+
+        pffData.forEach(item => {
+            const row = document.createElement('div');
+            row.style.display = 'grid';
+            row.style.gridTemplateColumns = '100px 1fr 100px 100px 120px';
+            row.style.gap = '1rem';
+            row.style.padding = '0.7rem 1rem';
+            row.style.borderBottom = '1px solid var(--glass-border)';
+            row.style.fontSize = '0.85rem';
+            row.style.color = 'white';
+            row.style.alignItems = 'center';
+
+            const priceDisplay = item.price ? `$${item.price.toFixed(2)}` : '-';
+            const weightClass = item.weight > 1.0 ? 'var(--success)' : 'white';
+            const weightDisplay = `<span style="color:${weightClass}; font-weight:700;">${item.weight.toFixed(2)}%</span>`;
+
+            const mvDisplay = item.market_value ?
+                new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: "compact", maximumFractionDigits: 1 }).format(item.market_value) : '-';
+
+            row.innerHTML = `
+                <div style="font-weight:800; color:var(--accent-primary);">${item.ticker}</div>
+                <div style="color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${item.name}">${item.name}</div>
+                <div style="text-align:right; font-family:'Outfit'; color:var(--text-secondary); font-weight:600;">${priceDisplay}</div>
+                <div style="text-align:right; font-family:'Outfit';">${weightDisplay}</div>
+                <div style="text-align:right; font-family:'Outfit'; color:var(--text-secondary); font-size:0.8rem;">${mvDisplay}</div>
+            `;
+            container.appendChild(row);
+        });
     }
 
 </script>
@@ -2726,28 +2779,83 @@
 <div id="pffListModal" class="modal-overlay"
     style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; backdrop-filter:blur(5px); align-items:center; justify-content:center;">
     <div class="glass-card"
-        style="width:90%; max-width:800px; max-height:85vh; display:flex; flex-direction:column; padding:2rem; margin:0;">
+        style="width:95%; max-width:900px; max-height:90vh; display:flex; flex-direction:column; padding:2rem; margin:0;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
-            <h2 style="margin:0; font-family:'Outfit'; font-weight:800; font-size:1.5rem;">PFF ETF Holdings</h2>
-            <button onclick="closePFFModal()"
-                style="background:transparent; border:none; color:var(--text-secondary); cursor:pointer; font-size:1.5rem;">&times;</button>
+            <div>
+                <h2 style="margin:0; font-family:'Outfit'; font-weight:800; font-size:1.5rem;">PFF ETF Holdings</h2>
+                <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.25rem;">
+                    RAW TICKERS FROM ISHARES | <span id="pffListCount">0</span> HOLDINGS
+                </div>
+            </div>
+            <div style="display:flex; gap:1rem; align-items:center;">
+                <!-- SEARCH BOX -->
+                <div style="position:relative;">
+                    <input type="text" id="pffSearchInput" placeholder="SEARCH TICKER (e.g. COF)"
+                        oninput="filterPFFList(this.value)"
+                        style="background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; padding:0.6rem 1rem 0.6rem 2.2rem; border-radius:4px; font-weight:700; width:250px; font-size:0.8rem;">
+                    <svg style="position:absolute; left:0.8rem; top:50%; transform:translateY(-50%); opacity:0.5;"
+                        width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                </div>
+                <button onclick="closePFFModal()"
+                    style="background:transparent; border:none; color:var(--text-secondary); cursor:pointer; font-size:1.5rem;">&times;</button>
+            </div>
         </div>
 
-        <div
-            style="display:grid; grid-template-columns: 100px 1fr 100px; gap:1rem; padding:0.5rem 1rem; background:rgba(255,255,255,0.05); border-radius:4px; margin-bottom:0.5rem; font-weight:700; font-size:0.85rem; color:var(--text-secondary);">
-            <div>TICKER</div>
-            <div>NAME</div>
-            <div style="text-align:right;">WEIGHT (%)</div>
+        <style>
+            .pff-header-cell {
+                cursor: pointer;
+                user-select: none;
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                transition: color 0.2s;
+            }
+
+            .pff-header-cell:hover {
+                color: var(--accent-primary);
+            }
+
+            .sort-icon {
+                font-size: 0.7rem;
+                opacity: 0.3;
+            }
+
+            .pff-header-cell.active-sort {
+                color: var(--accent-primary);
+            }
+
+            .pff-header-cell.active-sort .sort-icon {
+                opacity: 1;
+            }
+        </style>
+
+        <div id="pffHeaderRow"
+            style="display:grid; grid-template-columns: 100px 1fr 100px 100px 120px; gap:1rem; padding:0.8rem 1rem; background:rgba(255,255,255,0.05); border-radius:4px; margin-bottom:0.8rem; font-weight:800; font-size:0.75rem; color:var(--text-secondary); letter-spacing:1px; text-transform:uppercase;">
+            <div class="pff-header-cell" onclick="sortPFFData('ticker')">TICKER <span class="sort-icon"
+                    id="sort-ticker">▲▼</span></div>
+            <div class="pff-header-cell" onclick="sortPFFData('name')">NAME <span class="sort-icon"
+                    id="sort-name">▲▼</span></div>
+            <div class="pff-header-cell" style="justify-content:flex-end;" onclick="sortPFFData('price')">PRICE <span
+                    class="sort-icon" id="sort-price">▲▼</span></div>
+            <div class="pff-header-cell" style="justify-content:flex-end;" onclick="sortPFFData('weight')">WGT % <span
+                    class="sort-icon" id="sort-weight">▲▼</span></div>
+            <div class="pff-header-cell" style="justify-content:flex-end;" onclick="sortPFFData('market_value')">MKT VAL
+                <span class="sort-icon" id="sort-market_value">▲▼</span>
+            </div>
         </div>
 
         <div id="pffListContainer"
-            style="flex:1; overflow-y:auto; background:rgba(0,0,0,0.3); border-radius:8px; padding:0.5rem;">
+            style="flex:1; overflow-y:auto; background:rgba(0,0,0,0.3); border-radius:8px; padding:0.5rem; scrollbar-width: thin; scrollbar-color: var(--glass-border) transparent;">
             <!-- Holdings will be loaded here -->
-            <div style="color:var(--text-secondary); text-align:center; padding:2rem;">Loading...</div>
+            <div style="color:var(--text-secondary); text-align:center; padding:2rem;">Loading holdings...</div>
         </div>
 
-        <div style="margin-top:1rem; text-align:right; font-size:0.8rem; color:var(--text-secondary);">
-            Total: <span id="pffListCount">0</span> holdings
+        <div
+            style="margin-top:1rem; display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:var(--text-secondary);">
+            <div id="pffShowingText">Showing all holdings</div>
+            <div style="font-weight:700;">@ORHANWOLDE SYSTEM TERMINAL</div>
         </div>
     </div>
 </div>

@@ -111,56 +111,14 @@ def normalize_ticker(t):
 
 def resolve_series_ticker(ticker, name, price, weight=None, cusip=None):
     """
-    Financial-grade resolution using Mapping, CUSIP, Price, Weight and Name.
+    Simplified: Returns the ticker as found in the holdings file.
     """
-    ticker = ticker.upper().split('-')[0].strip()
-    name = str(name).upper()
-    
-    # Ensure maps are loaded
-    if not RESOLUTION_MAP: load_resolution_maps()
-
-    # 1. Primary: Manual Overrides (Gold Standard for top weights)
-    if weight is not None:
-        key = f"{ticker}|{weight:.2f}|{price:.2f}"
-        if key in MANUAL_OVERRIDES:
-            return normalize_ticker(MANUAL_OVERRIDES[key])
-        
-        # 2. Secondary: Automated Deep Resolution Map
-        if key in RESOLUTION_MAP:
-            m_ticker = normalize_ticker(RESOLUTION_MAP[key])
-            if '-' in m_ticker: return m_ticker # Keep map if it found a series
-
-    # 3. Tertiary: CUSIP Matching
-    if cusip:
-        normalized_cusip = str(cusip).strip().zfill(9)
-        if normalized_cusip in CUSIP_MAP:
-            return CUSIP_MAP[normalized_cusip]
-
-    # 4. Deep Name Parsing
-    # Look for "SERIES L", "SER L", "SERIES-L", "REPSTG L", "CLASS L", "PR L"
-    for pattern in [' SERIES ', ' SER ', ' SERIES-', ' REPSTG ', ' CLASS ', ' PR ']:
-        if pattern in name:
-            parts = name.split(pattern)
-            if len(parts) > 1:
-                potential = parts[1].strip()
-                if potential and potential[0].isalpha():
-                    return f"{ticker}-{potential[0]}"
-    
-    # Check for trailing single letters like "REPSTG T"
-    if name.endswith(' T'): return f"{ticker}-T"
-    if name.endswith(' L'): return f"{ticker}-L"
-    if name.endswith(' Q'): return f"{ticker}-Q"
-    if name.endswith(' P'): return f"{ticker}-P"
-
-    # 5. Specialized Fallback Logic
-    if ticker == 'ABR':
-        if price > 20: return 'ABR-F'
-        if price > 17.52: return 'ABR-E'
-        return 'ABR-D'
-        
-    return ticker
+    return ticker.upper().strip()
 
 def analyze_pff_holdings(csv_path):
+    """
+    Simplified analysis that keeps raw tickers and metadata for UI sorting/filtering.
+    """
     """
     Comprehensive Analysis with CUSIP Priority:
     - Checks for 'CUSIP' column for 100% accuracy.
@@ -225,8 +183,8 @@ def analyze_pff_holdings(csv_path):
         except Exception:
             weight, market_value, price = 0.0, 0.0, 0.0
             
-        # Resolve Series Ticker (CUSIP > Fingerprint > Name)
-        display_ticker = resolve_series_ticker(base_ticker, name, price, weight=weight, cusip=cusip)
+        # Resolve Series Ticker: Returns RAW Ticker from CSV as per user request
+        display_ticker = resolve_series_ticker(raw_ticker, name, price, weight=weight, cusip=cusip)
         
         if base_ticker not in results:
             results[base_ticker] = {
