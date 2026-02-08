@@ -739,15 +739,16 @@ def fetch_rebalance_patterns(tickers, months_back=12, progress_callback=None):
                                 'volume': int(d_vol)
                             })
                     
-                    # 4. Close-to-Close Dollar Differences & Reba Range
+                    # 4. Close-to-Close Dollar Differences & Reba Metrics
                     p_minus_3_close = df.iloc[idx-3]['Close']
                     p_reb_close = df.iloc[idx]['Close']
                     p_plus_3_close = df.iloc[idx+3]['Close']
                     
-                    # Reba specific: High-Low and Candle Color
+                    # Reba specific: Body (C-O) and Range (H-L)
                     reb_bar = df.iloc[idx]
-                    reba_range = reb_bar['High'] - reb_bar['Low']
-                    reba_color = 'Green' if reb_bar['Close'] >= reb_bar['Open'] else 'Red'
+                    reba_body_diff = reb_bar['Close'] - reb_bar['Open']
+                    reba_range_diff = reb_bar['High'] - reb_bar['Low']
+                    reba_color = 'Green' if reba_body_diff >= 0 else 'Red'
                     
                     diff_pre = p_reb_close - p_minus_3_close
                     diff_post = p_plus_3_close - p_reb_close
@@ -765,7 +766,8 @@ def fetch_rebalance_patterns(tickers, months_back=12, progress_callback=None):
                         'date': reb_day.strftime('%Y-%m-%d'),
                         'pre_3_diff': round(diff_pre, 3),
                         'post_3_diff': round(diff_post, 3),
-                        'reba_range': round(reba_range, 3),
+                        'reba_body_diff': round(reba_body_diff, 3),
+                        'reba_range_diff': round(reba_range_diff, 3),
                         'reba_color': reba_color,
                         'avg_vol_90': round(avg_vol_90, 0),
                         'pre_vol_avg': round(pre_vol_avg, 0),
@@ -784,7 +786,8 @@ def fetch_rebalance_patterns(tickers, months_back=12, progress_callback=None):
             
             pre_diffs = [e['pre_3_diff'] for e in recent_events]
             post_diffs = [e['post_3_diff'] for e in recent_events]
-            reba_ranges = [e['reba_range'] for e in recent_events]
+            reba_body_diffs = [e['reba_body_diff'] for e in recent_events]
+            reba_range_diffs = [e['reba_range_diff'] for e in recent_events]
             reba_colors = [e['reba_color'] for e in recent_events]
             
             green_reba = reba_colors.count('Green')
@@ -797,7 +800,8 @@ def fetch_rebalance_patterns(tickers, months_back=12, progress_callback=None):
                 'tv_symbol': tv_symbol,
                 'avg_pre_3_diff': round(sum(pre_diffs) / len(pre_diffs), 3),
                 'avg_post_3_diff': round(sum(post_diffs) / len(post_diffs), 3),
-                'avg_reba_diff': round(sum(reba_ranges) / len(reba_ranges), 3),
+                'avg_reba_body_diff': round(sum(reba_body_diffs) / len(reba_body_diffs), 3),
+                'avg_reba_range_diff': round(sum(reba_range_diffs) / len(reba_range_diffs), 3),
                 'reba_dominant_color': reba_dominant,
                 'avg_vol_90': round(sum([e['avg_vol_90'] for e in recent_events]) / len(recent_events), 0),
                 'avg_pre_vol': round(sum([e['pre_vol_avg'] for e in recent_events]) / len(recent_events), 0),
