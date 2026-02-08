@@ -1537,6 +1537,7 @@
                         <tr>
                             <th onclick="sortRebalance('ticker')" style="cursor:pointer;">Ticker ↕</th>
                             <th onclick="sortRebalance('avg_pre_3_diff')" style="cursor:pointer;">Pre-3 ($) ↕</th>
+                            <th onclick="sortRebalance('avg_reba_diff')" style="cursor:pointer;">Reba ($) ↕</th>
                             <th onclick="sortRebalance('avg_post_3_diff')" style="cursor:pointer;">Post-3 ($) ↕</th>
                             <th title="90d Avg | Pre Avg | Reb Day | Post Avg">Volume Detailed</th>
                             <th>Action</th>
@@ -2894,6 +2895,9 @@
                     </div>
                 </td>
                 <td style="color:${preColor}; font-weight:700;">${item.avg_pre_3_diff > 0 ? '+' : ''}${item.avg_pre_3_diff}$</td>
+                <td style="font-weight:700; color:${item.reba_dominant_color === 'Green' ? 'var(--success)' : 'var(--error)'};">
+                    ${item.avg_reba_diff}$ ${item.reba_dominant_color === 'Green' ? '↑' : '↓'}
+                </td>
                 <td style="color:${postColor}; font-weight:700;">${item.avg_post_3_diff > 0 ? '+' : ''}${item.avg_post_3_diff}$</td>
                 <td>
                     <div style="font-size:0.75rem; white-space:nowrap; display:flex; gap:8px; align-items:flex-end;">
