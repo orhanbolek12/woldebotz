@@ -1726,7 +1726,6 @@
         const cefToggle = document.getElementById('rangeCefList');
         const pffToggle = document.getElementById('rangePffList');
         let tickers = [];
-
         if (cefToggle.checked) {
             document.getElementById('analyzeBtn').disabled = true;
             document.getElementById('analyzeBtn').innerText = "Loading CEF List...";
@@ -1741,11 +1740,21 @@
             }
         } else if (pffToggle.checked) {
             document.getElementById('analyzeBtn').disabled = true;
-            document.getElementById('analyzeBtn').innerText = "Loading PFF List...";
+            document.getElementById('analyzeBtn').innerText = "Preparing PFF List...";
             try {
-                const tRes = await fetch('/get_pff_holdings');
-                const tData = await tRes.json();
-                tickers = tData.holdings ? tData.holdings.map(h => h.ticker) : [];
+                // Ensure we have PFF data (fetched from modal or fetch now)
+                if (pffRawData.length === 0) {
+                    const tRes = await fetch('/get_pff_holdings');
+                    const tData = await tRes.json();
+                    pffRawData = tData.holdings || [];
+                }
+
+                // Use filtered list if sectors are selected
+                if (pffSelectedSectors.size > 0) {
+                    tickers = pffRawData.filter(h => pffSelectedSectors.has(h.sector)).map(h => h.ticker);
+                } else {
+                    tickers = pffRawData.map(h => h.ticker);
+                }
             } catch (e) {
                 alert("Failed to load PFF list: " + e.message);
                 resetUI();
@@ -1753,11 +1762,21 @@
             }
         } else if (masterToggle.checked) {
             document.getElementById('analyzeBtn').disabled = true;
-            document.getElementById('analyzeBtn').innerText = "Loading Master List...";
+            document.getElementById('analyzeBtn').innerText = "Preparing Master List...";
             try {
-                const tRes = await fetch('/get_tickers');
-                const tData = await tRes.json();
-                tickers = tData.tickers || [];
+                // Ensure we have Master List data
+                if (masterListRawData.length === 0) {
+                    const tRes = await fetch('/get_master_list_tickers');
+                    const tData = await tRes.json();
+                    masterListRawData = tData.tickers || [];
+                }
+
+                // Use filtered list if sectors are selected
+                if (masterListSelectedSectors.size > 0) {
+                    tickers = masterListRawData.filter(t => masterListSelectedSectors.has(t.sector)).map(t => t.ticker);
+                } else {
+                    tickers = masterListRawData.map(t => t.ticker);
+                }
             } catch (e) {
                 alert("Failed to load master list: " + e.message);
                 resetUI();
@@ -3088,11 +3107,12 @@
 
             if (data.tickers && data.tickers.length > 0) {
                 masterListRawData = data.tickers;
-                masterListData = [...masterListRawData];
 
-                // Initialize Sector Filter UI
+                // Initialize Sector Filter UI (renders based on masterListSelectedSectors)
                 renderMasterSectorFilter();
-                renderMasterList();
+
+                // Apply existing filters instead of showing all
+                applyMasterListFilter();
             } else {
                 container.innerHTML = '<div style="color:var(--text-secondary); text-align:center; grid-column:1/-1; padding:2rem;">No tickers in Master List</div>';
                 countSpan.innerText = '0';
