@@ -698,24 +698,36 @@ def fetch_rebalance_patterns(tickers, months_back=12, progress_callback=None):
                     idx = df.index.get_loc(reb_day)
                     if idx < 90 or idx + 3 >= len(df): continue
                     
-                    # Window: idx-3 to idx+3
-                    # Baseline Volume
-                    avg_vol_90 = df.iloc[idx]['AvgVol90']
+                    # 1. Bar Color Consistency (3/4 Rule)
+                    # Window: [idx-3, idx-2, idx-1, idx]
+                    colors = []
+                    for w_idx in range(idx-3, idx+1):
+                        bar = df.iloc[w_idx]
+                        if bar['Close'] >= bar['Open']:
+                            colors.append('G')
+                        else:
+                            colors.append('R')
                     
-                    # 1. Volume Breakdown
+                    green_count = colors.count('G')
+                    red_count = colors.count('R')
+                    
+                    if max(green_count, red_count) < 3:
+                        continue # Skip if 3/4 rule not met
+                    
+                    # 2. Volume Breakdown
+                    avg_vol_90 = df.iloc[idx]['AvgVol90']
                     pre_vols = df.iloc[idx-3:idx]['Volume']
                     pre_vol_avg = pre_vols.mean()
                     reb_vol = df.iloc[idx]['Volume']
                     post_vols = df.iloc[idx+1:idx+4]['Volume']
                     post_vol_avg = post_vols.mean()
                     
-                    # 2. Dividend Intersection
+                    # 3. Dividend Intersection
                     start_date = df.index[idx-3]
                     end_date = df.index[idx+3]
                     window_divs = []
                     for div_date, amount in dividends.items():
                         if start_date <= div_date <= end_date:
-                            # Specific volume on the dividend day
                             try:
                                 d_idx = df.index.get_loc(div_date)
                                 d_vol = df.iloc[d_idx]['Volume']
@@ -727,27 +739,17 @@ def fetch_rebalance_patterns(tickers, months_back=12, progress_callback=None):
                                 'volume': int(d_vol)
                             })
                     
-                    # 3. Dollar-Based Pricing (High/Low Logic)
-                    # Pre-window: Base is idx-4 (close before window starts) vs idx (reb day)
-                    p_base_close = df.iloc[idx-4]['Close']
+                    # 4. Close-to-Close Dollar Differences
+                    p_minus_3_close = df.iloc[idx-3]['Close']
                     p_reb_close = df.iloc[idx]['Close']
+                    p_plus_3_close = df.iloc[idx+3]['Close']
                     
-                    if p_reb_close < p_base_close: # Decreasing
-                        diff_pre = df.iloc[idx]['Low'] - df.iloc[idx-4]['Low']
-                    else: # Increasing or Flat
-                        diff_pre = df.iloc[idx]['High'] - df.iloc[idx-4]['High']
-                        
-                    # Post-window: Base is idx (reb day close) vs idx+3 (post window end)
-                    p_post_close = df.iloc[idx+3]['Close']
+                    diff_pre = p_reb_close - p_minus_3_close
+                    diff_post = p_plus_3_close - p_reb_close
                     
-                    if p_post_close < p_reb_close: # Decreasing
-                        diff_post = df.iloc[idx+3]['Low'] - df.iloc[idx]['Low']
-                    else: # Increasing or Flat
-                        diff_post = df.iloc[idx+3]['High'] - df.iloc[idx]['High']
-                    
-                    # Trend description (using closes for general trend)
-                    perf_pre_pct = ((p_reb_close - p_base_close) / p_base_close) * 100 if p_base_close > 0 else 0
-                    perf_post_pct = ((p_post_close - p_reb_close) / p_reb_close) * 100 if p_reb_close > 0 else 0
+                    # Trend description remains for metadata
+                    perf_pre_pct = ((p_reb_close - p_minus_3_close) / p_minus_3_close) * 100 if p_minus_3_close > 0 else 0
+                    perf_post_pct = ((p_plus_3_close - p_reb_close) / p_reb_close) * 100 if p_reb_close > 0 else 0
                     trend = "Flat"
                     if perf_pre_pct < -0.5 and perf_post_pct > 0.5: trend = "Sell-off then Recovery"
                     elif perf_pre_pct > 0.5 and perf_post_pct < -0.5: trend = "Pump then Dump"
@@ -763,7 +765,8 @@ def fetch_rebalance_patterns(tickers, months_back=12, progress_callback=None):
                         'reb_vol': round(reb_vol, 0),
                         'post_vol_avg': round(post_vol_avg, 0),
                         'dividends': window_divs,
-                        'trend': trend
+                        'trend': trend,
+                        'dominant_color': 'Green' if green_count >= 3 else 'Red'
                     })
                 except Exception as ex:
                     logging.error(f"Error processing reb_day {reb_day} for {raw_ticker}: {ex}")
