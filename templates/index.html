@@ -197,6 +197,45 @@
             color: var(--text-primary);
         }
 
+        /* Sector Filter Pills */
+        .sector-pill {
+            padding: 0.4rem 0.8rem;
+            border: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-radius: 20px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.15s ease;
+        }
+
+        .sector-pill:hover {
+            background: rgba(59, 130, 246, 0.15);
+            border-color: rgba(59, 130, 246, 0.3);
+            color: var(--text-primary);
+        }
+
+        .sector-pill.active {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: white;
+            box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .sector-pill.clear-btn {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.3);
+            color: var(--error);
+        }
+
+        .sector-pill.clear-btn:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+
         /* Inputs & Buttons */
         textarea {
             width: 100%;
@@ -3011,31 +3050,44 @@
         const sectors = [...new Set(masterListRawData.map(t => t.sector))].sort();
         filterContainer.innerHTML = '';
 
+        // Create a clean horizontal row of pill-style tags
         sectors.forEach(sector => {
-            const label = document.createElement('label');
-            label.style.display = 'flex';
-            label.style.alignItems = 'center';
-            label.style.gap = '0.4rem';
-            label.style.fontSize = '0.75rem';
-            label.style.cursor = 'pointer';
-            label.style.padding = '0.2rem 0.5rem';
-            label.style.background = 'rgba(255,255,255,0.05)';
-            label.style.borderRadius = '4px';
-            label.style.whiteSpace = 'nowrap';
+            const pill = document.createElement('button');
+            pill.className = 'sector-pill';
+            pill.dataset.sector = sector;
+            pill.textContent = sector;
 
-            const cb = document.createElement('input');
-            cb.type = 'checkbox';
-            cb.checked = masterListSelectedSectors.has(sector);
-            cb.onchange = (e) => {
-                if (e.target.checked) masterListSelectedSectors.add(sector);
-                else masterListSelectedSectors.delete(sector);
+            // Apply active state if selected
+            if (masterListSelectedSectors.has(sector)) {
+                pill.classList.add('active');
+            }
+
+            pill.onclick = () => {
+                if (masterListSelectedSectors.has(sector)) {
+                    masterListSelectedSectors.delete(sector);
+                    pill.classList.remove('active');
+                } else {
+                    masterListSelectedSectors.add(sector);
+                    pill.classList.add('active');
+                }
                 applyMasterListFilter();
             };
 
-            label.appendChild(cb);
-            label.appendChild(document.createTextNode(sector));
-            filterContainer.appendChild(label);
+            filterContainer.appendChild(pill);
         });
+
+        // Add "Clear All" button if any filters are active
+        if (masterListSelectedSectors.size > 0) {
+            const clearBtn = document.createElement('button');
+            clearBtn.className = 'sector-pill clear-btn';
+            clearBtn.textContent = '✕ Clear';
+            clearBtn.onclick = () => {
+                masterListSelectedSectors.clear();
+                renderMasterSectorFilter();
+                applyMasterListFilter();
+            };
+            filterContainer.appendChild(clearBtn);
+        }
     }
 
     function applyMasterListFilter() {
@@ -3307,31 +3359,44 @@
         const sectors = [...new Set(pffRawData.map(t => t.sector))].sort();
         filterContainer.innerHTML = '';
 
+        // Create a clean horizontal row of pill-style tags
         sectors.forEach(sector => {
-            const label = document.createElement('label');
-            label.style.display = 'flex';
-            label.style.alignItems = 'center';
-            label.style.gap = '0.4rem';
-            label.style.fontSize = '0.75rem';
-            label.style.cursor = 'pointer';
-            label.style.padding = '0.2rem 0.5rem';
-            label.style.background = 'rgba(255,255,255,0.05)';
-            label.style.borderRadius = '4px';
-            label.style.whiteSpace = 'nowrap';
+            const pill = document.createElement('button');
+            pill.className = 'sector-pill';
+            pill.dataset.sector = sector;
+            pill.textContent = sector;
 
-            const cb = document.createElement('input');
-            cb.type = 'checkbox';
-            cb.checked = pffSelectedSectors.has(sector);
-            cb.onchange = (e) => {
-                if (e.target.checked) pffSelectedSectors.add(sector);
-                else pffSelectedSectors.delete(sector);
-                applyPFFSort(); // This will trigger filter + render
+            // Apply active state if selected
+            if (pffSelectedSectors.has(sector)) {
+                pill.classList.add('active');
+            }
+
+            pill.onclick = () => {
+                if (pffSelectedSectors.has(sector)) {
+                    pffSelectedSectors.delete(sector);
+                    pill.classList.remove('active');
+                } else {
+                    pffSelectedSectors.add(sector);
+                    pill.classList.add('active');
+                }
+                renderPFFList();
             };
 
-            label.appendChild(cb);
-            label.appendChild(document.createTextNode(sector));
-            filterContainer.appendChild(label);
+            filterContainer.appendChild(pill);
         });
+
+        // Add "Clear All" button if any filters are active
+        if (pffSelectedSectors.size > 0) {
+            const clearBtn = document.createElement('button');
+            clearBtn.className = 'sector-pill clear-btn';
+            clearBtn.textContent = '✕ Clear';
+            clearBtn.onclick = () => {
+                pffSelectedSectors.clear();
+                renderPFFSectorFilter();
+                renderPFFList();
+            };
+            filterContainer.appendChild(clearBtn);
+        }
     }
 
     function renderPFFList() {

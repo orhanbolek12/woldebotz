@@ -790,6 +790,13 @@ def get_pff_holdings():
                             'quantity': float(quantity) if pd.notna(quantity) else 0.0,
                             'is_analyzed': True 
                         })
+                # Map sectors to analyzed holdings
+                sector_map = get_sector_map()
+                for h in holdings:
+                    if h.get('ticker'):
+                        h['sector'] = sector_map.get(h['ticker'].upper(), 'Other')
+                    else:
+                        h['sector'] = 'Other'
                 return jsonify({'holdings': holdings, 'source': 'analysis'})
             except Exception as e:
                 logging.error(f"Failed to read analysis file: {e}")
