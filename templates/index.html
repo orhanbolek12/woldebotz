@@ -236,6 +236,65 @@
             background: rgba(239, 68, 68, 0.2);
         }
 
+        /* Sidebar Buttons */
+        .sidebar-btn {
+            width: 100%;
+            padding: 0.5rem 0.8rem;
+            border: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            font-size: 0.7rem;
+            font-weight: 600;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .sidebar-btn:hover {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+
+        .sidebar-btn.secondary {
+            background: transparent;
+            color: var(--text-secondary);
+        }
+
+        .sidebar-btn.secondary:hover {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.3);
+            color: var(--error);
+        }
+
+        /* Sector Checkbox Item */
+        .sector-checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            transition: all 0.15s ease;
+        }
+
+        .sector-checkbox-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+        }
+
+        .sector-checkbox-item input[type="checkbox"] {
+            accent-color: var(--accent-primary);
+            width: 14px;
+            height: 14px;
+        }
+
+        .sector-checkbox-item.active {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--accent-primary);
+        }
+
         /* Inputs & Buttons */
         textarea {
             width: 100%;
@@ -3050,44 +3109,45 @@
         const sectors = [...new Set(masterListRawData.map(t => t.sector))].sort();
         filterContainer.innerHTML = '';
 
-        // Create a clean horizontal row of pill-style tags
+        // Create vertical checkbox list
         sectors.forEach(sector => {
-            const pill = document.createElement('button');
-            pill.className = 'sector-pill';
-            pill.dataset.sector = sector;
-            pill.textContent = sector;
-
-            // Apply active state if selected
+            const label = document.createElement('label');
+            label.className = 'sector-checkbox-item';
             if (masterListSelectedSectors.has(sector)) {
-                pill.classList.add('active');
+                label.classList.add('active');
             }
 
-            pill.onclick = () => {
-                if (masterListSelectedSectors.has(sector)) {
-                    masterListSelectedSectors.delete(sector);
-                    pill.classList.remove('active');
-                } else {
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.checked = masterListSelectedSectors.has(sector);
+            cb.onchange = () => {
+                if (cb.checked) {
                     masterListSelectedSectors.add(sector);
-                    pill.classList.add('active');
+                    label.classList.add('active');
+                } else {
+                    masterListSelectedSectors.delete(sector);
+                    label.classList.remove('active');
                 }
                 applyMasterListFilter();
             };
 
-            filterContainer.appendChild(pill);
+            label.appendChild(cb);
+            label.appendChild(document.createTextNode(sector));
+            filterContainer.appendChild(label);
         });
+    }
 
-        // Add "Clear All" button if any filters are active
-        if (masterListSelectedSectors.size > 0) {
-            const clearBtn = document.createElement('button');
-            clearBtn.className = 'sector-pill clear-btn';
-            clearBtn.textContent = '✕ Clear';
-            clearBtn.onclick = () => {
-                masterListSelectedSectors.clear();
-                renderMasterSectorFilter();
-                applyMasterListFilter();
-            };
-            filterContainer.appendChild(clearBtn);
-        }
+    function masterSelectAllSectors() {
+        const sectors = [...new Set(masterListRawData.map(t => t.sector))];
+        sectors.forEach(s => masterListSelectedSectors.add(s));
+        renderMasterSectorFilter();
+        applyMasterListFilter();
+    }
+
+    function masterClearSectors() {
+        masterListSelectedSectors.clear();
+        renderMasterSectorFilter();
+        applyMasterListFilter();
     }
 
     function applyMasterListFilter() {
@@ -3102,9 +3162,11 @@
     function renderMasterList() {
         const container = document.getElementById('masterListContainer');
         const countSpan = document.getElementById('masterListCount');
+        const showingSpan = document.getElementById('masterListShowing');
 
         container.innerHTML = '';
         countSpan.innerText = masterListRawData.length;
+        if (showingSpan) showingSpan.innerText = masterListData.length;
 
         masterListData.forEach(item => {
             const ticker = item.ticker;
@@ -3113,18 +3175,18 @@
             div.style.background = 'rgba(255,255,255,0.05)';
             div.style.border = '1px solid var(--glass-border)';
             div.style.borderRadius = '4px';
-            div.style.padding = '0.6rem';
+            div.style.padding = '0.5rem 0.6rem';
             div.style.display = 'flex';
             div.style.justifyContent = 'space-between';
             div.style.alignItems = 'center';
-            div.style.fontSize = '0.85rem';
+            div.style.fontSize = '0.8rem';
 
             div.innerHTML = `
                 <div>
                     <div style="font-weight:800; color:white;">${ticker}</div>
-                    <div style="font-size:0.7rem; color:var(--text-secondary);">${sector}</div>
+                    <div style="font-size:0.65rem; color:var(--text-secondary);">${sector}</div>
                 </div>
-                <button onclick="deleteMasterListTicker('${ticker}')" style="background:transparent; border:none; color:var(--error); cursor:pointer; font-weight:bold; font-size:1.2rem; line-height:1;">&times;</button>
+                <button onclick="deleteMasterListTicker('${ticker}')" style="background:transparent; border:none; color:var(--error); cursor:pointer; font-weight:bold; font-size:1rem; line-height:1;">&times;</button>
             `;
             container.appendChild(div);
         });
@@ -3359,44 +3421,45 @@
         const sectors = [...new Set(pffRawData.map(t => t.sector))].sort();
         filterContainer.innerHTML = '';
 
-        // Create a clean horizontal row of pill-style tags
+        // Create vertical checkbox list
         sectors.forEach(sector => {
-            const pill = document.createElement('button');
-            pill.className = 'sector-pill';
-            pill.dataset.sector = sector;
-            pill.textContent = sector;
-
-            // Apply active state if selected
+            const label = document.createElement('label');
+            label.className = 'sector-checkbox-item';
             if (pffSelectedSectors.has(sector)) {
-                pill.classList.add('active');
+                label.classList.add('active');
             }
 
-            pill.onclick = () => {
-                if (pffSelectedSectors.has(sector)) {
-                    pffSelectedSectors.delete(sector);
-                    pill.classList.remove('active');
-                } else {
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.checked = pffSelectedSectors.has(sector);
+            cb.onchange = () => {
+                if (cb.checked) {
                     pffSelectedSectors.add(sector);
-                    pill.classList.add('active');
+                    label.classList.add('active');
+                } else {
+                    pffSelectedSectors.delete(sector);
+                    label.classList.remove('active');
                 }
                 renderPFFList();
             };
 
-            filterContainer.appendChild(pill);
+            label.appendChild(cb);
+            label.appendChild(document.createTextNode(sector));
+            filterContainer.appendChild(label);
         });
+    }
 
-        // Add "Clear All" button if any filters are active
-        if (pffSelectedSectors.size > 0) {
-            const clearBtn = document.createElement('button');
-            clearBtn.className = 'sector-pill clear-btn';
-            clearBtn.textContent = '✕ Clear';
-            clearBtn.onclick = () => {
-                pffSelectedSectors.clear();
-                renderPFFSectorFilter();
-                renderPFFList();
-            };
-            filterContainer.appendChild(clearBtn);
-        }
+    function pffSelectAllSectors() {
+        const sectors = [...new Set(pffRawData.map(t => t.sector))];
+        sectors.forEach(s => pffSelectedSectors.add(s));
+        renderPFFSectorFilter();
+        renderPFFList();
+    }
+
+    function pffClearSectors() {
+        pffSelectedSectors.clear();
+        renderPFFSectorFilter();
+        renderPFFList();
     }
 
     function renderPFFList() {
@@ -3514,14 +3577,18 @@
 <div id="masterListModal" class="modal-overlay"
     style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; backdrop-filter:blur(5px); align-items:center; justify-content:center;">
     <div class="glass-card"
-        style="width:90%; max-width:600px; max-height:85vh; display:flex; flex-direction:column; padding:2rem; margin:0;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+        style="width:95%; max-width:900px; max-height:90vh; display:flex; flex-direction:column; padding:0; margin:0; overflow:hidden;">
+
+        <!-- Header -->
+        <div
+            style="display:flex; justify-content:space-between; align-items:center; padding:1.5rem 2rem; border-bottom:1px solid var(--glass-border);">
             <h2 style="margin:0; font-family:'Outfit'; font-weight:800; font-size:1.5rem;">Manage Master List</h2>
             <button onclick="closeMasterListModal()"
                 style="background:transparent; border:none; color:var(--text-secondary); cursor:pointer; font-size:1.5rem;">&times;</button>
         </div>
 
-        <div class="input-group" style="margin-bottom:1rem;">
+        <!-- Add Ticker Row -->
+        <div style="padding:1rem 2rem; border-bottom:1px solid var(--glass-border); background:rgba(0,0,0,0.2);">
             <div style="display:flex; gap:0.5rem;">
                 <input type="text" id="newMasterTicker" placeholder="TICKER"
                     style="flex:1; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; padding:0.8rem; border-radius:4px; font-weight:700; text-transform:uppercase;">
@@ -3530,20 +3597,39 @@
             </div>
         </div>
 
-        <div id="masterSectorFilter"
-            style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:1rem; padding:0.8rem; background:rgba(0,0,0,0.2); border-radius:4px; max-height:100px; overflow-y:auto;">
-            <!-- Sector checkboxes will be loaded here -->
-        </div>
+        <!-- Two Column Layout -->
+        <div style="display:flex; flex:1; overflow:hidden;">
 
-        <div id="masterListContainer"
-            style="flex:1; overflow-y:auto; background:rgba(0,0,0,0.3); border-radius:8px; padding:1rem; display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:0.8rem; align-content:start;">
-            <!-- Tickers will be loaded here -->
-            <div style="color:var(--text-secondary); text-align:center; grid-column:1/-1; padding:2rem;">Loading...
+            <!-- Left Sidebar: Sector Filters -->
+            <div
+                style="width:180px; min-width:180px; border-right:1px solid var(--glass-border); background:rgba(0,0,0,0.3); display:flex; flex-direction:column;">
+                <div style="padding:1rem; border-bottom:1px solid var(--glass-border);">
+                    <div
+                        style="font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-secondary); margin-bottom:0.8rem;">
+                        Filter by Sector</div>
+                    <div style="display:flex; flex-direction:column; gap:0.4rem;">
+                        <button onclick="masterSelectAllSectors()" class="sidebar-btn">Select All</button>
+                        <button onclick="masterClearSectors()" class="sidebar-btn secondary">Clear Selection</button>
+                    </div>
+                </div>
+                <div id="masterSectorFilter" style="flex:1; overflow-y:auto; padding:0.8rem;">
+                    <!-- Sector checkboxes will be loaded here -->
+                </div>
             </div>
-        </div>
 
-        <div style="margin-top:1rem; text-align:right; font-size:0.8rem; color:var(--text-secondary);">
-            Total: <span id="masterListCount">0</span> tickers
+            <!-- Right Side: Ticker Grid -->
+            <div style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+                <div id="masterListContainer"
+                    style="flex:1; overflow-y:auto; background:rgba(0,0,0,0.2); padding:1rem; display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:0.6rem; align-content:start;">
+                    <!-- Tickers will be loaded here -->
+                    <div style="color:var(--text-secondary); text-align:center; grid-column:1/-1; padding:2rem;">
+                        Loading...</div>
+                </div>
+                <div
+                    style="padding:1rem 1.5rem; text-align:right; font-size:0.8rem; color:var(--text-secondary); border-top:1px solid var(--glass-border);">
+                    Showing: <span id="masterListShowing">0</span> / Total: <span id="masterListCount">0</span> tickers
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -3552,20 +3638,23 @@
 <div id="pffListModal" class="modal-overlay"
     style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; backdrop-filter:blur(5px); align-items:center; justify-content:center;">
     <div class="glass-card"
-        style="width:95%; max-width:900px; max-height:90vh; display:flex; flex-direction:column; padding:2rem; margin:0;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+        style="width:95%; max-width:1100px; max-height:90vh; display:flex; flex-direction:column; padding:0; margin:0; overflow:hidden;">
+
+        <!-- Header -->
+        <div
+            style="display:flex; justify-content:space-between; align-items:center; padding:1.5rem 2rem; border-bottom:1px solid var(--glass-border);">
             <div>
                 <h2 style="margin:0; font-family:'Outfit'; font-weight:800; font-size:1.5rem;">PFF ETF Holdings</h2>
                 <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.25rem;">
-                    RAW TICKERS FROM ISHARES | <span id="pffListCount">0</span> HOLDINGS
+                    ANALYZED PREFERRED STOCKS | <span id="pffListCount">0</span> HOLDINGS
                 </div>
             </div>
             <div style="display:flex; gap:1rem; align-items:center;">
                 <!-- SEARCH BOX -->
                 <div style="position:relative;">
-                    <input type="text" id="pffSearchInput" placeholder="SEARCH TICKER (e.g. COF)"
+                    <input type="text" id="pffSearchInput" placeholder="SEARCH TICKER"
                         oninput="filterPFFList(this.value)"
-                        style="background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; padding:0.6rem 1rem 0.6rem 2.2rem; border-radius:4px; font-weight:700; width:250px; font-size:0.8rem;">
+                        style="background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; padding:0.6rem 1rem 0.6rem 2.2rem; border-radius:4px; font-weight:700; width:200px; font-size:0.8rem;">
                     <svg style="position:absolute; left:0.8rem; top:50%; transform:translateY(-50%); opacity:0.5;"
                         width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                         <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
@@ -3604,41 +3693,62 @@
             }
         </style>
 
-        <!-- SECTOR FILTER -->
-        <div id="pffSectorFilter"
-            style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:1rem; padding:0.8rem; background:rgba(255,255,255,0.05); border-radius:4px; max-height:100px; overflow-y:auto;">
-            <!-- Sector checkboxes will be loaded here -->
-        </div>
+        <!-- Two Column Layout -->
+        <div style="display:flex; flex:1; overflow:hidden;">
 
-        <div id="pffHeaderRow"
-            style="display:grid; grid-template-columns: 90px 1fr 120px 80px 80px 70px 90px; gap:1rem; padding:0.8rem 1rem; background:rgba(255,255,255,0.05); border-radius:4px; margin-bottom:0.8rem; font-weight:800; font-size:0.75rem; color:var(--text-secondary); letter-spacing:1px; text-transform:uppercase;">
-            <div class="pff-header-cell" onclick="sortPFFData('ticker')">TICKER <span class="sort-icon"
-                    id="sort-ticker">▲▼</span></div>
-            <div class="pff-header-cell" onclick="sortPFFData('name')">NAME <span class="sort-icon"
-                    id="sort-name">▲▼</span></div>
-            <div class="pff-header-cell" onclick="sortPFFData('sector')">SECTOR <span class="sort-icon"
-                    id="sort-sector">▲▼</span></div>
-            <div class="pff-header-cell" style="justify-content:flex-end;" onclick="sortPFFData('price')">PRICE <span
-                    class="sort-icon" id="sort-price">▲▼</span></div>
-            <div class="pff-header-cell" style="justify-content:flex-end;" onclick="sortPFFData('quantity')">QTY <span
-                    class="sort-icon" id="sort-quantity">▲▼</span></div>
-            <div class="pff-header-cell" style="justify-content:flex-end;" onclick="sortPFFData('weight')">WGT % <span
-                    class="sort-icon" id="sort-weight">▲▼</span></div>
-            <div class="pff-header-cell" style="justify-content:flex-end;" onclick="sortPFFData('market_value')">MKT VAL
-                <span class="sort-icon" id="sort-market_value">▲▼</span>
+            <!-- Left Sidebar: Sector Filters -->
+            <div
+                style="width:180px; min-width:180px; border-right:1px solid var(--glass-border); background:rgba(0,0,0,0.3); display:flex; flex-direction:column;">
+                <div style="padding:1rem; border-bottom:1px solid var(--glass-border);">
+                    <div
+                        style="font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-secondary); margin-bottom:0.8rem;">
+                        Filter by Sector</div>
+                    <div style="display:flex; flex-direction:column; gap:0.4rem;">
+                        <button onclick="pffSelectAllSectors()" class="sidebar-btn">Select All</button>
+                        <button onclick="pffClearSectors()" class="sidebar-btn secondary">Clear Selection</button>
+                    </div>
+                </div>
+                <div id="pffSectorFilter" style="flex:1; overflow-y:auto; padding:0.8rem;">
+                    <!-- Sector checkboxes will be loaded here -->
+                </div>
             </div>
-        </div>
 
-        <div id="pffListContainer"
-            style="flex:1; overflow-y:auto; background:rgba(0,0,0,0.3); border-radius:8px; padding:0.5rem; scrollbar-width: thin; scrollbar-color: var(--glass-border) transparent;">
-            <!-- Holdings will be loaded here -->
-            <div style="color:var(--text-secondary); text-align:center; padding:2rem;">Loading holdings...</div>
-        </div>
+            <!-- Right Side: Holdings Table -->
+            <div style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+                <!-- Header Row -->
+                <div id="pffHeaderRow"
+                    style="display:grid; grid-template-columns: 80px 1fr 90px 70px 70px 60px 80px; gap:0.8rem; padding:0.8rem 1rem; background:rgba(255,255,255,0.05); font-weight:800; font-size:0.7rem; color:var(--text-secondary); letter-spacing:1px; text-transform:uppercase;">
+                    <div class="pff-header-cell" onclick="sortPFFData('ticker')">TICKER <span
+                            class="sort-icon">▲▼</span></div>
+                    <div class="pff-header-cell" onclick="sortPFFData('name')">NAME <span class="sort-icon">▲▼</span>
+                    </div>
+                    <div class="pff-header-cell" onclick="sortPFFData('sector')">SECTOR <span
+                            class="sort-icon">▲▼</span></div>
+                    <div class="pff-header-cell" style="justify-content:flex-end;" onclick="sortPFFData('price')">PRICE
+                        <span class="sort-icon">▲▼</span>
+                    </div>
+                    <div class="pff-header-cell" style="justify-content:flex-end;" onclick="sortPFFData('quantity')">QTY
+                        <span class="sort-icon">▲▼</span>
+                    </div>
+                    <div class="pff-header-cell" style="justify-content:flex-end;" onclick="sortPFFData('weight')">WGT%
+                        <span class="sort-icon">▲▼</span>
+                    </div>
+                    <div class="pff-header-cell" style="justify-content:flex-end;"
+                        onclick="sortPFFData('market_value')">MKT VAL <span class="sort-icon">▲▼</span></div>
+                </div>
 
-        <div
-            style="margin-top:1rem; display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:var(--text-secondary);">
-            <div id="pffShowingText">Showing all holdings</div>
-            <div style="font-weight:700;">@ORHANWOLDE SYSTEM TERMINAL</div>
+                <div id="pffListContainer"
+                    style="flex:1; overflow-y:auto; background:rgba(0,0,0,0.2); padding:0.5rem; scrollbar-width: thin; scrollbar-color: var(--glass-border) transparent;">
+                    <!-- Holdings will be loaded here -->
+                    <div style="color:var(--text-secondary); text-align:center; padding:2rem;">Loading holdings...</div>
+                </div>
+
+                <div
+                    style="padding:1rem 1.5rem; display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:var(--text-secondary); border-top:1px solid var(--glass-border);">
+                    <div id="pffShowingText">Showing all holdings</div>
+                    <div style="font-weight:700;">@ORHANWOLDE SYSTEM TERMINAL</div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
