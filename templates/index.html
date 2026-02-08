@@ -1539,7 +1539,8 @@
                             <th onclick="sortRebalance('avg_pre_3_diff')" style="cursor:pointer;">Pre-3 ($) ↕</th>
                             <th onclick="sortRebalance('avg_reba_body_diff')" style="cursor:pointer;">Reba ($) ↕</th>
                             <th onclick="sortRebalance('avg_post_3_diff')" style="cursor:pointer;">Post-3 ($) ↕</th>
-                            <th title="90d Avg | Pre Avg | Reb Day | Post Avg">Volume Detailed</th>
+                            <th onclick="sortRebalance('volume')" style="cursor:pointer;"
+                                title="90d Avg | Pre Avg | Reb Day | Post Avg">Volume Detailed ↕</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -2821,8 +2822,20 @@
 
         const dir = rebalanceSortState.direction === 'asc' ? 1 : -1;
         dataStore.rebalance.sort((a, b) => {
-            let valA = a[col];
-            let valB = b[col];
+            let valA, valB;
+            if (col === 'volume') {
+                const getScore = (item) => {
+                    if (!item.avg_vol_90 || item.avg_vol_90 === 0) return 0;
+                    return (item.avg_pre_vol / item.avg_vol_90) +
+                        (item.avg_reb_vol / item.avg_vol_90) +
+                        (item.avg_post_vol / item.avg_vol_90);
+                };
+                valA = getScore(a);
+                valB = getScore(b);
+            } else {
+                valA = a[col];
+                valB = b[col];
+            }
             if (typeof valA === 'string') {
                 valA = valA.toLowerCase();
                 valB = valB.toLowerCase();
