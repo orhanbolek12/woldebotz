@@ -13,8 +13,35 @@ from datetime import datetime, timedelta, timezone
 
 import json
 import os
+import glob
+import pandas as pd
+import logging
 
 app = Flask(__name__)
+
+# Helper to get sector map from Excel
+def get_sector_map():
+    try:
+        downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
+        files = glob.glob(os.path.join(downloads_path, "*(2) 2025 Master List*Issues.xlsx"))
+        if not files:
+            return {}
+        
+        # Load the latest file if multiple exist
+        latest_file = max(files, key=os.path.getmtime)
+        df = pd.read_excel(latest_file)
+        
+        # Create ticker -> sector map
+        # Clean ticker and sector names
+        if 'Ticker' in df.columns and 'Sector' in df.columns:
+            # Create a dictionary where ticker is key and sector is value
+            # Standardize tickers to upper case
+            sector_map = df.dropna(subset=['Ticker', 'Sector']).set_index('Ticker')['Sector'].to_dict()
+            return {str(k).strip().upper(): str(v).strip() for k, v in sector_map.items()}
+        return {}
+    except Exception as e:
+        print(f"Error loading sector map: {e}")
+        return {}
 
 # Persistence files
 HISTORY_FILE = 'results_history.json'
@@ -597,14 +624,24 @@ def analyze_rebalance_batch():
 @app.route('/get_master_list_tickers', methods=['GET'])
 def get_master_list_tickers():
     """
-    Returns the current Master List tickers from tickers.txt
+    Returns the current Master List tickers from tickers.txt with sector info
     """
     try:
+        sector_map = get_sector_map()
         if os.path.exists('tickers.txt'):
             with open('tickers.txt', 'r') as f:
                 content = f.read()
-            tickers = [t.strip() for t in content.replace('\n', ',').split(',') if t.strip()]
-            return jsonify({'tickers': sorted(list(set(tickers)))})
+            tickers = [t.strip().upper() for t in content.replace('\n', ',').split(',') if t.strip()]
+            unique_tickers = sorted(list(set(tickers)))
+            
+            # Map tickers to objects with sector
+            ticker_objects = []
+            for t in unique_tickers:
+                ticker_objects.append({
+                    'ticker': t,
+                    'sector': sector_map.get(t, 'Other')
+                })
+            return jsonify({'tickers': ticker_objects})
         return jsonify({'tickers': []})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -788,9 +825,14 @@ def get_pff_holdings():
                     'is_analyzed': False
                 })
         
-        # Sort by weight descending
-        holdings.sort(key=lambda x: x['weight'], reverse=True)
-        
+        # Map Sectors to PFF holdings
+        sector_map = get_sector_map()
+        for h in holdings:
+            if h.get('ticker'):
+                h['sector'] = sector_map.get(h['ticker'].upper(), 'Other')
+            else:
+                h['sector'] = 'Other'
+
         return jsonify({'holdings': holdings, 'source': 'raw'})
     except Exception as e:
         import traceback
