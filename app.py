@@ -19,28 +19,62 @@ import logging
 
 app = Flask(__name__)
 
-# Helper to get sector map from Excel
+# Caching for sector map to avoid repeated disk reads
+_sector_map_cache = None
+_sector_map_last_loaded = 0
+
 def get_sector_map():
+    global _sector_map_cache, _sector_map_last_loaded
+    
+    # Refresh cache every hour or if not loaded
+    current_time = time.time()
+    if _sector_map_cache is not None and (current_time - _sector_map_last_loaded < 3600):
+        return _sector_map_cache
+
     try:
         downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
+        # Try a more permissive glob to ensure we find the file
         files = glob.glob(os.path.join(downloads_path, "*(2) 2025 Master List*Issues.xlsx"))
         if not files:
+            # Try without the star at the beginning as well
+            files = glob.glob(os.path.join(downloads_path, "(2) 2025 Master List*Issues.xlsx"))
+            
+        if not files:
+            logging.error(f"Sector Map: No files found in {downloads_path} matching pattern.")
             return {}
         
-        # Load the latest file if multiple exist
         latest_file = max(files, key=os.path.getmtime)
+        logging.info(f"Sector Map: Loading from {latest_file}")
+        
         df = pd.read_excel(latest_file)
         
-        # Create ticker -> sector map
-        # Clean ticker and sector names
-        if 'Ticker' in df.columns and 'Sector' in df.columns:
+        # Robust column detection
+        ticker_col = None
+        sector_col = None
+        
+        # Look for columns that contain 'Ticker' or 'Sector' (case-insensitive)
+        for col in df.columns:
+            col_str = str(col).strip().upper()
+            if 'TICKER' in col_str and not ticker_col:
+                ticker_col = col
+            if 'SECTOR' in col_str and not sector_col:
+                sector_col = col
+        
+        if ticker_col and sector_col:
             # Create a dictionary where ticker is key and sector is value
-            # Standardize tickers to upper case
-            sector_map = df.dropna(subset=['Ticker', 'Sector']).set_index('Ticker')['Sector'].to_dict()
-            return {str(k).strip().upper(): str(v).strip() for k, v in sector_map.items()}
-        return {}
+            # Clean and standardize both keys and values
+            raw_map = df.dropna(subset=[ticker_col, sector_col]).set_index(ticker_col)[sector_col].to_dict()
+            _sector_map_cache = {str(k).strip().upper(): str(v).strip() for k, v in raw_map.items()}
+            _sector_map_last_loaded = current_time
+            logging.info(f"Sector Map: Successfully loaded {len(_sector_map_cache)} mappings.")
+            return _sector_map_cache
+        else:
+            logging.error(f"Sector Map: Could not find both Ticker and Sector columns. Found Ticker: {ticker_col}, Sector: {sector_col}")
+            return {}
+            
     except Exception as e:
-        print(f"Error loading sector map: {e}")
+        import traceback
+        logging.error(f"Error loading sector map: {e}\n{traceback.format_exc()}")
         return {}
 
 # Persistence files
