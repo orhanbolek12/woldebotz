@@ -21,55 +21,25 @@ app = Flask(__name__)
 
 # Caching for sector map to avoid repeated disk reads
 _sector_map_cache = None
-_sector_map_last_loaded = 0
+
+SECTOR_MAP_FILE = 'sector_map.json'
 
 def get_sector_map():
-    global _sector_map_cache, _sector_map_last_loaded
+    global _sector_map_cache
     
-    # Refresh cache every hour or if not loaded
-    current_time = time.time()
-    if _sector_map_cache is not None and (current_time - _sector_map_last_loaded < 3600):
+    # Return cached version if available
+    if _sector_map_cache is not None:
         return _sector_map_cache
 
     try:
-        downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
-        # Try a more permissive glob to ensure we find the file
-        files = glob.glob(os.path.join(downloads_path, "*(2) 2025 Master List*Issues.xlsx"))
-        if not files:
-            # Try without the star at the beginning as well
-            files = glob.glob(os.path.join(downloads_path, "(2) 2025 Master List*Issues.xlsx"))
-            
-        if not files:
-            logging.error(f"Sector Map: No files found in {downloads_path} matching pattern.")
-            return {}
-        
-        latest_file = max(files, key=os.path.getmtime)
-        logging.info(f"Sector Map: Loading from {latest_file}")
-        
-        df = pd.read_excel(latest_file)
-        
-        # Robust column detection
-        ticker_col = None
-        sector_col = None
-        
-        # Look for columns that contain 'Ticker' or 'Sector' (case-insensitive)
-        for col in df.columns:
-            col_str = str(col).strip().upper()
-            if 'TICKER' in col_str and not ticker_col:
-                ticker_col = col
-            if 'SECTOR' in col_str and not sector_col:
-                sector_col = col
-        
-        if ticker_col and sector_col:
-            # Create a dictionary where ticker is key and sector is value
-            # Clean and standardize both keys and values
-            raw_map = df.dropna(subset=[ticker_col, sector_col]).set_index(ticker_col)[sector_col].to_dict()
-            _sector_map_cache = {str(k).strip().upper(): str(v).strip() for k, v in raw_map.items()}
-            _sector_map_last_loaded = current_time
-            logging.info(f"Sector Map: Successfully loaded {len(_sector_map_cache)} mappings.")
+        # Load from static JSON file (deployed with the app)
+        if os.path.exists(SECTOR_MAP_FILE):
+            with open(SECTOR_MAP_FILE, 'r', encoding='utf-8') as f:
+                _sector_map_cache = json.load(f)
+            logging.info(f"Sector Map: Loaded {len(_sector_map_cache)} mappings from {SECTOR_MAP_FILE}")
             return _sector_map_cache
         else:
-            logging.error(f"Sector Map: Could not find both Ticker and Sector columns. Found Ticker: {ticker_col}, Sector: {sector_col}")
+            logging.error(f"Sector Map: {SECTOR_MAP_FILE} not found.")
             return {}
             
     except Exception as e:
