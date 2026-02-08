@@ -3284,7 +3284,20 @@
         applyPFFSort();
     }
 
-    renderPFFList();
+    function applyPFFSort() {
+        const col = pffSortState.column;
+        const dir = pffSortState.direction === 'asc' ? 1 : -1;
+
+        // Update UI Sort Icons
+        document.querySelectorAll('.pff-header-cell').forEach(cell => cell.classList.remove('active-sort'));
+        const activeCell = document.querySelector(`.pff-header-cell[onclick*="${col}"]`);
+        if (activeCell) {
+            activeCell.classList.add('active-sort');
+            const icon = activeCell.querySelector('.sort-icon');
+            if (icon) icon.innerText = pffSortState.direction === 'asc' ? ' ▲' : ' ▼';
+        }
+
+        renderPFFList();
     }
 
     function renderPFFSectorFilter() {
