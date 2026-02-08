@@ -2826,9 +2826,16 @@
             if (col === 'volume') {
                 const getScore = (item) => {
                     if (!item.avg_vol_90 || item.avg_vol_90 === 0) return 0;
-                    return (item.avg_pre_vol / item.avg_vol_90) +
-                        (item.avg_reb_vol / item.avg_vol_90) +
-                        (item.avg_post_vol / item.avg_vol_90);
+                    const getPoints = (val) => {
+                        const diff = (val - item.avg_vol_90) / item.avg_vol_90;
+                        if (diff >= 0.3) return 5;
+                        if (diff >= 0.2) return 3;
+                        if (diff >= 0.1) return 1;
+                        return 0;
+                    };
+                    return getPoints(item.avg_pre_vol) +
+                        getPoints(item.avg_reb_vol) +
+                        getPoints(item.avg_post_vol);
                 };
                 valA = getScore(a);
                 valB = getScore(b);
