@@ -1535,11 +1535,10 @@
                 <table id="rebalanceResultsTable">
                     <thead>
                         <tr>
-                            <th>Ticker</th>
-                            <th>Avg Pre-3 ($)</th>
-                            <th>Avg Post-3 ($)</th>
+                            <th onclick="sortRebalance('ticker')" style="cursor:pointer;">Ticker ↕</th>
+                            <th onclick="sortRebalance('avg_pre_3_diff')" style="cursor:pointer;">Pre-3 ($) ↕</th>
+                            <th onclick="sortRebalance('avg_post_3_diff')" style="cursor:pointer;">Post-3 ($) ↕</th>
                             <th title="90d Avg | Pre Avg | Reb Day | Post Avg">Volume Detailed</th>
-                            <th>Indicators</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -2807,6 +2806,34 @@
         document.getElementById('rebProgressText').innerText = text;
     }
 
+    let rebalanceSortState = { column: null, direction: 'desc' };
+
+    function sortRebalance(col) {
+        if (!dataStore.rebalance || dataStore.rebalance.length === 0) return;
+
+        if (rebalanceSortState.column === col) {
+            rebalanceSortState.direction = rebalanceSortState.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            rebalanceSortState.column = col;
+            rebalanceSortState.direction = 'desc';
+        }
+
+        const dir = rebalanceSortState.direction === 'asc' ? 1 : -1;
+        dataStore.rebalance.sort((a, b) => {
+            let valA = a[col];
+            let valB = b[col];
+            if (typeof valA === 'string') {
+                valA = valA.toLowerCase();
+                valB = valB.toLowerCase();
+            }
+            if (valA < valB) return -1 * dir;
+            if (valA > valB) return 1 * dir;
+            return 0;
+        });
+
+        renderRebalanceResults(dataStore.rebalance);
+    }
+
     function renderRebalanceResults(results) {
         if (!results || results.length === 0) return;
         document.getElementById('rebalanceResultsCard').style.display = 'block';
@@ -2822,24 +2849,13 @@
             const preColor = item.avg_pre_3_diff > 0 ? 'var(--success)' : (item.avg_pre_3_diff < 0 ? 'var(--error)' : 'white');
             const postColor = item.avg_post_3_diff > 0 ? 'var(--success)' : (item.avg_post_3_diff < 0 ? 'var(--error)' : 'white');
 
-            // Indicators & Div details
-            let hasDivs = false;
-            let divDetails = [];
+            // Find Dividend Info
+            let divInfo = null;
             if (item.details && item.details.length > 0) {
-                item.details.forEach(ev => {
-                    if (ev.dividends && ev.dividends.length > 0) {
-                        hasDivs = true;
-                        ev.dividends.forEach(d => {
-                            divDetails.push(`${d.date}: $${d.amount} (Vol: ${formatDetailedVol(d.volume)})`);
-                        });
-                    }
-                });
-            }
-
-            const indicators = [];
-            if (hasDivs) {
-                const title = "Div Events:\n" + divDetails.join('\n');
-                indicators.push(`<span class="badge" style="background:rgba(168,85,247,0.1); color:#a855f7; border:none;" title="${title}">DIV</span>`);
+                const evWithDiv = item.details.find(ev => ev.dividends && ev.dividends.length > 0);
+                if (evWithDiv && evWithDiv.dividends.length > 0) {
+                    divInfo = evWithDiv.dividends[0];
+                }
             }
 
             // Volume Coloring Logic
@@ -2858,6 +2874,18 @@
             const volReb = formatDetailedVol(item.avg_reb_vol);
             const volPost = formatDetailedVol(item.avg_post_vol);
 
+            let divSegment = '';
+            if (divInfo) {
+                const divVol = formatDetailedVol(divInfo.volume);
+                divSegment = `
+                    <span style="opacity:0.2;">|</span>
+                    <div style="display:flex; flex-direction:column; align-items:center;">
+                        <span style="font-size:0.5rem; color:#a855f7; opacity:0.8; font-weight:800; text-transform:uppercase; margin-bottom:2px;">div</span>
+                        <span title="Ex-Div Date: ${divInfo.date} (Amount: $${divInfo.amount})" style="color:#a855f7; font-weight:700;">${divVol}</span>
+                    </div>
+                `;
+            }
+
             tr.innerHTML = `
                 <td>
                     <div style="display:flex; align-items:center;">
@@ -2868,19 +2896,27 @@
                 <td style="color:${preColor}; font-weight:700;">${item.avg_pre_3_diff > 0 ? '+' : ''}${item.avg_pre_3_diff}$</td>
                 <td style="color:${postColor}; font-weight:700;">${item.avg_post_3_diff > 0 ? '+' : ''}${item.avg_post_3_diff}$</td>
                 <td>
-                    <div style="font-size:0.75rem; white-space:nowrap; display:flex; gap:6px;">
-                        <span title="90d Avg Baseline" style="opacity:0.5;">${vol90}</span>
+                    <div style="font-size:0.75rem; white-space:nowrap; display:flex; gap:8px; align-items:flex-end;">
+                        <div style="display:flex; flex-direction:column; align-items:center;">
+                            <span style="font-size:0.5rem; color:var(--text-secondary); opacity:0.5; font-weight:800; text-transform:uppercase; margin-bottom:2px;">avg</span>
+                            <span title="90d Avg Baseline" style="opacity:0.5;">${vol90}</span>
+                        </div>
                         <span style="opacity:0.2;">|</span>
-                        <span title="Pre-3 Avg" style="${getVolStyle(item.avg_pre_vol)}">${volPre}</span>
+                        <div style="display:flex; flex-direction:column; align-items:center;">
+                            <span style="font-size:0.5rem; color:var(--text-secondary); opacity:0.5; font-weight:800; text-transform:uppercase; margin-bottom:2px;">pre</span>
+                            <span title="Pre-3 Avg" style="${getVolStyle(item.avg_pre_vol)}">${volPre}</span>
+                        </div>
                         <span style="opacity:0.2;">|</span>
-                        <span title="Rebalance Day" style="${getVolStyle(item.avg_reb_vol)}">${volReb}</span>
+                        <div style="display:flex; flex-direction:column; align-items:center;">
+                            <span style="font-size:0.5rem; color:var(--text-secondary); opacity:0.5; font-weight:800; text-transform:uppercase; margin-bottom:2px;">reb</span>
+                            <span title="Rebalance Day" style="${getVolStyle(item.avg_reb_vol)}">${volReb}</span>
+                        </div>
                         <span style="opacity:0.2;">|</span>
-                        <span title="Post-3 Avg" style="${getVolStyle(item.avg_post_vol)}">${volPost}</span>
-                    </div>
-                </td>
-                <td>
-                    <div style="display:flex; gap:4px;">
-                        ${indicators.join('') || '<span style="opacity:0.3">-</span>'}
+                        <div style="display:flex; flex-direction:column; align-items:center;">
+                            <span style="font-size:0.5rem; color:var(--text-secondary); opacity:0.5; font-weight:800; text-transform:uppercase; margin-bottom:2px;">post</span>
+                            <span title="Post-3 Avg" style="${getVolStyle(item.avg_post_vol)}">${volPost}</span>
+                        </div>
+                        ${divSegment}
                     </div>
                 </td>
                 <td>
