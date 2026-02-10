@@ -2167,7 +2167,7 @@
                 if (!item.dividends || item.dividends.length === 0) return false;
                 // Check if ALL dividends have a volume spike
                 return item.dividends.every(div => {
-                    return div.pre_div_7d && div.pre_div_7d.volume_spike_detected === true;
+                    return div.pre_div_14d && div.pre_div_14d.volume_spike_detected === true;
                 });
             });
         }
@@ -2274,9 +2274,9 @@
                                   Ex: ${div.ex_date} | <strong>$${div.amount}</strong>
                                 </div>`;
 
-                    // === PRE-DIVIDEND 7-DAY INTEL ===
-                    if (div.pre_div_7d) {
-                        const pd = div.pre_div_7d;
+                    // === PRE-DIVIDEND 14-DAY INTEL ===
+                    if (div.pre_div_14d) {
+                        const pd = div.pre_div_14d;
                         // Strip Color Logic
                         let stripColor = 'rgba(255,255,255,0.3)';
                         if (pd.pump_detected || pd.volume_spike_detected) stripColor = '#f59e0b';
