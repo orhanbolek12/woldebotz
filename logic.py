@@ -629,6 +629,18 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
         if next_ex_date:
             next_div_days = (next_ex_date.date() - datetime.now().date()).days
 
+        # Calculate 30-day average volume
+        avg_volume_30d = None
+        try:
+            if not hist.empty and 'Volume' in hist.columns:
+                last_30_days = hist.tail(30)
+                if not last_30_days.empty:
+                    avg_vol = last_30_days['Volume'].mean()
+                    if pd.notna(avg_vol):
+                        avg_volume_30d = int(avg_vol)
+        except Exception as e:
+            logging.error(f"Error calculating 30d avg volume for {raw_ticker}: {e}")
+
         tv_symbol = parse_ticker_tv(raw_ticker)
         return {
             'ticker': raw_ticker, 
@@ -637,12 +649,173 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
             'current_price': round(current_price, 2) if current_price is not None else None, 
             'days_since_last_div': days_since_last,
             'next_div_days': next_div_days,
-            'next_ex_date': next_ex_date.strftime('%Y-%m-%d') if next_ex_date else None
+            'next_ex_date': next_ex_date.strftime('%Y-%m-%d') if next_ex_date else None,
+            'avg_volume_30d': avg_volume_30d
         }
     except Exception as e:
         logging.error(f"Error in Dividend Recovery for {raw_ticker}: {e}")
         tv_symbol = parse_ticker_tv(raw_ticker)
         return {'ticker': raw_ticker, 'tv_symbol': tv_symbol, 'error': str(e), 'dividends': [], 'current_price': None, 'days_since_last_div': None}
+
+def fetch_rebalance_patterns(tickers, months_back=12, progress_callback=None):
+    results = []
+    total = len(tickers)
+    for i, raw_ticker in enumerate(tickers):
+        if progress_callback:
+            if progress_callback(i, total) == 'STOP': return results
+        
+        yf_ticker = parse_ticker_yf(raw_ticker)
+        tv_symbol = parse_ticker_tv(raw_ticker)
+        
+        try:
+            ticker_obj = yf.Ticker(yf_ticker)
+            # Fetch 2 years for context and rolling averages
+            df = ticker_obj.history(period="2y", interval="1d", auto_adjust=True)
+            if df.empty:
+                resolved = resolve_ticker_yf(raw_ticker)
+                if resolved:
+                    yf_ticker = resolved
+                    ticker_obj = yf.Ticker(resolved)
+                    df = ticker_obj.history(period="2y", interval="1d", auto_adjust=True)
+            
+            df = df.dropna(how='all')
+            if df.empty or len(df) < 100: continue # Need enough for 90d avg
+            
+            # 90-day rolling volume average
+            df['AvgVol90'] = df['Volume'].rolling(window=90).mean()
+            
+            # Get dividends
+            dividends = ticker_obj.dividends
+            
+            # Identify month-end rebalance days
+            df['Month'] = df.index.month
+            df['Year'] = df.index.year
+            reb_indices = df.groupby(['Year', 'Month']).tail(1).index
+            
+            events = []
+            for reb_day in reb_indices:
+                try:
+                    idx = df.index.get_loc(reb_day)
+                    if idx < 90 or idx + 3 >= len(df): continue
+                    
+                    # 1. Bar Color Consistency (3/4 Rule)
+                    # Window: [idx-3, idx-2, idx-1, idx]
+                    colors = []
+                    for w_idx in range(idx-3, idx+1):
+                        bar = df.iloc[w_idx]
+                        if bar['Close'] >= bar['Open']:
+                            colors.append('G')
+                        else:
+                            colors.append('R')
+                    
+                    green_count = colors.count('G')
+                    red_count = colors.count('R')
+                    
+                    if max(green_count, red_count) < 3:
+                        continue # Skip if 3/4 rule not met
+                    
+                    # 2. Volume Breakdown
+                    avg_vol_90 = df.iloc[idx]['AvgVol90']
+                    pre_vols = df.iloc[idx-3:idx]['Volume']
+                    pre_vol_avg = pre_vols.mean()
+                    reb_vol = df.iloc[idx]['Volume']
+                    post_vols = df.iloc[idx+1:idx+4]['Volume']
+                    post_vol_avg = post_vols.mean()
+                    
+                    # 3. Dividend Intersection
+                    start_date = df.index[idx-3]
+                    end_date = df.index[idx+3]
+                    window_divs = []
+                    for div_date, amount in dividends.items():
+                        if start_date <= div_date <= end_date:
+                            try:
+                                d_idx = df.index.get_loc(div_date)
+                                d_vol = df.iloc[d_idx]['Volume']
+                            except:
+                                d_vol = 0
+                            window_divs.append({
+                                'date': div_date.strftime('%Y-%m-%d'),
+                                'amount': float(amount),
+                                'volume': int(d_vol)
+                            })
+                    
+                    # 4. Close-to-Close Dollar Differences & Reba Metrics
+                    p_minus_3_close = df.iloc[idx-3]['Close']
+                    p_reb_close = df.iloc[idx]['Close']
+                    p_plus_3_close = df.iloc[idx+3]['Close']
+                    
+                    # Reba specific: Body (C-O) and Range (H-L)
+                    reb_bar = df.iloc[idx]
+                    reba_body_diff = reb_bar['Close'] - reb_bar['Open']
+                    reba_range_diff = reb_bar['High'] - reb_bar['Low']
+                    reba_color = 'Green' if reba_body_diff >= 0 else 'Red'
+                    
+                    diff_pre = p_reb_close - p_minus_3_close
+                    diff_post = p_plus_3_close - p_reb_close
+                    
+                    # Trend description remains for metadata
+                    perf_pre_pct = ((p_reb_close - p_minus_3_close) / p_minus_3_close) * 100 if p_minus_3_close > 0 else 0
+                    perf_post_pct = ((p_plus_3_close - p_reb_close) / p_reb_close) * 100 if p_reb_close > 0 else 0
+                    trend = "Flat"
+                    if perf_pre_pct < -0.5 and perf_post_pct > 0.5: trend = "Sell-off then Recovery"
+                    elif perf_pre_pct > 0.5 and perf_post_pct < -0.5: trend = "Pump then Dump"
+                    elif perf_pre_pct < -1: trend = "Strong Selling"
+                    elif perf_post_pct > 1: trend = "Strong Buying"
+                    
+                    events.append({
+                        'date': reb_day.strftime('%Y-%m-%d'),
+                        'pre_3_diff': round(diff_pre, 3),
+                        'post_3_diff': round(diff_post, 3),
+                        'reba_body_diff': round(reba_body_diff, 3),
+                        'reba_range_diff': round(reba_range_diff, 3),
+                        'reba_color': reba_color,
+                        'avg_vol_90': round(avg_vol_90, 0),
+                        'pre_vol_avg': round(pre_vol_avg, 0),
+                        'reb_vol': round(reb_vol, 0),
+                        'post_vol_avg': round(post_vol_avg, 0),
+                        'dividends': window_divs,
+                        'trend': trend,
+                        'dominant_color': 'Green' if green_count >= 3 else 'Red'
+                    })
+                except Exception as ex:
+                    logging.error(f"Error processing reb_day {reb_day} for {raw_ticker}: {ex}")
+                    continue
+            
+            recent_events = events[-months_back:]
+            if not recent_events: continue
+            
+            pre_diffs = [e['pre_3_diff'] for e in recent_events]
+            post_diffs = [e['post_3_diff'] for e in recent_events]
+            reba_body_diffs = [e['reba_body_diff'] for e in recent_events]
+            reba_range_diffs = [e['reba_range_diff'] for e in recent_events]
+            reba_colors = [e['reba_color'] for e in recent_events]
+            
+            green_reba = reba_colors.count('Green')
+            red_reba = reba_colors.count('Red')
+            reba_dominant = 'Green' if green_reba >= red_reba else 'Red'
+
+            results.append({
+                'ticker': raw_ticker,
+                'yf_symbol': yf_ticker,
+                'tv_symbol': tv_symbol,
+                'avg_pre_3_diff': round(sum(pre_diffs) / len(pre_diffs), 3),
+                'avg_post_3_diff': round(sum(post_diffs) / len(post_diffs), 3),
+                'avg_reba_body_diff': round(sum(reba_body_diffs) / len(reba_body_diffs), 3),
+                'avg_reba_range_diff': round(sum(reba_range_diffs) / len(reba_range_diffs), 3),
+                'reba_dominant_color': reba_dominant,
+                'avg_vol_90': round(sum([e['avg_vol_90'] for e in recent_events]) / len(recent_events), 0),
+                'avg_pre_vol': round(sum([e['pre_vol_avg'] for e in recent_events]) / len(recent_events), 0),
+                'avg_reb_vol': round(sum([e['reb_vol'] for e in recent_events]) / len(recent_events), 0),
+                'avg_post_vol': round(sum([e['post_vol_avg'] for e in recent_events]) / len(recent_events), 0),
+                'sample_size': len(recent_events),
+                'details': recent_events
+            })
+            
+        except Exception as e:
+            logging.error(f"Error in Rebalance Patterns for {raw_ticker}: {e}")
+            
+    if progress_callback: progress_callback(total, total)
+    return results
 
 def parse_ticker_tv(raw_ticker):
     """

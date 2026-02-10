@@ -5,7 +5,7 @@ import os
 os.environ['XDG_CACHE_HOME'] = '/tmp'
 
 from flask import Flask, render_template, request, jsonify
-from logic import fetch_and_process, fetch_imbalance, fetch_range_ai, analyze_dividend_recovery
+from logic import fetch_and_process, fetch_imbalance, fetch_range_ai, analyze_dividend_recovery, fetch_rebalance_patterns
 import threading
 import uuid
 import time
@@ -13,18 +13,116 @@ from datetime import datetime, timedelta, timezone
 
 import json
 import os
+import glob
+import pandas as pd
+import logging
 
 app = Flask(__name__)
+
+# Caching for sector map to avoid repeated disk reads
+_sector_map_cache = None
+
+SECTOR_MAP_FILE = 'sector_map.json'
+
+def get_sector_map():
+    global _sector_map_cache
+    
+    # Return cached version if available
+    if _sector_map_cache is not None:
+        return _sector_map_cache
+
+    try:
+        # Load from static JSON file (deployed with the app)
+        if os.path.exists(SECTOR_MAP_FILE):
+            with open(SECTOR_MAP_FILE, 'r', encoding='utf-8') as f:
+                _sector_map_cache = json.load(f)
+            logging.info(f"Sector Map: Loaded {len(_sector_map_cache)} mappings from {SECTOR_MAP_FILE}")
+            return _sector_map_cache
+        else:
+            logging.error(f"Sector Map: {SECTOR_MAP_FILE} not found.")
+            return {}
+            
+    except Exception as e:
+        import traceback
+        logging.error(f"Error loading sector map: {e}\n{traceback.format_exc()}")
+        return {}
 
 # Persistence files
 HISTORY_FILE = 'results_history.json'
 IMBALANCE_FILE = 'imbalance_history.json'
 
-CEF_TICKERS = ["NAD", "ECF", "FAX", "AOD", "OPP", "NVG", "NEA", "BGB", "CEV", "ETW", "PDI", "RA", "FPF", "DIAX", "HYT", "NMZ", "AWF", "EVV", "BOE", "WIW", "VFL", "VCV", "EMD", "NCZ", "ARDC", "VMO", "BFK", "GLU", "VKI", "LGI", "PDT", "HQL", "ETV", "NMCO", "THQ", "NAC", "ERH", "BMEZ", "NQP", "BBN", "GDV", "MVT", "HTD", "BCX", "NAZ", "MMU", "EOT", "HPS", "HPI", "NML", "MEGI", "KTF", "AFB", "JPI", "NXP", "AIO", "RSF", "RQI", "HPF", "NMS", "LDP", "HQH", "PAI", "NRK", "IFN", "PTA", "NDMO", "ETJ", "ECAT", "BKT", "MQT", "ETG", "IIM", "NPV", "DPG", "BHV", "MUE", "RMM", "FTHY", "KIO", "RFM", "BCAT", "ASGI", "VGM", "GHY", "FMY", "MYD", "PCQ", "PFD", "EVM", "MQY", "MYN", "BDJ", "NMAI", "EVG", "RMMZ", "NKX", "EVN", "GDL", "BHK", "WEA", "BTT", "MUJ", "MAV", "SDHY", "EFR", "MIY", "BGT", "IGA", "NPFD", "BKN", "RIV", "IQI", "RMT", "IDE", "HNW", "JHI", "BNY", "BLE", "ETY", "DSU", "MHD", "BUI", "EXG", "TDF", "DBL", "EIM", "NPCT", "RFI", "ISD", "JCE", "NBB", "CAF", "MMD", "ADX", "MHI", "WDI", "MXF", "CEE", "PHD", "RNP", "BCV", "SPE", "GRX", "GF", "FMN", "THW", "JRI", "DNP", "UTF", "NMI", "SPXX", "BFZ", "PSF", "NFJ", "AGD", "DSL", "EOS", "VKQ", "PDO", "VBF", "MCI", "NUV", "GDO", "TEAF", "DLY", "NZF", "NBXG", "NCA", "BIT", "NXC", "JGH", "FINS", "KF", "NMT", "IGI", "HGLB", "RLTY", "VPV", "FFC", "NBH", "CII", "ENX", "BYM", "EMF", "EVT", "FFA", "ETX", "DFP", "BGX", "ERC", "MUC", "ETO", "PCN", "RGT", "TPZ", "RMI", "RFMZ", "PAXS", "STEW", "VLT", "SCD", "PHYS", "PFO", "PMO", "RVT", "VTN", "PFL", "SPPP", "PEO", "TBLD", "PSLV", "PTY", "QQQX", "PGZ", "DMB", "DMO", "DTF", "EEA", "EFT", "EIC", "EOI", "ETB", "FCT", "FLC", "FOF", "CSQ", "ACV", "AVK", "BANX", "BGH", "BGR", "BLW", "BSL", "BSTZ", "BTA", "BTZ", "BXMX", "CCD", "CEF", "CGO", "CHI", "CHN", "CHY", "CPZ", "FRA", "MHN", "MIO", "MPA", "MPV", "MUA", "MXE", "MYI", "NAN", "NCV", "NIE", "NIM", "NNY", "NOM", "NUW", "NXJ", "NXN", "GBAB", "GOF", "GUG", "HEQ", "HYI", "JHS", "JLS", "JOF", "IIF"]
+# Helper to get tickers from file
+def get_tickers_from_file(filename):
+    try:
+        if os.path.exists(filename):
+            with open(filename, 'r') as f:
+                content = f.read()
+            return sorted(list(set([t.strip().upper() for t in content.replace('\n', ',').split(',') if t.strip()])))
+        return []
+    except Exception as e:
+        print(f"Error reading {filename}: {e}")
+        return []
+
+def save_tickers_to_file(filename, tickers):
+    try:
+        with open(filename, 'w') as f:
+            f.write(','.join(sorted(list(set(tickers)))))
+        return True
+    except Exception as e:
+        print(f"Error saving to {filename}: {e}")
+        return False
 
 @app.route('/get_cef_tickers', methods=['GET'])
 def get_cef_tickers():
-    return jsonify({'tickers': CEF_TICKERS})
+    return jsonify({'tickers': get_tickers_from_file('cef_tickers.txt')})
+
+@app.route('/add_cef_ticker', methods=['POST'])
+def add_cef_ticker():
+    data = request.get_json()
+    ticker = data.get('ticker', '').strip().upper()
+    if not ticker:
+        return jsonify({'error': 'Ticker cannot be empty'}), 400
+    
+    current_tickers = get_tickers_from_file('cef_tickers.txt')
+    if ticker not in current_tickers:
+        current_tickers.append(ticker)
+        if save_tickers_to_file('cef_tickers.txt', current_tickers):
+            return jsonify({'message': f'Ticker {ticker} added.', 'tickers': sorted(current_tickers)}), 200
+        else:
+            return jsonify({'error': 'Failed to save tickers'}), 500
+    else:
+        return jsonify({'message': f'Ticker {ticker} already exists.', 'tickers': sorted(current_tickers)}), 200
+
+@app.route('/remove_cef_ticker', methods=['POST'])
+def remove_cef_ticker():
+    data = request.get_json()
+    ticker = data.get('ticker', '').strip().upper()
+    if not ticker:
+        return jsonify({'error': 'Ticker cannot be empty'}), 400
+    
+    current_tickers = get_tickers_from_file('cef_tickers.txt')
+    if ticker in current_tickers:
+        current_tickers.remove(ticker)
+        if save_tickers_to_file('cef_tickers.txt', current_tickers):
+            return jsonify({'message': f'Ticker {ticker} removed.', 'tickers': sorted(current_tickers)}), 200
+        else:
+            return jsonify({'error': 'Failed to save tickers'}), 500
+    else:
+        return jsonify({'message': f'Ticker {ticker} not found.', 'tickers': sorted(current_tickers)}), 200
+
+@app.route('/update_cef_tickers', methods=['POST'])
+def update_cef_tickers():
+    data = request.get_json()
+    tickers_list = data.get('tickers', [])
+    if not isinstance(tickers_list, list):
+        return jsonify({'error': 'Invalid input, expected a list of tickers'}), 400
+    
+    cleaned_tickers = sorted(list(set([t.strip().upper() for t in tickers_list if t.strip()])))
+    
+    if save_tickers_to_file('cef_tickers.txt', cleaned_tickers):
+        return jsonify({'message': 'CEF tickers updated successfully.', 'tickers': cleaned_tickers}), 200
+    else:
+        return jsonify({'error': 'Failed to save tickers'}), 500
 
 # In-memory storage
 jobs = {}
@@ -501,6 +599,255 @@ def analyze_dividend_recovery_endpoint():
         results.append(result)
     
     return jsonify({'results': results})
+
+@app.route('/analyze_rebalance_batch', methods=['POST'])
+def analyze_rebalance_batch():
+    """
+    Synchronous endpoint for month-end rebalance pattern analysis.
+    Designed for small batches to avoid timeouts.
+    """
+    tickers_str = request.form.get('tickers', '')
+    months_back = int(request.form.get('months_back', 12))
+    
+    if not tickers_str.strip():
+        return jsonify({'results': []})
+        
+    tickers = [t.strip().upper() for t in tickers_str.replace('\n', ',').split(',') if t.strip()]
+    
+    try:
+        results = fetch_rebalance_patterns(tickers, months_back=months_back)
+    except Exception as e:
+        import traceback
+        trace = traceback.format_exc()
+        print(f"Rebalance Analysis Failed: {e}\n{trace}")
+        return jsonify({'results': [], 'error': str(e), 'trace': trace})
+        
+    return jsonify({'results': results})
+
+
+@app.route('/get_master_list_tickers', methods=['GET'])
+def get_master_list_tickers():
+    """
+    Returns the current Master List tickers from tickers.txt with sector info
+    """
+    try:
+        sector_map = get_sector_map()
+        if os.path.exists('tickers.txt'):
+            with open('tickers.txt', 'r') as f:
+                content = f.read()
+            tickers = [t.strip().upper() for t in content.replace('\n', ',').split(',') if t.strip()]
+            unique_tickers = sorted(list(set(tickers)))
+            
+            # Map tickers to objects with sector
+            ticker_objects = []
+            for t in unique_tickers:
+                ticker_objects.append({
+                    'ticker': t,
+                    'sector': sector_map.get(t, 'Other')
+                })
+            return jsonify({'tickers': ticker_objects})
+        return jsonify({'tickers': []})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/add_master_list_ticker', methods=['POST'])
+def add_master_list_ticker():
+    """
+    Adds a new ticker to the Master List (tickers.txt)
+    """
+    ticker = request.form.get('ticker', '').strip().upper()
+    if not ticker:
+        return jsonify({'error': 'No ticker provided'}), 400
+    
+    try:
+        # Read existing tickers
+        tickers = []
+        if os.path.exists('tickers.txt'):
+            with open('tickers.txt', 'r') as f:
+                content = f.read()
+            tickers = [t.strip() for t in content.replace('\n', ',').split(',') if t.strip()]
+        
+        # Add new ticker if not already present
+        if ticker not in tickers:
+            tickers.append(ticker)
+            # Write back to file
+            with open('tickers.txt', 'w') as f:
+                f.write(','.join(sorted(tickers)))
+            return jsonify({'success': True, 'message': f'{ticker} added to Master List'})
+        else:
+            return jsonify({'success': False, 'message': f'{ticker} already exists in Master List'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/delete_master_list_ticker', methods=['POST'])
+def delete_master_list_ticker():
+    """
+    Removes a ticker from the Master List (tickers.txt)
+    """
+    ticker = request.form.get('ticker', '').strip().upper()
+    if not ticker:
+        return jsonify({'error': 'No ticker provided'}), 400
+    
+    try:
+        tickers = get_tickers_from_file('tickers.txt')
+        if ticker in tickers:
+            tickers.remove(ticker)
+            if save_tickers_to_file('tickers.txt', tickers):
+                return jsonify({'success': True, 'message': f'{ticker} removed from Master List'})
+            return jsonify({'success': False, 'message': 'Failed to save changes'}), 500
+        else:
+            return jsonify({'success': False, 'message': f'{ticker} not found in Master List'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/get_cef_list_tickers', methods=['GET'])
+def get_cef_list_tickers():
+    """
+    Returns the current CEF List tickers from cef_tickers.txt
+    """
+    return jsonify({'tickers': get_tickers_from_file('cef_tickers.txt')})
+
+
+@app.route('/add_cef_list_ticker', methods=['POST'])
+def add_cef_list_ticker():
+    """
+    Adds a new ticker to the CEF List (cef_tickers.txt)
+    """
+    ticker = request.form.get('ticker', '').strip().upper()
+    if not ticker:
+        return jsonify({'error': 'No ticker provided'}), 400
+    
+    try:
+        tickers = get_tickers_from_file('cef_tickers.txt')
+        if ticker not in tickers:
+            tickers.append(ticker)
+            if save_tickers_to_file('cef_tickers.txt', tickers):
+                return jsonify({'success': True, 'message': f'{ticker} added to CEF List'})
+            return jsonify({'success': False, 'message': 'Failed to save changes'}), 500
+        else:
+            return jsonify({'success': False, 'message': f'{ticker} already exists in CEF List'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/delete_cef_list_ticker', methods=['POST'])
+def delete_cef_list_ticker():
+    """
+    Removes a ticker from the CEF List (cef_tickers.txt)
+    """
+    ticker = request.form.get('ticker', '').strip().upper()
+    if not ticker:
+        return jsonify({'error': 'No ticker provided'}), 400
+    
+    try:
+        tickers = get_tickers_from_file('cef_tickers.txt')
+        if ticker in tickers:
+            tickers.remove(ticker)
+            if save_tickers_to_file('cef_tickers.txt', tickers):
+                return jsonify({'success': True, 'message': f'{ticker} removed from CEF List'})
+            return jsonify({'success': False, 'message': 'Failed to save changes'}), 500
+        else:
+            return jsonify({'success': False, 'message': f'{ticker} not found in CEF List'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/get_pff_holdings', methods=['GET'])
+def get_pff_holdings():
+    """
+    Returns PFF holdings. 
+    Prioritizes 'pff_preferred_stocks_analysis.csv' (Analyzed Preferred Stocks).
+    Falls back to 'pff_holdings.csv' (Raw ETF Holdings) if analysis not found.
+    """
+    try:
+        import pandas as pd
+        
+        # 1. Try to load the Analyzed Preferred Stocks file first
+        analysis_path = 'pff_holdings_tickers.csv'
+        if os.path.exists(analysis_path):
+            try:
+                # Format: Base Ticker,Company Name,Preferred Stock,Last Price,Full Name
+                df = pd.read_csv(analysis_path)
+                holdings = []
+                for _, row in df.iterrows():
+                    ticker = row.get('Preferred Stock')
+                    name = row.get('Full Name')
+                    last_price = row.get('Last Price')
+                    weight = row.get('Weight (%)')
+                    market_value = row.get('Market Value')
+                    quantity = row.get('Quantity')
+                    
+                    if pd.notna(ticker):
+                        holdings.append({
+                            'ticker': ticker,
+                            'name': name if pd.notna(name) else '',
+                            'price': float(last_price) if pd.notna(last_price) else 0.0,
+                            'weight': float(weight) if pd.notna(weight) else 0.0,
+                            'market_value': float(market_value) if pd.notna(market_value) else 0.0,
+                            'quantity': float(quantity) if pd.notna(quantity) else 0.0,
+                            'is_analyzed': True 
+                        })
+                # Map sectors to analyzed holdings
+                sector_map = get_sector_map()
+                for h in holdings:
+                    if h.get('ticker'):
+                        h['sector'] = sector_map.get(h['ticker'].upper(), 'Other')
+                    else:
+                        h['sector'] = 'Other'
+                return jsonify({'holdings': holdings, 'source': 'analysis'})
+            except Exception as e:
+                logging.error(f"Failed to read analysis file: {e}")
+                # Fallthrough to raw file
+        
+        # 2. Fallback to Raw PFF Holdings CSV
+        csv_path = os.path.join(os.environ.get('TEMP', '/tmp'), 'pff_holdings.csv')
+        
+        if not os.path.exists(csv_path):
+            return jsonify({'error': 'No PFF data found. Please run the analyzer script.'}), 404
+        
+        # Read CSV (skip first 9 rows which are metadata)
+        df = pd.read_csv(csv_path, skiprows=9)
+        
+        # Extract relevant columns and sort by weight
+        holdings = []
+        for _, row in df.iterrows():
+            ticker = row.get('Ticker')
+            name = row.get('Name')
+            weight = row.get('Weight (%)')
+            market_value = row.get('Market Value')
+            
+            if pd.notna(ticker) and ticker != '-':
+                # Handle Market Value string format "1,234.56"
+                mv_val = 0.0
+                if pd.notna(market_value):
+                    try:
+                        mv_val = float(str(market_value).replace(',', ''))
+                    except:
+                        pass
+
+                holdings.append({
+                    'ticker': ticker,
+                    'name': name if pd.notna(name) else '',
+                    'weight': float(weight) if pd.notna(weight) else 0.0,
+                    'market_value': mv_val,
+                    'is_analyzed': False
+                })
+        
+        # Map Sectors to PFF holdings
+        sector_map = get_sector_map()
+        for h in holdings:
+            if h.get('ticker'):
+                h['sector'] = sector_map.get(h['ticker'].upper(), 'Other')
+            else:
+                h['sector'] = 'Other'
+
+        return jsonify({'holdings': holdings, 'source': 'raw'})
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e), 'trace': traceback.format_exc()}), 500
 
 
 if __name__ == '__main__':
