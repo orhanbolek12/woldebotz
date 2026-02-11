@@ -801,18 +801,21 @@ def fetch_rebalance_patterns(tickers, months_back=12, progress_callback=None):
                 'avg_pre_3_diff': round(sum(pre_diffs) / len(pre_diffs), 3),
                 'pre_3_min': round(min(pre_diffs), 3),
                 'pre_3_max': round(max(pre_diffs), 3),
+                'pre_3_std': round(pd.Series(pre_diffs).std(), 3) if len(pre_diffs) > 1 else 0,
                 'pre_3_pos': sum(1 for d in pre_diffs if d > 0),
                 'pre_3_neg': sum(1 for d in pre_diffs if d < 0),
                 
                 'avg_post_3_diff': round(sum(post_diffs) / len(post_diffs), 3),
                 'post_3_min': round(min(post_diffs), 3),
                 'post_3_max': round(max(post_diffs), 3),
+                'post_3_std': round(pd.Series(post_diffs).std(), 3) if len(post_diffs) > 1 else 0,
                 'post_3_pos': sum(1 for d in post_diffs if d > 0),
                 'post_3_neg': sum(1 for d in post_diffs if d < 0),
                 
                 'avg_reba_body_diff': round(sum(reba_body_diffs) / len(reba_body_diffs), 3),
                 'reba_body_min': round(min(reba_body_diffs), 3),
                 'reba_body_max': round(max(reba_body_diffs), 3),
+                'reba_body_std': round(pd.Series(reba_body_diffs).std(), 3) if len(reba_body_diffs) > 1 else 0,
                 'reba_body_pos': sum(1 for d in reba_body_diffs if d > 0),
                 'reba_body_neg': sum(1 for d in reba_body_diffs if d < 0),
                 

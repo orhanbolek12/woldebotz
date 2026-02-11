@@ -1643,6 +1643,8 @@
                             <th onclick="sortRebalance('avg_pre_3_diff')" style="cursor:pointer;">Pre-3 ($) ↕</th>
                             <th onclick="sortRebalance('avg_reba_body_diff')" style="cursor:pointer;">Reba ($) ↕</th>
                             <th onclick="sortRebalance('avg_post_3_diff')" style="cursor:pointer;">Post-3 ($) ↕</th>
+                            <th onclick="sortRebalance('pre_3_std')" style="cursor:pointer;"
+                                title="Standard Deviation of price moves">Volatility ↕</th>
                             <th onclick="sortRebalance('volume')" style="cursor:pointer;"
                                 title="90d Avg | Pre Avg | Reb Day | Post Avg">Volume Detailed ↕</th>
                             <th>Action</th>
@@ -3078,6 +3080,22 @@
                 <td style="vertical-align: top; padding-top: 1rem;">
                     <div style="color:${postColor}; font-weight:700;">${item.avg_post_3_diff > 0 ? '+' : ''}${item.avg_post_3_diff}$</div>
                     ${getConsistencyHtml('post_3', item.post_3_pos, item.post_3_neg, item.sample_size)}
+                </td>
+                <td style="vertical-align: top; padding-top: 1rem;">
+                    <div style="font-size:0.75rem; display:flex; flex-direction:column; gap:4px;">
+                        <div style="display:flex; justify-content:space-between;">
+                            <span style="opacity:0.6;">Pre SD:</span>
+                            <span style="font-weight:700;">${item.pre_3_std}$</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span style="opacity:0.6;">Reb SD:</span>
+                            <span style="font-weight:700;">${item.reba_body_std}$</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span style="opacity:0.6;">Post SD:</span>
+                            <span style="font-weight:700;">${item.post_3_std}$</span>
+                        </div>
+                    </div>
                 </td>
                 <td style="vertical-align: top; padding-top: 1rem;">
                     <div style="font-size:0.75rem; white-space:nowrap; display:flex; gap:8px; align-items:flex-end;">
