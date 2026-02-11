@@ -1551,7 +1551,13 @@
                 </div>
                 <div>
                     <span id="imbMatchCount" class="badge">0 Symbols Found</span>
-                    <button class="tv-btn" onclick="copyToClipboard('imbalance', this)">Copy Symbols</button>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end;">
+                        <button class="tv-btn" onclick="copyToClipboard('imbalance', this)">Copy All</button>
+                        <button class="tv-btn" style="background: rgba(16,185,129,0.2); border-color: var(--success);"
+                            onclick="copyToClipboard('imbalance', this, 'Green')">Copy Green</button>
+                        <button class="tv-btn" style="background: rgba(239,68,68,0.2); border-color: var(--error);"
+                            onclick="copyToClipboard('imbalance', this, 'Red')">Copy Red</button>
+                    </div>
                 </div>
             </div>
             <div class="table-responsive">
@@ -2155,10 +2161,13 @@
         });
     }
 
-    async function copyToClipboard(type, btnElement) {
+    async function copyToClipboard(type, btnElement, filterColor) {
         let results = [];
         if (type === 'imbalance') {
             results = dataStore.imbalanceResults || [];
+            if (filterColor) {
+                results = results.filter(r => (r.target_color || 'Green') === filterColor);
+            }
         } else if (type === 'dividend') {
             results = dataStore.dividendFiltered || dataStore.dividend || [];
         } else {
@@ -2166,7 +2175,7 @@
         }
 
         if (!results || results.length === 0) {
-            console.warn("No results to copy for type:", type);
+            console.warn("No results to copy for type:", type, filterColor);
             return;
         }
 
@@ -2676,7 +2685,7 @@
                                 return num.toString();
                             }
 
-                            let volColor = 'rgba(255,255,255,0.5)';
+                            let volColor = 55,255,255,0.5)';
                             let volText = `Avg Vol: ${formatVol(pd.avg_120d_volume)}`;
 
                             if (pd.volume_spike_detected) {
