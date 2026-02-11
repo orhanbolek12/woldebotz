@@ -2995,6 +2995,26 @@
 
             const preColor = item.avg_pre_3_diff > 0 ? 'var(--success)' : (item.avg_pre_3_diff < 0 ? 'var(--error)' : 'white');
             const postColor = item.avg_post_3_diff > 0 ? 'var(--success)' : (item.avg_post_3_diff < 0 ? 'var(--error)' : 'white');
+            const rebaColor = item.avg_reba_body_diff > 0 ? 'var(--success)' : (item.avg_reba_body_diff < 0 ? 'var(--error)' : 'white');
+
+            const getConsistencyHtml = (field, pos, neg, total) => {
+                const count = pos > neg ? pos : neg;
+                const direction = pos > neg ? 'Up' : 'Down';
+                const color = pos > neg ? 'var(--success)' : (neg > pos ? 'var(--error)' : 'var(--text-secondary)');
+                const pct = Math.round((count / total) * 100);
+                return `
+                    <div style="font-size:0.65rem; margin-top:4px; display:flex; flex-direction:column; gap:2px;">
+                        <div style="display:flex; justify-content:space-between; opacity:0.8;">
+                            <span>Consistency:</span>
+                            <span style="color:${color}; font-weight:800;">${count}/${total} ${direction} (${pct}%)</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; opacity:0.6;">
+                            <span>Range:</span>
+                            <span>[${item[field + '_min']}$, ${item[field + '_max']}$]</span>
+                        </div>
+                    </div>
+                `;
+            };
 
             // Find Dividend Info
             let divInfo = null;
@@ -3040,17 +3060,26 @@
                         <span style="font-size:0.6rem; opacity:0.5; margin-left:8px;">${item.sample_size} events</span>
                     </div>
                 </td>
-                <td style="color:${preColor}; font-weight:700;">${item.avg_pre_3_diff > 0 ? '+' : ''}${item.avg_pre_3_diff}$</td>
-                <td style="font-weight:700; white-space:nowrap;">
-                    <span style="color:${item.reba_dominant_color === 'Green' ? 'var(--success)' : 'var(--error)'};">
-                        ${item.avg_reba_body_diff > 0 ? '+' : ''}${item.avg_reba_body_diff}$ ${item.reba_dominant_color === 'Green' ? '↑' : '↓'}
-                    </span>
-                    <span style="font-size:0.75rem; color:var(--text-secondary); opacity:0.6; margin-left:6px; font-weight:400;">
-                        ${item.avg_reba_range_diff}$
-                    </span>
+                <td style="vertical-align: top; padding-top: 1rem;">
+                    <div style="color:${preColor}; font-weight:700;">${item.avg_pre_3_diff > 0 ? '+' : ''}${item.avg_pre_3_diff}$</div>
+                    ${getConsistencyHtml('pre_3', item.pre_3_pos, item.pre_3_neg, item.sample_size)}
                 </td>
-                <td style="color:${postColor}; font-weight:700;">${item.avg_post_3_diff > 0 ? '+' : ''}${item.avg_post_3_diff}$</td>
-                <td>
+                <td style="vertical-align: top; padding-top: 1rem;">
+                    <div style="font-weight:700; white-space:nowrap;">
+                        <span style="color:${item.reba_dominant_color === 'Green' ? 'var(--success)' : 'var(--error)'};">
+                            ${item.avg_reba_body_diff > 0 ? '+' : ''}${item.avg_reba_body_diff}$ ${item.reba_dominant_color === 'Green' ? '↑' : '↓'}
+                        </span>
+                        <span style="font-size:0.75rem; color:var(--text-secondary); opacity:0.6; margin-left:6px; font-weight:400;">
+                            ${item.avg_reba_range_diff}$
+                        </span>
+                    </div>
+                    ${getConsistencyHtml('reba_body', item.reba_body_pos, item.reba_body_neg, item.sample_size)}
+                </td>
+                <td style="vertical-align: top; padding-top: 1rem;">
+                    <div style="color:${postColor}; font-weight:700;">${item.avg_post_3_diff > 0 ? '+' : ''}${item.avg_post_3_diff}$</div>
+                    ${getConsistencyHtml('post_3', item.post_3_pos, item.post_3_neg, item.sample_size)}
+                </td>
+                <td style="vertical-align: top; padding-top: 1rem;">
                     <div style="font-size:0.75rem; white-space:nowrap; display:flex; gap:8px; align-items:flex-end;">
                         <div style="display:flex; flex-direction:column; align-items:center;">
                             <span style="font-size:0.5rem; color:var(--text-secondary); opacity:0.5; font-weight:800; text-transform:uppercase; margin-bottom:2px;">avg</span>
