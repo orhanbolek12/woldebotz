@@ -1056,32 +1056,34 @@
                 </div>
                 <div class="range-controls-grid">
                     <div class="control-item">
-                        <label>Analysis Period (Days)</label>
-                        <input type="number" id="rangeDays" value="90" min="1" max="730">
+                        <label>Active Logic</label>
+                        <div
+                            style="font-size:0.8rem; color:var(--text-secondary); background:var(--surface-hover); padding:0.5rem; border-radius:4px;">
+                            Phase 3 Advanced
+                        </div>
                     </div>
                     <div class="control-item">
-                        <div
-                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-                            <label style="margin:0;">Min Point Range</label>
-                            <input type="checkbox" id="filterMinPoint" class="cyber-check">
-                        </div>
-                        <input type="number" id="minRangePoints" value="0.5" step="0.1" min="0">
+                        <label>Lookback</label>
+                        <div style="font-weight:700; color:var(--accent-primary);">90 Days</div>
                     </div>
-                    <div class="control-item">
-                        <div
-                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-                            <label style="margin:0;">Max Point Range</label>
-                            <input type="checkbox" id="filterPoint" class="cyber-check" checked>
+                    <div class="control-item" style="grid-column: span 2;">
+                        <label>Hardcoded Filters</label>
+                        <div style="display:flex; flex-wrap:wrap; gap:0.5rem; font-size:0.75rem;">
+                            <span style="background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">ATR/P
+                                &le; 2.2%</span>
+                            <span style="background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">ADX
+                                &le; 22</span>
+                            <span style="background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">Slope
+                                &le; 3%</span>
+                            <span style="background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">Touch
+                                &ge; 5</span>
+                            <span style="background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">MidZone
+                                &ge; 60%</span>
+                            <span style="background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">Max Vol
+                                &le; 5%</span>
+                            <span style="background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">Gap
+                                &le; 1.2%</span>
                         </div>
-                        <input type="number" id="rangePoints" value="1.0" step="0.1" min="0">
-                    </div>
-                    <div class="control-item">
-                        <div
-                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-                            <label style="margin:0;">Max Percentage Range (%)</label>
-                            <input type="checkbox" id="filterPercent" class="cyber-check" checked>
-                        </div>
-                        <input type="number" id="rangePercent" value="5.0" step="0.1" min="0">
                     </div>
                 </div>
             </div>
@@ -1846,10 +1848,6 @@
 
         updateProgress(0, `Initializing Range AI for ${total} tickers...`);
 
-        const days = document.getElementById('rangeDays').value;
-        const maxPoints = document.getElementById('rangePoints').value;
-        const maxPercent = document.getElementById('rangePercent').value;
-
         try {
             for (let i = 0; i < total; i += BATCH_SIZE) {
                 const batch = tickers.slice(i, i + BATCH_SIZE);
@@ -1862,13 +1860,8 @@
                     try {
                         const formData = new FormData();
                         formData.append('tickers', batchStr);
-                        formData.append('days', days);
-                        formData.append('min_points', document.getElementById('minRangePoints').value);
-                        formData.append('filter_min_point', document.getElementById('filterMinPoint').checked);
-                        formData.append('max_points', maxPoints);
-                        formData.append('max_percent', maxPercent);
-                        formData.append('filter_point', document.getElementById('filterPoint').checked);
-                        formData.append('filter_percent', document.getElementById('filterPercent').checked);
+                        // Phase 3 hardcoded logic - no params needed from frontend
+                        formData.append('days', 90);
 
                         updateProgress(Math.round((completed / total) * 100), `Analyzing ${batch.join(', ')}...`);
 
