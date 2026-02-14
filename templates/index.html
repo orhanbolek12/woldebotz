@@ -2134,10 +2134,10 @@
     }
 
     // --- Range Sorting Logic ---
-    let rangeSortState = { column: null, direction: 'desc' };
+    let rangeSortState = { column: 'ticker', direction: 'asc' };
 
     function sortRangeResults(col) {
-        if (!dataStore.custom || dataStore.custom.length === 0) return;
+        if (!dataStore || !dataStore.custom || dataStore.custom.length === 0) return;
 
         // Toggle direction if clicking same column
         if (rangeSortState.column === col) {
@@ -2154,16 +2154,13 @@
             let valA = a[col];
             let valB = b[col];
 
-            // Handle nulls/undefined - push to bottom?
             if (valA === null || valA === undefined) valA = -999999;
             if (valB === null || valB === undefined) valB = -999999;
 
-            if (typeof valA === 'string') valA = valA.toLowerCase();
-            if (typeof valB === 'string') valB = valB.toLowerCase();
-
-            if (valA < valB) return -1 * dir;
-            if (valA > valB) return 1 * dir;
-            return 0;
+            if (typeof valA === 'string' && typeof valB === 'string') {
+                return valA.localeCompare(valB) * dir;
+            }
+            return (valA - valB) * dir;
         });
 
         renderResults('custom', dataStore.custom);
@@ -2204,7 +2201,23 @@
         noRes.style.display = 'none';
         tbody.innerHTML = '';
 
-        results.sort((a, b) => a.ticker.localeCompare(b.ticker)).forEach(item => {
+        if (type === 'custom') {
+            // Respect current sort state if none applied yet
+            results.sort((a, b) => {
+                const col = rangeSortState.column || 'ticker';
+                const dir = rangeSortState.direction === 'asc' ? 1 : -1;
+                let valA = a[col];
+                let valB = b[col];
+                if (valA === null || valA === undefined) valA = -999999;
+                if (valB === null || valB === undefined) valB = -999999;
+                if (typeof valA === 'string' && typeof valB === 'string') {
+                    return valA.localeCompare(valB) * dir;
+                }
+                return (valA - valB) * dir;
+            });
+        }
+
+        results.forEach(item => {
             const tr = document.createElement('tr');
             const tvUrl = `https://www.tradingview.com/chart/?symbol=${item.tv_symbol}`;
 
@@ -2237,9 +2250,9 @@
                         </td>
                         <td>$${item.current}</td>
                         <td>${signalBadge}</td>
-                        <td><span style="font-weight:700; color:var(--text-primary);">${item.avg_days_low_to_high || '-'}</span></td>
-                        <td><span style="font-weight:700; color:var(--text-primary);">${item.avg_days_high_to_low || '-'}</span></td>
-                        <td><span style="font-weight:700; color:var(--accent-primary);">${item.avg_total_cycle || '-'}</span></td>
+                        <td><span style="font-weight:700; color:var(--text-primary);">${item.avg_days_low_to_high !== null ? Math.round(item.avg_days_low_to_high) : '-'}</span></td>
+                        <td><span style="font-weight:700; color:var(--text-primary);">${item.avg_days_high_to_low !== null ? Math.round(item.avg_days_high_to_low) : '-'}</span></td>
+                        <td><span style="font-weight:700; color:var(--accent-primary);">${item.avg_total_cycle !== null ? Math.round(item.avg_total_cycle) : '-'}</span></td>
                         <td><span style="color:var(--accent-secondary); font-weight:600;">${item.percent_range}%</span></td>
                         <td><a href="${tvUrl}" target="_blank" class="tv-btn">View Chart</a></td>
                     `;

@@ -410,8 +410,8 @@ def fetch_range_ai(tickers, days=90, min_points=0.5, max_points=1.0, max_percent
                             last_state = current_state
                             last_zone_date = date
                             
-                avg_days_lh = round(sum(transitions_lh) / len(transitions_lh), 1) if transitions_lh else 0
-                avg_days_hl = round(sum(transitions_hl) / len(transitions_hl), 1) if transitions_hl else 0
+                avg_days_lh = round(sum(transitions_lh) / len(transitions_lh)) if transitions_lh else 0
+                avg_days_hl = round(sum(transitions_hl) / len(transitions_hl)) if transitions_hl else 0
                 avg_total_cycle = avg_days_lh + avg_days_hl
 
                 # Sanitize NaN values for JSON compatibility
