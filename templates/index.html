@@ -1541,15 +1541,17 @@
                 <table id="customResultsTable">
                     <thead>
                         <tr>
-                            <th>Ticker</th>
-                            <th>Range (Pts)</th>
+                            <th style="cursor:pointer;" onclick="sortRangeResults('ticker')">Ticker ↕</th>
+                            <th style="cursor:pointer;" onclick="sortRangeResults('point_range')">Range (Pts) ↕</th>
                             <th>Min / Max</th>
                             <th>Current</th>
                             <th>Status/Signal</th>
-                            <th style="cursor:pointer;" onclick="sortTable(6, 'asc')">L➔H Days ⬍</th>
-                            <th style="cursor:pointer;" onclick="sortTable(7, 'asc')">H➔L Days ⬍</th>
-                            <th style="cursor:pointer;" onclick="sortTable(8, 'asc')">Total Cycle ⬍</th>
-                            <th>% Range</th>
+                            <th style="cursor:pointer;" onclick="sortRangeResults('avg_days_low_to_high')">L➔H Days ↕
+                            </th>
+                            <th style="cursor:pointer;" onclick="sortRangeResults('avg_days_high_to_low')">H➔L Days ↕
+                            </th>
+                            <th style="cursor:pointer;" onclick="sortRangeResults('avg_total_cycle')">Total Cycle ↕</th>
+                            <th style="cursor:pointer;" onclick="sortRangeResults('percent_range')">% Range ↕</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -2129,6 +2131,42 @@
             btn.innerText = "Copied!";
             setTimeout(() => btn.innerText = oldText, 2000);
         });
+    }
+
+    // --- Range Sorting Logic ---
+    let rangeSortState = { column: null, direction: 'desc' };
+
+    function sortRangeResults(col) {
+        if (!dataStore.custom || dataStore.custom.length === 0) return;
+
+        // Toggle direction if clicking same column
+        if (rangeSortState.column === col) {
+            rangeSortState.direction = rangeSortState.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            rangeSortState.column = col;
+            // Default to desc for numeric, asc for ticker
+            rangeSortState.direction = col === 'ticker' ? 'asc' : 'desc';
+        }
+
+        const dir = rangeSortState.direction === 'asc' ? 1 : -1;
+
+        dataStore.custom.sort((a, b) => {
+            let valA = a[col];
+            let valB = b[col];
+
+            // Handle nulls/undefined - push to bottom?
+            if (valA === null || valA === undefined) valA = -999999;
+            if (valB === null || valB === undefined) valB = -999999;
+
+            if (typeof valA === 'string') valA = valA.toLowerCase();
+            if (typeof valB === 'string') valB = valB.toLowerCase();
+
+            if (valA < valB) return -1 * dir;
+            if (valA > valB) return 1 * dir;
+            return 0;
+        });
+
+        renderResults('custom', dataStore.custom);
     }
     function renderResults(type, results) {
         if (!results) return;
