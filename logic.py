@@ -539,11 +539,11 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
                     if pd.isna(window_recv_pct):
                         window_recv_pct = 0.0
             
-            # === PRE-DIVIDEND 7-DAY ANALYSIS ===
-            pre_div_7d_analysis = None
+            # === PRE-DIVIDEND 14-DAY ANALYSIS ===
+            pre_div_14d_analysis = None
             try:
-                # Get 7 trading days before ex_date
-                pre_div_dates = hist[hist.index < ex_date].tail(7)
+                # Get 14 trading days before ex_date
+                pre_div_dates = hist[hist.index < ex_date].tail(14)
                 if len(pre_div_dates) >= 3:
                     lowest_price = pre_div_dates['Low'].min()
                     highest_price = pre_div_dates['High'].max()
@@ -558,16 +558,16 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
                         highest_idx = pre_div_dates['High'].idxmax()
                         highest_day = -(len(pre_div_dates) - pre_div_dates.index.get_loc(highest_idx))
                     
-                    # Get close prices for 7-day change calculation
+                    # Get close prices for 14-day change calculation
                     close_on_ex_minus_1 = pre_div_dates['Close'].iloc[-1] if len(pre_div_dates) >= 1 else None
-                    close_on_ex_minus_7 = pre_div_dates['Close'].iloc[0] if len(pre_div_dates) >= 7 else pre_div_dates['Close'].iloc[0]
+                    close_on_ex_minus_14 = pre_div_dates['Close'].iloc[0] if len(pre_div_dates) >= 14 else pre_div_dates['Close'].iloc[0]
                     
                     # Calculate price change percentage and dollar amount
                     price_change_pct = 0.0
                     price_change_usd = 0.0
-                    if pd.notna(close_on_ex_minus_1) and pd.notna(close_on_ex_minus_7) and close_on_ex_minus_7 > 0:
-                        price_change_pct = round(((close_on_ex_minus_1 - close_on_ex_minus_7) / close_on_ex_minus_7) * 100, 2)
-                        price_change_usd = round(close_on_ex_minus_1 - close_on_ex_minus_7, 2)
+                    if pd.notna(close_on_ex_minus_1) and pd.notna(close_on_ex_minus_14) and close_on_ex_minus_14 > 0:
+                        price_change_pct = round(((close_on_ex_minus_1 - close_on_ex_minus_14) / close_on_ex_minus_14) * 100, 2)
+                        price_change_usd = round(close_on_ex_minus_1 - close_on_ex_minus_14, 2)
                     
                     # Pump Detection: Compare first 3 days avg vs last 3 days avg
                     pump_detected = False
@@ -585,19 +585,19 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
                                         pump_start_day = -(len(pre_div_dates) - i)
                                         break
                     
-                    pre_div_7d_analysis = {
+                    pre_div_14d_analysis = {
                         'lowest_price': round(lowest_price, 2) if pd.notna(lowest_price) else None,
                         'lowest_day': lowest_day,
                         'highest_price': round(highest_price, 2) if pd.notna(highest_price) else None,
                         'highest_day': highest_day,
                         'close_ex_m1': round(close_on_ex_minus_1, 2) if pd.notna(close_on_ex_minus_1) else None,
-                        'close_ex_m7': round(close_on_ex_minus_7, 2) if pd.notna(close_on_ex_minus_7) else None,
+                        'close_ex_m14': round(close_on_ex_minus_14, 2) if pd.notna(close_on_ex_minus_14) else None,
                         'price_change_pct': price_change_pct if pd.notna(price_change_pct) else 0.0,
                         'price_change_usd': price_change_usd if pd.notna(price_change_usd) else 0.0,
                         'pump_detected': pump_detected,
                         'pump_start_day': pump_start_day,
                         'avg_120d_volume': 0,
-                        'avg_7d_volume': 0,
+                        'avg_14d_volume': 0,
                         'volume_spike_detected': False,
                         'volume_spike_pct': 0
                     }
@@ -609,28 +609,28 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
                         if not history_120d.empty and 'Volume' in history_120d.columns:
                             avg_120d = history_120d['Volume'].mean()
                             
-                            # 7 day average volume before ex_date (same as pre_div_dates)
+                            # 14 day average volume before ex_date (same as pre_div_dates)
                             if 'Volume' in pre_div_dates.columns:
-                                avg_7d = pre_div_dates['Volume'].mean()
+                                avg_14d = pre_div_dates['Volume'].mean()
                                 
                                 vol_spike = False
                                 spike_pct = 0
-                                if avg_120d > 0 and avg_7d > 0:
-                                    if avg_7d >= avg_120d * 1.10: # 10% or more increase
+                                if avg_120d > 0 and avg_14d > 0:
+                                    if avg_14d >= avg_120d * 1.10: # 10% or more increase
                                         vol_spike = True
-                                        spike_pct = round(((avg_7d - avg_120d) / avg_120d) * 100, 1)
+                                        spike_pct = round(((avg_14d - avg_120d) / avg_120d) * 100, 1)
                                 
-                                pre_div_7d_analysis.update({
+                                pre_div_14d_analysis.update({
                                     'avg_120d_volume': int(avg_120d),
-                                    'avg_7d_volume': int(avg_7d),
+                                    'avg_14d_volume': int(avg_14d),
                                     'volume_spike_detected': vol_spike,
                                     'volume_spike_pct': spike_pct
                                 })
                     except Exception as ve:
                         logging.error(f"Volume analysis error: {ve}")
             except Exception as e:
-                logging.error(f"Pre-div 7d analysis error for {raw_ticker}: {e}")
-                pre_div_7d_analysis = None
+                logging.error(f"Pre-div 14d analysis error for {raw_ticker}: {e}")
+                pre_div_14d_analysis = None
             
             dividend_analysis.append({
                 'ex_date': ex_date_str, 
@@ -640,7 +640,7 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
                 'recovery_days': recovery_days, 
                 'current_distance': 0 if recovered else current_distance, 
                 'window_recv_pct': window_recv_pct,
-                'pre_div_7d': pre_div_7d_analysis
+                'pre_div_14d': pre_div_14d_analysis
             })
         last_div_date = None
         days_since_last = None
@@ -863,8 +863,11 @@ def fetch_rebalance_patterns(tickers, months_back=12, progress_callback=None):
                     events.append({
                         'date': reb_day.strftime('%Y-%m-%d'),
                         'pre_3_diff': round(diff_pre, 3),
+                        'pre_3_pct': round(perf_pre_pct, 4),
                         'post_3_diff': round(diff_post, 3),
+                        'post_3_pct': round(perf_post_pct, 4),
                         'reba_body_diff': round(reba_body_diff, 3),
+                        'reba_body_pct': round((reba_body_diff / reb_bar['Open'] * 100), 4) if reb_bar['Open'] > 0 else 0,
                         'reba_range_diff': round(reba_range_diff, 3),
                         'reba_color': reba_color,
                         'avg_vol_90': round(avg_vol_90, 0),
@@ -883,8 +886,11 @@ def fetch_rebalance_patterns(tickers, months_back=12, progress_callback=None):
             if not recent_events: continue
             
             pre_diffs = [e['pre_3_diff'] for e in recent_events]
+            pre_pcts = [e['pre_3_pct'] for e in recent_events]
             post_diffs = [e['post_3_diff'] for e in recent_events]
+            post_pcts = [e['post_3_pct'] for e in recent_events]
             reba_body_diffs = [e['reba_body_diff'] for e in recent_events]
+            reba_body_pcts = [e['reba_body_pct'] for e in recent_events]
             reba_range_diffs = [e['reba_range_diff'] for e in recent_events]
             reba_colors = [e['reba_color'] for e in recent_events]
             
@@ -897,8 +903,29 @@ def fetch_rebalance_patterns(tickers, months_back=12, progress_callback=None):
                 'yf_symbol': yf_ticker,
                 'tv_symbol': tv_symbol,
                 'avg_pre_3_diff': round(sum(pre_diffs) / len(pre_diffs), 3),
+                'pre_3_min': round(min(pre_diffs), 3),
+                'pre_3_max': round(max(pre_diffs), 3),
+                'pre_3_std': round(pd.Series(pre_diffs).std(), 3) if len(pre_diffs) > 1 else 0,
+                'pre_3_std_pct': round(pd.Series(pre_pcts).std(), 3) if len(pre_pcts) > 1 else 0,
+                'pre_3_pos': sum(1 for d in pre_diffs if d > 0),
+                'pre_3_neg': sum(1 for d in pre_diffs if d < 0),
+                
                 'avg_post_3_diff': round(sum(post_diffs) / len(post_diffs), 3),
+                'post_3_min': round(min(post_diffs), 3),
+                'post_3_max': round(max(post_diffs), 3),
+                'post_3_std': round(pd.Series(post_diffs).std(), 3) if len(post_diffs) > 1 else 0,
+                'post_3_std_pct': round(pd.Series(post_pcts).std(), 3) if len(post_pcts) > 1 else 0,
+                'post_3_pos': sum(1 for d in post_diffs if d > 0),
+                'post_3_neg': sum(1 for d in post_diffs if d < 0),
+                
                 'avg_reba_body_diff': round(sum(reba_body_diffs) / len(reba_body_diffs), 3),
+                'reba_body_min': round(min(reba_body_diffs), 3),
+                'reba_body_max': round(max(reba_body_diffs), 3),
+                'reba_body_std': round(pd.Series(reba_body_diffs).std(), 3) if len(reba_body_diffs) > 1 else 0,
+                'reba_body_std_pct': round(pd.Series(reba_body_pcts).std(), 3) if len(reba_body_pcts) > 1 else 0,
+                'reba_body_pos': sum(1 for d in reba_body_diffs if d > 0),
+                'reba_body_neg': sum(1 for d in reba_body_diffs if d < 0),
+                
                 'avg_reba_range_diff': round(sum(reba_range_diffs) / len(reba_range_diffs), 3),
                 'reba_dominant_color': reba_dominant,
                 'avg_vol_90': round(sum([e['avg_vol_90'] for e in recent_events]) / len(recent_events), 0),
