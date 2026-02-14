@@ -408,15 +408,19 @@ def fetch_range_ai(tickers, days=90, max_points=1.0, max_percent=5.0, filter_poi
                 avg_days_lh = round(sum(transitions_lh) / len(transitions_lh), 1) if transitions_lh else 0
                 avg_days_hl = round(sum(transitions_hl) / len(transitions_hl), 1) if transitions_hl else 0
 
+                # Sanitize NaN values for JSON compatibility
+                def sanitize_float(val):
+                    return val if pd.notna(val) else None
+
                 results.append({
                     'ticker': raw_ticker, 
                     'yf_symbol': yf_ticker, 
                     'tv_symbol': tv_symbol, 
-                    'min': round(low_min, 2), 
-                    'max': round(high_max, 2), 
-                    'current': round(current_price, 2), 
-                    'point_range': round(point_range, 2), 
-                    'percent_range': round(percent_range, 2), 
+                    'min': sanitize_float(round(low_min, 2)), 
+                    'max': sanitize_float(round(high_max, 2)), 
+                    'current': sanitize_float(round(current_price, 2)), 
+                    'point_range': sanitize_float(round(point_range, 2)), 
+                    'percent_range': sanitize_float(round(percent_range, 2)), 
                     'days': days,
                     'signal': signal,
                     'avg_days_low_to_high': avg_days_lh,
