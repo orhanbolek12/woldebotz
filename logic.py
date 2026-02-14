@@ -1,10 +1,39 @@
 import yfinance as yf
 import pandas as pd
+import numpy as np
 import logging
 import time
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
+
+def calculate_atr(df, period=14):
+    high_low = df['High'] - df['Low']
+    high_close = np.abs(df['High'] - df['Close'].shift())
+    low_close = np.abs(df['Low'] - df['Close'].shift())
+    ranges = pd.concat([high_low, high_close, low_close], axis=1)
+    true_range = np.max(ranges, axis=1)
+    return true_range.rolling(window=period).mean()
+
+def calculate_adx(df, period=14):
+    plus_dm = df['High'].diff()
+    minus_dm = df['Low'].diff()
+    plus_dm[plus_dm < 0] = 0
+    minus_dm[minus_dm > 0] = 0
+    
+    tr1 = pd.DataFrame(df['High'] - df['Low'])
+    tr2 = pd.DataFrame(abs(df['High'] - df['Close'].shift(1)))
+    tr3 = pd.DataFrame(abs(df['Low'] - df['Close'].shift(1)))
+    frames = [tr1, tr2, tr3]
+    tr = pd.concat(frames, axis=1, join='inner').max(axis=1)
+    atr = tr.rolling(period).mean()
+    
+    plus_di = 100 * (plus_dm.ewm(alpha=1/period).mean() / atr)
+    minus_di = 100 * (abs(minus_dm).ewm(alpha=1/period).mean() / atr)
+    dx = (abs(plus_di - minus_di) / abs(plus_di + minus_di)) * 100
+    adx = ((dx.shift(1) * (period - 1)) + dx) / period
+    adx_smooth = dx.rolling(window=period).mean()
+    return adx_smooth
 
 
 # MANUAL OVERRIDES for missing Yahoo Info
@@ -296,30 +325,56 @@ def fetch_imbalance(tickers, days=30, min_count=20, max_wick=0.12, progress_call
     if progress_callback: progress_callback(total, total)
     return results
 
-def fetch_range_ai(tickers, days=90, min_points=0.5, max_points=1.0, max_percent=5.0,
+def fetch_range_ai(tickers, days=90, max_points=1.0, max_percent=5.0, min_points=0, 
                    filter_min_point=False, filter_point=True, filter_percent=True, progress_callback=None):
     results = []
     total = len(tickers)
+    
+    # Hardcoded Advanced Filters (Phase 3)
+    FILTER_RANGE_PCT = 9.0
+    FILTER_ATR_PRICE = 2.2
+    FILTER_ADX = 22.0
+    FILTER_TOUCH_LOW = 5
+    FILTER_TOUCH_HIGH = 5
+    FILTER_SLOPE_PCT = 3.0
+    FILTER_MIDDLE_RATIO = 60.0
+    FILTER_MAX_DAILY_MOVE = 5.0
+    FILTER_AVG_GAP = 1.2
+    FILTER_TRADE_DAYS = 70.0
+
     for i, raw_ticker in enumerate(tickers):
         if progress_callback:
             if progress_callback(i, total) == 'STOP': return results
+        
         yf_ticker = parse_ticker_yf(raw_ticker)
         tv_symbol = parse_ticker_tv(raw_ticker)
+        
         try:
             ticker_obj = yf.Ticker(yf_ticker)
-            df = ticker_obj.history(period="1y", interval="1d", auto_adjust=True)
+            # Fetch 6 months to ensure enough buffer for 90 days + indicators
+            df = ticker_obj.history(period="6mo", interval="1d", auto_adjust=True)
+            
             if df.empty:
                  resolved = resolve_ticker_yf(raw_ticker)
                  if resolved:
                      yf_ticker = resolved
-                     df = yf.Ticker(resolved).history(period="1y", interval="1d", auto_adjust=True)
-            df = df.dropna(how='all')
+                     df = yf.Ticker(resolved).history(period="6mo", interval="1d", auto_adjust=True)
+            
             if df.empty or len(df) < days: continue
             
-            # Slice for the analysis period
-            df_slice = df.tail(days).copy()
-            if df_slice.empty: continue
+            # --- INDICATOR CALCULATIONS (Full DF) ---
+            df['ATR'] = calculate_atr(df)
+            df['ADX'] = calculate_adx(df)
             
+            # --- SLICE DATA (Last 90 Days) ---
+            df_slice = df.tail(days).copy()
+            days_with_data = len(df_slice)
+            
+            # 1. Trade Days Ratio Check
+            trade_days_ratio = (days_with_data / days) * 100
+            if trade_days_ratio < FILTER_TRADE_DAYS: continue
+
+            # Basic Stats
             low_min = df_slice['Low'].min()
             high_max = df_slice['High'].max()
             current_price = df_slice['Close'].iloc[-1]
@@ -329,112 +384,142 @@ def fetch_range_ai(tickers, days=90, min_points=0.5, max_points=1.0, max_percent
             point_range = high_max - low_min
             percent_range = (point_range / low_min) * 100 if low_min > 0 else 0
             
-            # Dynamic Filtering Logic
-            passes_min_point = point_range >= min_points
-            passes_point = point_range <= max_points
-            passes_percent = percent_range <= max_percent
-            
-            keep = True
-            
-            if filter_min_point and not passes_min_point:
-                keep = False
+            # 2. Range % Check
+            if percent_range > FILTER_RANGE_PCT: continue
 
-            if keep and filter_point and not passes_point:
-                keep = False
-                
-            if keep and filter_percent and not passes_percent:
-                keep = False
+            # 3. ATR / Price Ratio Check
+            current_atr = df_slice['ATR'].iloc[-1]
+            if pd.isna(current_atr): continue
+            atr_price_ratio = (current_atr / current_price) * 100
+            if atr_price_ratio > FILTER_ATR_PRICE: continue
             
-            if keep:
-                # Zone Logic (Proportional 10%)
-                # Zone size is 10% of the total point range.
-                # Low Zone: [Low, Low + zone_size]
-                # High Zone: [High - zone_size, High]
-                zone_size = point_range * 0.10
-                low_zone_limit = low_min + zone_size
-                high_zone_limit = high_max - zone_size
-                
-                signal = "Neutral"
-                # If Price is near Low (<= Low + 0.10) -> Buy
-                if current_price <= low_zone_limit:
-                    signal = "Buy"
-                # If Price is near High (>= High - 0.10) -> Sell
-                elif current_price >= high_zone_limit:
-                    signal = "Sell"
-                    
-                # Duration Analysis
-                # Calculate average days for Low->High and High->Low transitions
-                # We iterate through the daily bars in the slice
-                transitions_lh = [] # Days taken to go from Low Zone to High Zone
-                transitions_hl = [] # Days taken to go from High Zone to Low Zone
-                
-                last_state = None # 'low', 'high', 'mid'
-                last_zone_date = None
-                
-                for date, row in df_slice.iterrows():
-                    l, h = row['Low'], row['High']
-                    
-                    # Determine current state for this bar
-                    # We look if the bar TOUCHED the zones
-                    touched_low = l <= low_zone_limit
-                    touched_high = h >= high_zone_limit
-                    
-                    current_state = None
-                    if touched_low and touched_high:
-                        # Touched both in one day? Rare but possible. 
-                        # Treat as neutral or skip effectively for cycle count to avoid noise, 
-                        # or simpler: check close. Let's stick to touches using precedence or simple state machine.
-                        # If we were High, and now touched Low, it's a completion.
-                        # For simplicity, let's prioritize the one that completes a cycle if pending.
-                        if last_state == 'high': current_state = 'low'
-                        elif last_state == 'low': current_state = 'high'
-                        else: current_state = 'mid' # Indeterminate
-                    elif touched_low:
-                        current_state = 'low'
-                    elif touched_high:
-                        current_state = 'high'
-                    else:
-                        current_state = 'mid'
-                        
-                    if current_state in ['low', 'high']:
-                        if last_state and current_state != last_state:
-                            if last_zone_date:
-                                days = (date - last_zone_date).days
-                                if last_state == 'low' and current_state == 'high':
-                                    transitions_lh.append(days)
-                                elif last_state == 'high' and current_state == 'low':
-                                    transitions_hl.append(days)
-                        
-                        # Update state if we are in a zone
-                        if current_state != last_state:
-                            last_state = current_state
-                            last_zone_date = date
-                            
-                avg_days_lh = round(sum(transitions_lh) / len(transitions_lh)) if transitions_lh else 0
-                avg_days_hl = round(sum(transitions_hl) / len(transitions_hl)) if transitions_hl else 0
-                avg_total_cycle = avg_days_lh + avg_days_hl
+            # 4. ADX Check
+            current_adx = df_slice['ADX'].iloc[-1]
+            if pd.isna(current_adx): current_adx = 0 # Handle nan
+            if current_adx > FILTER_ADX: continue
+            
+            # 5. Slope (Linear Regression)
+            y = df_slice['Close'].values
+            x = np.arange(len(y))
+            slope, intercept = np.polyfit(x, y, 1)
+            
+            reg_start = slope * 0 + intercept
+            reg_end = slope * (len(y)-1) + intercept
+            mean_price = y.mean()
+            
+            # Slope % = (End - Start) / Mean * 100
+            slope_pct = ((reg_end - reg_start) / mean_price) * 100
+            if abs(slope_pct) > FILTER_SLOPE_PCT: continue
+            
+            # 6. Max Daily Move (Intraday Volatility)
+            # (High - Low) / Prev Close * 100
+            prev_close = df_slice['Close'].shift(1)
+            daily_move = (df_slice['High'] - df_slice['Low']) / prev_close * 100
+            max_daily_move = daily_move.max()
+            if np.isnan(max_daily_move): max_daily_move = 0
+            if max_daily_move > FILTER_MAX_DAILY_MOVE: continue
+            
+            # 7. Avg Gap
+            # abs(Open - Prev Close) / Prev Close * 100
+            gap_pct = abs(df_slice['Open'] - prev_close) / prev_close * 100
+            avg_gap = gap_pct.mean()
+            if np.isnan(avg_gap): avg_gap = 0
+            if avg_gap > FILTER_AVG_GAP: continue
+            
+            # 8. Zones & Touches (30% logic)
+            zone_size = point_range * 0.30
+            low_zone_limit = low_min + zone_size
+            high_zone_limit = high_max - zone_size
+            
+            # Count touches: Low <= Limit, High >= Limit
+            low_touches = (df_slice['Low'] <= low_zone_limit).sum()
+            high_touches = (df_slice['High'] >= high_zone_limit).sum()
+            
+            if low_touches < FILTER_TOUCH_LOW or high_touches < FILTER_TOUCH_HIGH: continue
+            
+            # 9. Middle Zone Close Ratio
+            # Strictly between limits
+            in_middle = (df_slice['Close'] > low_zone_limit) & (df_slice['Close'] < high_zone_limit)
+            middle_count = in_middle.sum()
+            middle_ratio = (middle_count / days_with_data) * 100
+            
+            if middle_ratio < FILTER_MIDDLE_RATIO: continue
 
-                # Sanitize NaN values for JSON compatibility
-                def sanitize_float(val):
-                    return val if pd.notna(val) else None
+            # --- PREPARE RESULT ---
+            # Re-calculate simple cycle stats for display if needed, 
+            # though the user didn't explicitly ask for them, they are in the table.
+            # We can keep basic L->H logic or just fill with defaults. 
+            # Given "Range Intelligence" table columns, we should populate them.
+            
+            # Calculate simple transitions for the table columns using 30% zones
+            transitions_lh = []
+            transitions_hl = []
+            last_state = None
+            last_zone_date = None
+            
+            for date, row in df_slice.iterrows():
+                l, h = row['Low'], row['High']
+                touched_low = l <= low_zone_limit
+                touched_high = h >= high_zone_limit
+                
+                curr_state = None
+                if touched_low and touched_high:
+                     if last_state == 'high': curr_state = 'low'
+                     elif last_state == 'low': curr_state = 'high'
+                     else: curr_state = 'mid'
+                elif touched_low: curr_state = 'low'
+                elif touched_high: curr_state = 'high'
+                else: curr_state = 'mid'
+                
+                if curr_state in ['low', 'high']:
+                    if last_state and curr_state != last_state:
+                         if last_zone_date:
+                             d = (date - last_zone_date).days
+                             if last_state == 'low' and curr_state == 'high': transitions_lh.append(d)
+                             elif last_state == 'high' and curr_state == 'low': transitions_hl.append(d)
+                    
+                    if curr_state != last_state:
+                        last_state = curr_state
+                        last_zone_date = date
 
-                results.append({
-                    'ticker': raw_ticker, 
-                    'yf_symbol': yf_ticker, 
-                    'tv_symbol': tv_symbol, 
-                    'min': sanitize_float(round(low_min, 2)), 
-                    'max': sanitize_float(round(high_max, 2)), 
-                    'current': sanitize_float(round(current_price, 2)), 
-                    'point_range': sanitize_float(round(point_range, 2)), 
-                    'percent_range': sanitize_float(round(percent_range, 2)), 
-                    'days': days,
-                    'signal': signal,
-                    'avg_days_low_to_high': sanitize_float(avg_days_lh),
-                    'avg_days_high_to_low': sanitize_float(avg_days_hl),
-                    'avg_total_cycle': sanitize_float(avg_total_cycle)
-                })
+            avg_days_lh = round(sum(transitions_lh) / len(transitions_lh)) if transitions_lh else 0
+            avg_days_hl = round(sum(transitions_hl) / len(transitions_hl)) if transitions_hl else 0
+            avg_total_cycle = avg_days_lh + avg_days_hl
+
+            # Signal Logic (based on current price)
+            signal = "Neutral"
+            if current_price <= low_zone_limit: signal = "Buy"
+            elif current_price >= high_zone_limit: signal = "Sell"
+
+            # Sanitize
+            def s(val): return val if pd.notna(val) else None
+            
+            results.append({
+                'ticker': raw_ticker,
+                'yf_symbol': yf_ticker,
+                'tv_symbol': tv_symbol,
+                'min': s(round(low_min, 2)),
+                'max': s(round(high_max, 2)),
+                'current': s(round(current_price, 2)),
+                'point_range': s(round(point_range, 2)),
+                'percent_range': s(round(percent_range, 2)),
+                'atr_price_pct': s(round(atr_price_ratio, 2)),
+                'adx': s(round(current_adx, 1)),
+                'slope_pct': s(round(slope_pct, 2)),
+                'max_daily_move': s(round(max_daily_move, 2)),
+                'avg_gap': s(round(avg_gap, 2)),
+                'touch_low': int(low_touches),
+                'touch_high': int(high_touches),
+                'middle_ratio': s(round(middle_ratio, 1)),
+                'signal': signal,
+                'avg_days_low_to_high': s(avg_days_lh),
+                'avg_days_high_to_low': s(avg_days_hl),
+                'avg_total_cycle': s(avg_total_cycle)
+            })
+
         except Exception as e:
             logging.error(f"Error in Range AI for {raw_ticker}: {e}")
+            
     if progress_callback: progress_callback(total, total)
     return results
 

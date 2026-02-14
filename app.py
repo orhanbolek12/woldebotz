@@ -519,7 +519,8 @@ def analyze_range_batch():
     tickers = [t.strip() for t in tickers_str.split(',') if t.strip()]
     
     # Get parameters
-    days = int(request.form.get('days', 90))
+    days = 90 # Hardcoded for Phase 3 Range AI Logic
+    # days = int(request.form.get('days', 90))
     min_points = float(request.form.get('min_points', 0.5))
     max_points = float(request.form.get('max_points', 1.0))
     max_percent = float(request.form.get('max_percent', 5.0))
