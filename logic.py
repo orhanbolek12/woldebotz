@@ -296,7 +296,7 @@ def fetch_imbalance(tickers, days=30, min_count=20, max_wick=0.12, progress_call
     if progress_callback: progress_callback(total, total)
     return results
 
-def fetch_range_ai(tickers, days=90, max_points=1.0, max_percent=5.0, progress_callback=None):
+def fetch_range_ai(tickers, days=90, max_points=1.0, max_percent=5.0, filter_point=True, filter_percent=True, progress_callback=None):
     results = []
     total = len(tickers)
     for i, raw_ticker in enumerate(tickers):
@@ -314,16 +314,114 @@ def fetch_range_ai(tickers, days=90, max_points=1.0, max_percent=5.0, progress_c
                      df = yf.Ticker(resolved).history(period="1y", interval="1d", auto_adjust=True)
             df = df.dropna(how='all')
             if df.empty or len(df) < days: continue
+            
+            # Slice for the analysis period
             df_slice = df.tail(days).copy()
             if df_slice.empty: continue
+            
             low_min = df_slice['Low'].min()
             high_max = df_slice['High'].max()
             current_price = df_slice['Close'].iloc[-1]
+            
             if pd.isna(low_min) or pd.isna(high_max): continue
+            
             point_range = high_max - low_min
             percent_range = (point_range / low_min) * 100 if low_min > 0 else 0
-            if point_range <= max_points and percent_range <= max_percent:
-                results.append({'ticker': raw_ticker, 'yf_symbol': yf_ticker, 'tv_symbol': tv_symbol, 'min': round(low_min, 2), 'max': round(high_max, 2), 'current': round(current_price, 2), 'point_range': round(point_range, 2), 'percent_range': round(percent_range, 2), 'days': days})
+            
+            # Dynamic Filtering Logic
+            passes_point = point_range <= max_points
+            passes_percent = percent_range <= max_percent
+            
+            keep = False
+            if filter_point and filter_percent:
+                keep = passes_point and passes_percent
+            elif filter_point:
+                keep = passes_point
+            elif filter_percent:
+                keep = passes_percent
+            else:
+                keep = True # If no filter selected, show all (or could be False)
+            
+            if keep:
+                # Zone Logic (User requested 10 cent buffer)
+                # Low Zone: [Low, Low + 0.10]
+                # High Zone: [High - 0.10, High]
+                low_zone_limit = low_min + 0.10
+                high_zone_limit = high_max - 0.10
+                
+                signal = "Neutral"
+                # If Price is near Low (<= Low + 0.10) -> Buy
+                if current_price <= low_zone_limit:
+                    signal = "Buy"
+                # If Price is near High (>= High - 0.10) -> Sell
+                elif current_price >= high_zone_limit:
+                    signal = "Sell"
+                    
+                # Duration Analysis
+                # Calculate average days for Low->High and High->Low transitions
+                # We iterate through the daily bars in the slice
+                transitions_lh = [] # Days taken to go from Low Zone to High Zone
+                transitions_hl = [] # Days taken to go from High Zone to Low Zone
+                
+                last_state = None # 'low', 'high', 'mid'
+                last_zone_date = None
+                
+                for date, row in df_slice.iterrows():
+                    l, h = row['Low'], row['High']
+                    
+                    # Determine current state for this bar
+                    # We look if the bar TOUCHED the zones
+                    touched_low = l <= low_zone_limit
+                    touched_high = h >= high_zone_limit
+                    
+                    current_state = None
+                    if touched_low and touched_high:
+                        # Touched both in one day? Rare but possible. 
+                        # Treat as neutral or skip effectively for cycle count to avoid noise, 
+                        # or simpler: check close. Let's stick to touches using precedence or simple state machine.
+                        # If we were High, and now touched Low, it's a completion.
+                        # For simplicity, let's prioritize the one that completes a cycle if pending.
+                        if last_state == 'high': current_state = 'low'
+                        elif last_state == 'low': current_state = 'high'
+                        else: current_state = 'mid' # Indeterminate
+                    elif touched_low:
+                        current_state = 'low'
+                    elif touched_high:
+                        current_state = 'high'
+                    else:
+                        current_state = 'mid'
+                        
+                    if current_state in ['low', 'high']:
+                        if last_state and current_state != last_state:
+                            if last_zone_date:
+                                days = (date - last_zone_date).days
+                                if last_state == 'low' and current_state == 'high':
+                                    transitions_lh.append(days)
+                                elif last_state == 'high' and current_state == 'low':
+                                    transitions_hl.append(days)
+                        
+                        # Update state if we are in a zone
+                        if current_state != last_state:
+                            last_state = current_state
+                            last_zone_date = date
+                            
+                avg_days_lh = round(sum(transitions_lh) / len(transitions_lh), 1) if transitions_lh else 0
+                avg_days_hl = round(sum(transitions_hl) / len(transitions_hl), 1) if transitions_hl else 0
+
+                results.append({
+                    'ticker': raw_ticker, 
+                    'yf_symbol': yf_ticker, 
+                    'tv_symbol': tv_symbol, 
+                    'min': round(low_min, 2), 
+                    'max': round(high_max, 2), 
+                    'current': round(current_price, 2), 
+                    'point_range': round(point_range, 2), 
+                    'percent_range': round(percent_range, 2), 
+                    'days': days,
+                    'signal': signal,
+                    'avg_days_low_to_high': avg_days_lh,
+                    'avg_days_high_to_low': avg_days_hl
+                })
         except Exception as e:
             logging.error(f"Error in Range AI for {raw_ticker}: {e}")
     if progress_callback: progress_callback(total, total)

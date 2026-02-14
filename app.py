@@ -523,11 +523,17 @@ def analyze_range_batch():
     max_points = float(request.form.get('max_points', 1.0))
     max_percent = float(request.form.get('max_percent', 5.0))
     
+    # Checkbox filters (sent as strings 'true'/'false')
+    filter_point = request.form.get('filter_point', 'true').lower() == 'true'
+    filter_percent = request.form.get('filter_percent', 'true').lower() == 'true'
+    
     try:
         results = fetch_range_ai(tickers, 
                                 days=days, 
                                 max_points=max_points, 
-                                max_percent=max_percent)
+                                max_percent=max_percent,
+                                filter_point=filter_point,
+                                filter_percent=filter_percent)
     except Exception as e:
         import traceback
         trace = traceback.format_exc()

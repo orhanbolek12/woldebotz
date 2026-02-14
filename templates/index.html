@@ -1060,11 +1060,19 @@
                         <input type="number" id="rangeDays" value="90" min="1" max="730">
                     </div>
                     <div class="control-item">
-                        <label>Max Point Range</label>
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                            <label style="margin:0;">Max Point Range</label>
+                            <input type="checkbox" id="filterPoint" class="cyber-check" checked>
+                        </div>
                         <input type="number" id="rangePoints" value="1.0" step="0.1" min="0">
                     </div>
                     <div class="control-item">
-                        <label>Max Percentage Range (%)</label>
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                            <label style="margin:0;">Max Percentage Range (%)</label>
+                            <input type="checkbox" id="filterPercent" class="cyber-check" checked>
+                        </div>
                         <input type="number" id="rangePercent" value="5.0" step="0.1" min="0">
                     </div>
                 </div>
@@ -1529,6 +1537,8 @@
                             <th>Range (Pts)</th>
                             <th>Min / Max</th>
                             <th>Current</th>
+                            <th>Status/Signal</th>
+                            <th>Avg Duration</th>
                             <th>% Range</th>
                             <th>Action</th>
                         </tr>
@@ -1831,6 +1841,8 @@
                         formData.append('days', days);
                         formData.append('max_points', maxPoints);
                         formData.append('max_percent', maxPercent);
+                        formData.append('filter_point', document.getElementById('filterPoint').checked);
+                        formData.append('filter_percent', document.getElementById('filterPercent').checked);
 
                         updateProgress(Math.round((completed / total) * 100), `Analyzing ${batch.join(', ')}...`);
 
@@ -2135,6 +2147,27 @@
             const tvUrl = `https://www.tradingview.com/chart/?symbol=${item.tv_symbol}`;
 
             if (type === 'custom') {
+                // Signal Color Logic
+                let signalBadge = '';
+                if (item.signal === 'Buy') {
+                    signalBadge = `<span class="spread-val">BUY ZONE</span>`;
+                } else if (item.signal === 'Sell') {
+                    signalBadge = `<span class="spread-val" style="color:var(--error); background:rgba(239,68,68,0.1);">SELL ZONE</span>`;
+                } else {
+                    signalBadge = `<span style="font-size:0.75rem; color:var(--text-secondary); opacity:0.7;">Neutral</span>`;
+                }
+
+                // Duration Info
+                let durationStr = `<span style="font-size:0.75rem; color:var(--text-secondary);">-</span>`;
+                if (item.avg_days_low_to_high > 0 || item.avg_days_high_to_low > 0) {
+                    durationStr = `
+                        <div style="font-size:0.7rem; color:var(--text-secondary); line-height:1.3;">
+                            <div style="display:flex; justify-content:space-between; width:100px;"><span>L➔H:</span> <span style="color:var(--text-primary); font-weight:700;">${item.avg_days_low_to_high || '-'}d</span></div>
+                            <div style="display:flex; justify-content:space-between; width:100px;"><span>H➔L:</span> <span style="color:var(--text-primary); font-weight:700;">${item.avg_days_high_to_low || '-'}d</span></div>
+                        </div>
+                     `;
+                }
+
                 tr.innerHTML = `
                         <td>
                             <div style="display:flex; align-items:center;">
@@ -2144,9 +2177,16 @@
                                 (LAST ${item.days} DAYS)
                             </div>
                         </td>
-                        <td><span class="spread-val">${item.point_range} pts</span></td>
-                        <td>$${item.min} - $${item.max}</td>
+                        <td><span class="spread-val" style="color:var(--text-primary); background:rgba(255,255,255,0.05);">${item.point_range} pts</span></td>
+                        <td>
+                            <div style="font-size:0.8rem;">
+                                <div style="color:var(--error); margin-bottom:2px;">H: $${item.max}</div>
+                                <div style="color:var(--success);">L: $${item.min}</div>
+                            </div>
+                        </td>
                         <td>$${item.current}</td>
+                        <td>${signalBadge}</td>
+                        <td>${durationStr}</td>
                         <td><span style="color:var(--accent-secondary); font-weight:600;">${item.percent_range}%</span></td>
                         <td><a href="${tvUrl}" target="_blank" class="tv-btn">View Chart</a></td>
                     `;
