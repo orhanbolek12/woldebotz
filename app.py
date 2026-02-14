@@ -520,18 +520,22 @@ def analyze_range_batch():
     
     # Get parameters
     days = int(request.form.get('days', 90))
+    min_points = float(request.form.get('min_points', 0.5))
     max_points = float(request.form.get('max_points', 1.0))
     max_percent = float(request.form.get('max_percent', 5.0))
     
     # Checkbox filters (sent as strings 'true'/'false')
+    filter_min_point = request.form.get('filter_min_point', 'false').lower() == 'true'
     filter_point = request.form.get('filter_point', 'true').lower() == 'true'
     filter_percent = request.form.get('filter_percent', 'true').lower() == 'true'
     
     try:
         results = fetch_range_ai(tickers, 
                                 days=days, 
+                                min_points=min_points,
                                 max_points=max_points, 
                                 max_percent=max_percent,
+                                filter_min_point=filter_min_point,
                                 filter_point=filter_point,
                                 filter_percent=filter_percent)
     except Exception as e:

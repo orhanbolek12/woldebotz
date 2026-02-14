@@ -296,7 +296,8 @@ def fetch_imbalance(tickers, days=30, min_count=20, max_wick=0.12, progress_call
     if progress_callback: progress_callback(total, total)
     return results
 
-def fetch_range_ai(tickers, days=90, max_points=1.0, max_percent=5.0, filter_point=True, filter_percent=True, progress_callback=None):
+def fetch_range_ai(tickers, days=90, min_points=0.5, max_points=1.0, max_percent=5.0,
+                   filter_min_point=False, filter_point=True, filter_percent=True, progress_callback=None):
     results = []
     total = len(tickers)
     for i, raw_ticker in enumerate(tickers):
@@ -329,25 +330,29 @@ def fetch_range_ai(tickers, days=90, max_points=1.0, max_percent=5.0, filter_poi
             percent_range = (point_range / low_min) * 100 if low_min > 0 else 0
             
             # Dynamic Filtering Logic
+            passes_min_point = point_range >= min_points
             passes_point = point_range <= max_points
             passes_percent = percent_range <= max_percent
             
-            keep = False
-            if filter_point and filter_percent:
-                keep = passes_point and passes_percent
-            elif filter_point:
-                keep = passes_point
-            elif filter_percent:
-                keep = passes_percent
-            else:
-                keep = True # If no filter selected, show all (or could be False)
+            keep = True
+            
+            if filter_min_point and not passes_min_point:
+                keep = False
+
+            if keep and filter_point and not passes_point:
+                keep = False
+                
+            if keep and filter_percent and not passes_percent:
+                keep = False
             
             if keep:
-                # Zone Logic (User requested 10 cent buffer)
-                # Low Zone: [Low, Low + 0.10]
-                # High Zone: [High - 0.10, High]
-                low_zone_limit = low_min + 0.10
-                high_zone_limit = high_max - 0.10
+                # Zone Logic (Proportional 10%)
+                # Zone size is 10% of the total point range.
+                # Low Zone: [Low, Low + zone_size]
+                # High Zone: [High - zone_size, High]
+                zone_size = point_range * 0.10
+                low_zone_limit = low_min + zone_size
+                high_zone_limit = high_max - zone_size
                 
                 signal = "Neutral"
                 # If Price is near Low (<= Low + 0.10) -> Buy
@@ -407,6 +412,7 @@ def fetch_range_ai(tickers, days=90, max_points=1.0, max_percent=5.0, filter_poi
                             
                 avg_days_lh = round(sum(transitions_lh) / len(transitions_lh), 1) if transitions_lh else 0
                 avg_days_hl = round(sum(transitions_hl) / len(transitions_hl), 1) if transitions_hl else 0
+                avg_total_cycle = avg_days_lh + avg_days_hl
 
                 # Sanitize NaN values for JSON compatibility
                 def sanitize_float(val):
@@ -423,8 +429,9 @@ def fetch_range_ai(tickers, days=90, max_points=1.0, max_percent=5.0, filter_poi
                     'percent_range': sanitize_float(round(percent_range, 2)), 
                     'days': days,
                     'signal': signal,
-                    'avg_days_low_to_high': avg_days_lh,
-                    'avg_days_high_to_low': avg_days_hl
+                    'avg_days_low_to_high': sanitize_float(avg_days_lh),
+                    'avg_days_high_to_low': sanitize_float(avg_days_hl),
+                    'avg_total_cycle': sanitize_float(avg_total_cycle)
                 })
         except Exception as e:
             logging.error(f"Error in Range AI for {raw_ticker}: {e}")
