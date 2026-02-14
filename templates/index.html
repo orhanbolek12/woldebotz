@@ -1612,7 +1612,9 @@
                             <th>Ticker</th>
                             <th>Pattern</th>
                             <th>Match Count</th>
-                            <th>Avg Diff</th>
+                            <th>Avg Diff (Wick)</th>
+                            <th>Avg End $</th>
+                            <th>Avg Max $</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -2137,6 +2139,13 @@
                     <td><span class="spread-val" style="${badgerStyle}">${color} Candle</span></td>
                     <td>${item.match_count}</td>
                     <td>${item.avg_diff}</td>
+                    <!-- New Profit Columns -->
+                    <td style="font-weight:600; color:${item.avg_end_profit > 0 ? 'var(--success)' : 'var(--text-secondary)'}">
+                        ${item.avg_end_profit > 0 ? '+' : ''}${item.avg_end_profit}
+                    </td>
+                    <td style="font-weight:600; color:var(--success)">
+                        +${item.avg_max_profit}
+                    </td>
                     <td><a href="${tvUrl}" target="_blank" class="tv-btn">View Nodes</a></td>
                 `;
             tbody.appendChild(tr);

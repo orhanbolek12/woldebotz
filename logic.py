@@ -348,13 +348,57 @@ def fetch_imbalance(tickers, days=30, min_count=20, max_wick=0.12, min_profit=0.
             patterns_found = []
             if len(valid_green) >= min_count:
                 avg_w = round(green_wicks[valid_green.index].mean(), 4) if filter_wick else 0
-                patterns_found.append({'type': 'Long', 'count': len(valid_green), 'avg_wick': avg_w})
+                
+                # Green Profit Calcs
+                # End Profit: Close - Open
+                end_profits = valid_green['Close'] - valid_green['Open']
+                avg_end = round(end_profits.mean(), 4)
+                
+                # Max Profit: High - Open
+                max_profits = valid_green['High'] - valid_green['Open']
+                avg_max = round(max_profits.mean(), 4)
+
+                patterns_found.append({
+                    'type': 'Long', 
+                    'count': len(valid_green), 
+                    'avg_wick': avg_w,
+                    'avg_end': avg_end,
+                    'avg_max': avg_max
+                })
+            
             if len(valid_red) >= min_count:
                 avg_w = round(red_wicks[valid_red.index].mean(), 4) if filter_wick else 0
-                patterns_found.append({'type': 'Short', 'count': len(valid_red), 'avg_wick': avg_w})
+                
+                # Red Profit Calcs
+                # End Profit: Open - Close (since it's a short)
+                end_profits = valid_red['Open'] - valid_red['Close']
+                avg_end = round(end_profits.mean(), 4)
+                
+                # Max Profit: Open - Low (max potential short profit)
+                max_profits = valid_red['Open'] - valid_red['Low']
+                avg_max = round(max_profits.mean(), 4)
+
+                patterns_found.append({
+                    'type': 'Short', 
+                    'count': len(valid_red), 
+                    'avg_wick': avg_w,
+                    'avg_end': avg_end,
+                    'avg_max': avg_max
+                })
             
             for p in patterns_found:
-                results.append({'ticker': raw_ticker, 'yf_symbol': yf_ticker, 'tv_symbol': tv_symbol, 'type': p['type'], 'match_count': p['count'], 'avg_diff': p['avg_wick'], 'total_days': days, 'target_color': 'Green' if p['type'] == 'Long' else 'Red'})
+                results.append({
+                    'ticker': raw_ticker, 
+                    'yf_symbol': yf_ticker, 
+                    'tv_symbol': tv_symbol, 
+                    'type': p['type'], 
+                    'match_count': p['count'], 
+                    'avg_diff': p['avg_wick'], 
+                    'avg_end_profit': p['avg_end'],
+                    'avg_max_profit': p['avg_max'],
+                    'total_days': days, 
+                    'target_color': 'Green' if p['type'] == 'Long' else 'Red'
+                })
         except Exception as e:
             logging.error(f"Error processing {raw_ticker}: {e}")
     if progress_callback: progress_callback(total, total)
