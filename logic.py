@@ -347,7 +347,10 @@ def fetch_imbalance(tickers, days=30, min_count=20, max_wick=0.12, min_profit=0.
 
             patterns_found = []
             if len(valid_green) >= min_count:
-                avg_w = round(green_wicks[valid_green.index].mean(), 4) if filter_wick else 0
+                # Wick Calcs (Always calculate for display)
+                green_wicks_subset = green_wicks[valid_green.index]
+                avg_w = round(green_wicks_subset.mean(), 4)
+                max_w = round(green_wicks_subset.max(), 4)
                 
                 # Green Profit Calcs
                 # End Profit: Close - Open
@@ -362,19 +365,23 @@ def fetch_imbalance(tickers, days=30, min_count=20, max_wick=0.12, min_profit=0.
                     'type': 'Long', 
                     'count': len(valid_green), 
                     'avg_wick': avg_w,
+                    'max_wick': max_w,
                     'avg_end': avg_end,
                     'avg_max': avg_max
                 })
             
             if len(valid_red) >= min_count:
-                avg_w = round(red_wicks[valid_red.index].mean(), 4) if filter_wick else 0
+                # Wick Calcs (Always calculate for display)
+                red_wicks_subset = red_wicks[valid_red.index]
+                avg_w = round(red_wicks_subset.mean(), 4)
+                max_w = round(red_wicks_subset.max(), 4)
                 
                 # Red Profit Calcs
-                # End Profit: Open - Close (since it's a short)
+                # End Profit: Open - Close
                 end_profits = valid_red['Open'] - valid_red['Close']
                 avg_end = round(end_profits.mean(), 4)
                 
-                # Max Profit: Open - Low (max potential short profit)
+                # Max Profit: Open - Low
                 max_profits = valid_red['Open'] - valid_red['Low']
                 avg_max = round(max_profits.mean(), 4)
 
@@ -382,6 +389,7 @@ def fetch_imbalance(tickers, days=30, min_count=20, max_wick=0.12, min_profit=0.
                     'type': 'Short', 
                     'count': len(valid_red), 
                     'avg_wick': avg_w,
+                    'max_wick': max_w,
                     'avg_end': avg_end,
                     'avg_max': avg_max
                 })
@@ -394,6 +402,7 @@ def fetch_imbalance(tickers, days=30, min_count=20, max_wick=0.12, min_profit=0.
                     'type': p['type'], 
                     'match_count': p['count'], 
                     'avg_diff': p['avg_wick'], 
+                    'max_wick': p['max_wick'],
                     'avg_end_profit': p['avg_end'],
                     'avg_max_profit': p['avg_max'],
                     'total_days': days, 

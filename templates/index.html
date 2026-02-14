@@ -1612,7 +1612,8 @@
                             <th>Ticker</th>
                             <th>Pattern</th>
                             <th>Match Count</th>
-                            <th>Avg Diff (Wick)</th>
+                            <th>Avg Wick</th>
+                            <th>Max Wick</th>
                             <th>Avg End $</th>
                             <th>Avg Max $</th>
                             <th>Action</th>
@@ -2139,6 +2140,7 @@
                     <td><span class="spread-val" style="${badgerStyle}">${color} Candle</span></td>
                     <td>${item.match_count}</td>
                     <td>${item.avg_diff}</td>
+                    <td>${item.max_wick}</td>
                     <!-- New Profit Columns -->
                     <td style="font-weight:600; color:${item.avg_end_profit > 0 ? 'var(--success)' : 'var(--text-secondary)'}">
                         ${item.avg_end_profit > 0 ? '+' : ''}${item.avg_end_profit}
