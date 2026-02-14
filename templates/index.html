@@ -1159,16 +1159,37 @@
                 </div>
                 <div class="imbalance-controls-grid">
                     <div class="control-item">
-                        <label>Search Period (Days)</label>
-                        <input type="number" id="imbDays" value="30" min="1" max="180">
+                        <label>Search Period</label>
+                        <div class="unit-wrapper">
+                            <input type="number" id="imbDays" value="30" min="1" max="180">
+                            <span class="unit-tag">Days</span>
+                        </div>
                     </div>
                     <div class="control-item">
                         <label>Min Occurrences</label>
                         <input type="number" id="imbMinCount" value="6" min="1">
                     </div>
+                    <!-- Max Wick Ratio with Toggle -->
                     <div class="control-item">
-                        <label>Max Wick Ratio</label>
+                        <label style="display:flex; justify-content:space-between; align-items:center;">
+                            <span>Max Wick Ratio</span>
+                            <input type="checkbox" id="imbFilterWick" class="cyber-check" checked
+                                onchange="toggleInput('imbMaxWick', this)">
+                        </label>
                         <input type="number" id="imbMaxWick" value="0.12" step="0.01" min="0">
+                    </div>
+                    <!-- Min End Day Profit with Toggle -->
+                    <div class="control-item">
+                        <label style="display:flex; justify-content:space-between; align-items:center;">
+                            <span>Min End Profit</span>
+                            <input type="checkbox" id="imbFilterProfit" class="cyber-check"
+                                onchange="toggleInput('imbMinProfit', this)">
+                        </label>
+                        <div class="unit-wrapper">
+                            <input type="number" id="imbMinProfit" value="0.10" step="0.01" min="0" disabled
+                                style="opacity:0.5;">
+                            <span class="unit-tag">$</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2003,7 +2024,16 @@
                         formData.append('tickers', batchStr);
                         formData.append('days', days);
                         formData.append('min_count', minCount);
-                        formData.append('max_wick', maxWick);
+
+                        // Handle Toggles
+                        const filterWick = document.getElementById('imbFilterWick').checked;
+                        const filterProfit = document.getElementById('imbFilterProfit').checked;
+
+                        formData.append('filter_wick', filterWick);
+                        formData.append('max_wick', filterWick ? document.getElementById('imbMaxWick').value : 999);
+
+                        formData.append('filter_profit', filterProfit);
+                        formData.append('min_profit', filterProfit ? document.getElementById('imbMinProfit').value : 0);
 
                         updateImbProgress(Math.round((completed / total) * 100), `Analyzing ${batch.join(', ')}...`);
 
@@ -3702,8 +3732,23 @@
     // Initialize UI
     document.addEventListener('DOMContentLoaded', () => {
         updateControlColors();
-        // Load initial data if needed
+        // Initialize Toggle States
+        toggleInput('imbMaxWick', document.getElementById('imbFilterWick'));
+        toggleInput('imbMinProfit', document.getElementById('imbFilterProfit'));
     });
+
+    function toggleInput(inputId, checkbox) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+
+        if (checkbox.checked) {
+            input.disabled = false;
+            input.style.opacity = '1';
+        } else {
+            input.disabled = true;
+            input.style.opacity = '0.5';
+        }
+    }
 </script>
 
 <!-- CEF List Management Modal -->

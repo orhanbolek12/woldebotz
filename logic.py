@@ -285,7 +285,7 @@ def fetch_and_process(tickers, progress_callback=None):
             
     return results
 
-def fetch_imbalance(tickers, days=30, min_count=20, max_wick=0.12, progress_callback=None):
+def fetch_imbalance(tickers, days=30, min_count=20, max_wick=0.12, min_profit=0.10, filter_wick=True, filter_profit=False, progress_callback=None):
     results = []
     total = len(tickers)
     for i, raw_ticker in enumerate(tickers):
@@ -305,19 +305,54 @@ def fetch_imbalance(tickers, days=30, min_count=20, max_wick=0.12, progress_call
             if df.empty or len(df) < days: continue
             df_slice = df.tail(days).copy()
             if 'Close' not in df_slice.columns or 'Open' not in df_slice.columns: continue
+            
+            # --- PROFIT & WICK LOGIC ---
+            # Green: Close > Open
             is_green = df_slice['Close'] > df_slice['Open']
+            
+            # 1. Wick Logic (Green)
             green_wicks = df_slice['Open'] - df_slice['Low']
-            green_wick_ok = green_wicks <= (max_wick + 0.00001)
-            valid_green = df_slice[is_green & green_wick_ok]
+            if filter_wick:
+                green_wick_ok = green_wicks <= (max_wick + 0.00001)
+            else:
+                green_wick_ok = pd.Series([True] * len(df_slice), index=df_slice.index)
+
+            # 2. Profit Logic (Green: Close - Open)
+            if filter_profit:
+                green_profit = df_slice['Close'] - df_slice['Open']
+                green_profit_ok = green_profit >= (min_profit - 0.00001)
+            else:
+                green_profit_ok = pd.Series([True] * len(df_slice), index=df_slice.index)
+
+            valid_green = df_slice[is_green & green_wick_ok & green_profit_ok]
+
+            # Red: Open > Close
             is_red = df_slice['Open'] > df_slice['Close']
+
+            # 1. Wick Logic (Red)
             red_wicks = df_slice['High'] - df_slice['Open']
-            red_wick_ok = red_wicks <= (max_wick + 0.00001)
-            valid_red = df_slice[is_red & red_wick_ok]
+            if filter_wick:
+                red_wick_ok = red_wicks <= (max_wick + 0.00001)
+            else:
+                red_wick_ok = pd.Series([True] * len(df_slice), index=df_slice.index)
+
+            # 2. Profit Logic (Red: Open - Close)
+            if filter_profit:
+                red_profit = df_slice['Open'] - df_slice['Close']
+                red_profit_ok = red_profit >= (min_profit - 0.00001)
+            else:
+                red_profit_ok = pd.Series([True] * len(df_slice), index=df_slice.index)
+
+            valid_red = df_slice[is_red & red_wick_ok & red_profit_ok]
+
             patterns_found = []
             if len(valid_green) >= min_count:
-                patterns_found.append({'type': 'Long', 'count': len(valid_green), 'avg_wick': round(green_wicks[is_green & green_wick_ok].mean(), 4)})
+                avg_w = round(green_wicks[valid_green.index].mean(), 4) if filter_wick else 0
+                patterns_found.append({'type': 'Long', 'count': len(valid_green), 'avg_wick': avg_w})
             if len(valid_red) >= min_count:
-                patterns_found.append({'type': 'Short', 'count': len(valid_red), 'avg_wick': round(red_wicks[is_red & red_wick_ok].mean(), 4)})
+                avg_w = round(red_wicks[valid_red.index].mean(), 4) if filter_wick else 0
+                patterns_found.append({'type': 'Short', 'count': len(valid_red), 'avg_wick': avg_w})
+            
             for p in patterns_found:
                 results.append({'ticker': raw_ticker, 'yf_symbol': yf_ticker, 'tv_symbol': tv_symbol, 'type': p['type'], 'match_count': p['count'], 'avg_diff': p['avg_wick'], 'total_days': days, 'target_color': 'Green' if p['type'] == 'Long' else 'Red'})
         except Exception as e:

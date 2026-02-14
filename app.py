@@ -275,7 +275,7 @@ def load_and_analyze_prefs(force=False):
         print(f"Error in background prefs analysis: {e}")
         prefs_cache['status'] = 'error'
 
-def load_and_analyze_imbalance(force=False, days=20, min_green_bars=12, min_red_bars=12, long_wick=0.05, short_wick=0.05):
+def load_and_analyze_imbalance(force=False, days=20, min_green_bars=12, min_red_bars=12, long_wick=0.05, short_wick=0.05, min_profit=0.10, filter_wick=True, filter_profit=False):
     global imbalance_cache
     now_ts = time.time()
     if not force and (now_ts - imbalance_cache['last_updated_ts'] < 86400) and imbalance_cache['results']:
@@ -302,8 +302,11 @@ def load_and_analyze_imbalance(force=False, days=20, min_green_bars=12, min_red_
         
         new_results = fetch_imbalance(unique_tickers, 
                                       days=days,
-                                      min_count=min_green_bars, # Reuse the min_green as general min_count for bg task
-                                      max_wick=long_wick,       # Reuse long_wick as general max_wick for bg task
+                                      min_count=min_green_bars, 
+                                      max_wick=long_wick,
+                                      min_profit=min_profit,
+                                      filter_wick=filter_wick,
+                                      filter_profit=filter_profit,
                                       progress_callback=progress_wrapper)
         
         if imbalance_cache.get('stop_requested'):
@@ -381,9 +384,13 @@ def refresh_imbalance():
     min_red = int(request.form.get('min_red_bars', 12))
     long_wick = float(request.form.get('long_wick_size', 0.05))
     short_wick = float(request.form.get('short_wick_size', 0.05))
-    
+    min_profit = float(request.form.get('min_profit', 0.10))
+    # Checkbox handling: 'true' string from JS FormData
+    filter_wick = request.form.get('filter_wick', 'true').lower() == 'true'
+    filter_profit = request.form.get('filter_profit', 'false').lower() == 'true'
+
     threading.Thread(target=load_and_analyze_imbalance, 
-                    args=(True, days, min_green, min_green, long_wick, long_wick), 
+                    args=(True, days, min_green, min_green, long_wick, long_wick, min_profit, filter_wick, filter_profit), 
                     daemon=True).start()
     return jsonify({'status': 'started'})
 
@@ -470,7 +477,10 @@ def find_imbalance():
         'min_green_bars': min_green,
         'min_red_bars': min_red,
         'long_wick_size': long_wick,
-        'short_wick_size': short_wick
+        'short_wick_size': short_wick,
+        'min_profit': float(request.form.get('min_profit', 0.10)),
+        'filter_wick': request.form.get('filter_wick', 'true').lower() == 'true',
+        'filter_profit': request.form.get('filter_profit', 'false').lower() == 'true'
     }
     
     thread = threading.Thread(target=process_imbalance_job, args=(job_id, tickers))
@@ -489,11 +499,17 @@ def process_imbalance_job(job_id, tickers):
     min_red = job_data.get('min_red_bars', 12)
     long_wick = job_data.get('long_wick_size', 0.05)
     short_wick = job_data.get('short_wick_size', 0.05)
+    min_profit = job_data.get('min_profit', 0.10)
+    filter_wick = job_data.get('filter_wick', True)
+    filter_profit = job_data.get('filter_profit', False)
         
     results = fetch_imbalance(tickers, 
                              days=days,
                              min_count=min_green,
                              max_wick=long_wick,
+                             min_profit=min_profit,
+                             filter_wick=filter_wick,
+                             filter_profit=filter_profit,
                              progress_callback=update_progress)
     
     # NEW logic for manual imbalance search
@@ -564,13 +580,19 @@ def analyze_imbalance_batch():
     min_count = int(request.form.get('min_count', 20))
     candle_color = request.form.get('candle_color', 'Green') # 'Green' or 'Red'
     max_wick = float(request.form.get('max_wick', 0.12))
+    min_profit = float(request.form.get('min_profit', 0.10))
+    filter_wick = request.form.get('filter_wick', 'true').lower() == 'true'
+    filter_profit = request.form.get('filter_profit', 'false').lower() == 'true'
     
     # Run analysis synchronously with error capture
     try:
         results = fetch_imbalance(tickers, 
                                  days=days,
                                  min_count=min_count,
-                                 max_wick=max_wick)
+                                 max_wick=max_wick,
+                                 min_profit=min_profit,
+                                 filter_wick=filter_wick,
+                                 filter_profit=filter_profit)
     except Exception as e:
         import traceback
         trace = traceback.format_exc()
