@@ -851,6 +851,16 @@
             opacity: 1;
         }
 
+        /* Right-aligned Tooltip for Left Edge Items */
+        .tooltip-right .tooltiptext {
+            left: 0;
+            margin-left: 0;
+        }
+
+        .tooltip-right .tooltiptext::after {
+            left: 20px;
+        }
+
         .cyber-check {
             width: 16px;
             height: 16px;
@@ -1061,6 +1071,41 @@
             font-weight: 800;
             text-transform: uppercase;
         }
+
+        /* Language Switcher */
+        .lang-switch-container {
+            position: absolute;
+            top: 2rem;
+            right: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .lang-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .lang-btn.active {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: white;
+            box-shadow: 0 0 10px rgba(67, 97, 238, 0.3);
+        }
+
+        .lang-btn:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
     </style>
 </head>
 
@@ -1069,6 +1114,10 @@
     <header class="brand-container">
         <div class="logo-w">W</div>
         <h1 class="brand-name">Woldebots</h1>
+        <div class="lang-switch-container">
+            <button class="lang-btn active" id="lang-tr" onclick="setLanguage('tr')">TR</button>
+            <button class="lang-btn" id="lang-en" onclick="setLanguage('en')">EN</button>
+        </div>
     </header>
 
     <nav class="tabs-nav">
@@ -1159,7 +1208,20 @@
                 <div class="range-controls-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
                     <!-- Lookback -->
                     <div class="control-item">
-                        <label>Lookback</label>
+                        <label style="display:flex; align-items:center;">
+                            LOOKBACK
+                            <span class="tooltip tooltip-right">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" style="opacity:0.6;">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                                </svg>
+                                <span class="tooltiptext" data-key="lookback">Analiz edilecek geçmiş gün sayısını
+                                    belirler. Daha uzun süreler genel eğilimi, kısa süreler ise güncel durumu
+                                    gösterir.</span>
+                            </span>
+                        </label>
                         <div class="unit-wrapper">
                             <input type="number" id="rangeDays" value="90" min="1" max="365">
                             <span class="unit-tag">Days</span>
@@ -1169,7 +1231,19 @@
                     <!-- Range % -->
                     <div class="control-item">
                         <label style="display:flex; justify-content:space-between; align-items:center;">
-                            <span>Range %</span>
+                            <span style="display:flex; align-items:center;">
+                                RANGE %
+                                <span class="tooltip">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" style="opacity:0.6;">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                                    </svg>
+                                    <span class="tooltiptext" data-key="range_pct">Hissenin belirli bir süre içindeki en
+                                        düşük ve en yüksek fiyatı arasındaki farkı (kanal genişliğini) ölçer.</span>
+                                </span>
+                            </span>
                             <input type="checkbox" id="use_range_pct" class="cyber-check" checked
                                 onchange="toggleInput('rangePct', this)">
                         </label>
@@ -1217,8 +1291,8 @@
                                         <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
                                         <line x1="12" y1="17" x2="12.01" y2="17" />
                                     </svg>
-                                    <span class="tooltiptext">Ortalama Yönsel Endeks. Trendin gücünü ölçer. Düşük ADX
-                                        değerleri yatay seyreden piyasayı (range) işaret eder.</span>
+                                    <span class="tooltiptext" data-key="adx">Ortalama Yönsel Endeks. Trendin gücünü
+                                        ölçer. Düşük ADX değerleri yatay seyreden piyasayı (kanal) işaret eder.</span>
                                 </span>
                             </span>
                             <input type="checkbox" id="use_adx" class="cyber-check" checked
@@ -1232,15 +1306,16 @@
                         <label style="display:flex; justify-content:space-between; align-items:center;">
                             <span style="display:flex; align-items:center;">
                                 SLOPE
-                                <span class="tooltip">
+                                <span class="tooltip tooltip-right">
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                         stroke-width="2" style="opacity:0.6;">
                                         <circle cx="12" cy="12" r="10" />
                                         <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
                                         <line x1="12" y1="17" x2="12.01" y2="17" />
                                     </svg>
-                                    <span class="tooltiptext">Fiyatın eğimidir. Belirlenen süredeki fiyatın ne kadar
-                                        yukarı veya aşağı eğimli olduğunu ölçer, yataylık kontrolü sağlar.</span>
+                                    <span class="tooltiptext" data-key="slope">Fiyatın eğimidir. Belirlenen süredeki
+                                        fiyatın ne kadar yukarı veya aşağı eğimli olduğunu ölçer, yataylık kontrolü
+                                        sağlar.</span>
                                 </span>
                             </span>
                             <input type="checkbox" id="use_slope_pct" class="cyber-check" checked
@@ -1264,9 +1339,8 @@
                                         <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
                                         <line x1="12" y1="17" x2="12.01" y2="17" />
                                     </svg>
-                                    <span class="tooltiptext">Fiyatın belirlenen kanalın alt veya üst sınırlarına kaç
-                                        kez dokunduğunu gösterir. Dokunma sayısı arttıkça menzil güvenilirliği
-                                        artar.</span>
+                                    <span class="tooltiptext" data-key="touch">Fiyatın belirlenen kanalın alt veya üst
+                                        sınırlarına kaç kez dokunduğunu gösterir.</span>
                                 </span>
                             </span>
                             <input type="checkbox" id="use_touch" class="cyber-check" checked
@@ -1287,8 +1361,9 @@
                                         <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
                                         <line x1="12" y1="17" x2="12.01" y2="17" />
                                     </svg>
-                                    <span class="tooltiptext">Fiyatın kanalın orta bölgesinde ne kadar süre geçirdiğini
-                                        ölçer. Çoğunlukla ortada kalması menzilin sağlamlığını gösterir.</span>
+                                    <span class="tooltiptext" data-key="midzone">Fiyatın kanalın orta bölgesinde ne
+                                        kadar süre geçirdiğini ölçer. Çoğunlukla ortada kalması kanalın sağlamlığını
+                                        gösterir.</span>
                                 </span>
                             </span>
                             <input type="checkbox" id="use_middle_ratio" class="cyber-check" checked
@@ -1312,8 +1387,9 @@
                                         <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
                                         <line x1="12" y1="17" x2="12.01" y2="17" />
                                     </svg>
-                                    <span class="tooltiptext">Gün içi en yüksek volatiliteyi ölçer. Beklenmedik sert
-                                        iğne hareketlerinin menzili bozup bozmadığını kontrol eder.</span>
+                                    <span class="tooltiptext" data-key="maxvol">Gün içi en yüksek volatiliteyi ölçer.
+                                        Beklenmedik sert iğne hareketlerinin kanalı bozup bozmadığını kontrol
+                                        eder.</span>
                                 </span>
                             </span>
                             <input type="checkbox" id="use_max_vol" class="cyber-check" checked
@@ -1330,15 +1406,15 @@
                         <label style="display:flex; justify-content:space-between; align-items:center;">
                             <span style="display:flex; align-items:center;">
                                 GAP
-                                <span class="tooltip">
+                                <span class="tooltip tooltip-right">
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                         stroke-width="2" style="opacity:0.6;">
                                         <circle cx="12" cy="12" r="10" />
                                         <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
                                         <line x1="12" y1="17" x2="12.01" y2="17" />
                                     </svg>
-                                    <span class="tooltiptext">Açılış boşluklarının ortalamasını ölçer. Çok fazla gap
-                                        bırakan hisseler menzil stratejisi için riskli kabul edilir.</span>
+                                    <span class="tooltiptext" data-key="gap">Açılış boşluklarının ortalamasını ölçer.
+                                        Çok fazla gap bırakan hisseler kanal stratejisi için riskli kabul edilir.</span>
                                 </span>
                             </span>
                             <input type="checkbox" id="use_avg_gap" class="cyber-check" checked
@@ -1362,8 +1438,9 @@
                                         <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
                                         <line x1="12" y1="17" x2="12.01" y2="17" />
                                     </svg>
-                                    <span class="tooltiptext">Kenar bölgesi genişliğidir. %0.6 fiyat gibi değerler
-                                        kullanılarak fiyatın sınırlara ne kadar yaklaştığı hassas ölçülür.</span>
+                                    <span class="tooltiptext" data-key="edge">Kenar bölgesi genişliğidir. %0.6 fiyat
+                                        gibi değerler kullanılarak fiyatın sınırlara ne kadar yaklaştığı hassas
+                                        ölçülür.</span>
                                 </span>
                             </span>
                             <input type="checkbox" id="use_edge_zone" class="cyber-check"
@@ -1388,9 +1465,9 @@
                                         <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
                                         <line x1="12" y1="17" x2="12.01" y2="17" />
                                     </svg>
-                                    <span class="tooltiptext">Fiyatın orta çizgiyi (median) kaç kez kestiğini gösterir.
-                                        Yüksek kesişim sayısı fiyatın menzil içinde aktif hareket ettiğini
-                                        kanıtlar.</span>
+                                    <span class="tooltiptext" data-key="medcross">Fiyatın orta çizgiyi (median) kaç kez
+                                        kestiğini gösterir. Yüksek kesişim sayısı fiyatın kanal içinde aktif hareket
+                                        ettiğini kanıtlar.</span>
                                 </span>
                             </span>
                             <input type="checkbox" id="use_median_cross" class="cyber-check"
@@ -1402,7 +1479,20 @@
                     <!-- Trade Days -->
                     <div class="control-item">
                         <label style="display:flex; justify-content:space-between; align-items:center;">
-                            <span>Trade Days</span>
+                            <span style="display:flex; align-items:center;">
+                                TRADE DAYS
+                                <span class="tooltip">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" style="opacity:0.6;">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                                    </svg>
+                                    <span class="tooltiptext" data-key="tradedays">Hissenin analiz süresi boyunca aktif
+                                        işlem gördüğü günlerin oranını kontrol eder. Veri eksikliği olan veya düşük
+                                        likiditeli hisseleri filtreler.</span>
+                                </span>
+                            </span>
                             <input type="checkbox" id="use_trade_days" class="cyber-check" checked
                                 onchange="toggleInput('rangeTradeDays', this)">
                         </label>
@@ -4189,6 +4279,7 @@
     // Initialize UI
     document.addEventListener('DOMContentLoaded', () => {
         updateControlColors();
+        initLanguage();
         // Initialize Toggle States
         toggleInput('imbMaxWick', document.getElementById('imbFilterWick'));
         toggleInput('imbMinProfit', document.getElementById('imbFilterProfit'));
@@ -4315,6 +4406,79 @@
                 toggleInput(inputId, cb);
             }
         });
+    }
+
+    const translations = {
+        'lookback': {
+            tr: 'Analiz edilecek geçmiş gün sayısını belirler. Daha uzun süreler genel eğilimi, kısa süreler ise güncel durumu gösterir.',
+            en: 'Sets the number of past days to analyze. Longer periods show general trends, while shorter periods show the current state.'
+        },
+        'range_pct': {
+            tr: 'Hissenin belirli bir süre içindeki en düşük ve en yüksek fiyatı arasındaki farkı (kanal genişliğini) ölçer. Dar kanallar stabiliteyi işaret eder.',
+            en: 'Measures the difference between the low and high price within a period (channel width). Narrow channels indicate stability.'
+        },
+        'atrp': {
+            tr: 'Ortalama Hareket Aralığı / Fiyat oranıdır. Volatilitenin fiyatın ne kadarı olduğunu gösterir ve kanalın çok sert hareketli olup olmadığını belirler.',
+            en: 'Average True Range / Price ratio. Shows how much of the price is volatility and determines if the channel is too volatile.'
+        },
+        'adx': {
+            tr: 'Ortalama Yönsel Endeks. Trendin gücünü ölçer. Düşük ADX değerleri yatay seyreden piyasayı (kanal) işaret eder.',
+            en: 'Average Directional Index. Measures trend strength. Low ADX values indicate a sideways (range) market.'
+        },
+        'slope': {
+            tr: 'Fiyatın eğimidir. Belirlenen süredeki fiyatın ne kadar yukarı veya aşağı eğimli olduğunu ölçer, yataylık kontrolü sağlar.',
+            en: 'The slope of the price. Measures how much the price tilts up or down over the set period, ensuring flatness.'
+        },
+        'touch': {
+            tr: 'Fiyatın belirlenen kanalın alt veya üst sınırlarına kaç kez dokunduğunu gösterir. Dokunma sayısı arttıkça kanal güvenilirliği artar.',
+            en: 'Shows how many times the price touches the lower or upper bounds of the set channel. More touches increase reliability.'
+        },
+        'midzone': {
+            tr: 'Fiyatın kanalın orta bölgesinde ne kadar süre geçirdiğini ölçer. Çoğunlukla ortada kalması kanalın sağlamlığını gösterir.',
+            en: 'Measures how much time the price spends in the middle of the channel. Staying in the middle indicates a solid range.'
+        },
+        'maxvol': {
+            tr: 'Gün içi en yüksek volatiliteyi ölçer. Beklenmedik sert iğne hareketlerinin kanalı bozup bozmadığını kontrol eder.',
+            en: 'Measures the highest intraday volatility. Checks if unexpected sharp spikes are breaking the channel stability.'
+        },
+        'gap': {
+            tr: 'Açılış boşluklarının ortalamasını ölçer. Çok fazla gap bırakan hisseler kanal stratejisi için riskli kabul edilir.',
+            en: 'Measures the average of opening gaps. Stocks that leave too many gaps are considered risky for channel strategies.'
+        },
+        'edge': {
+            tr: 'Kenar bölgesi genişliğidir. %0.6 fiyat gibi değerler kullanılarak fiyatın sınırlara ne kadar yaklaştığı hassas ölçülür.',
+            en: 'Edge zone width. Uses precise values like 0.6% of price to measure how closely the price approaches the boundaries.'
+        },
+        'medcross': {
+            tr: 'Fiyatın orta çizgiyi (median) kaç kez kestiğini gösterir. Yüksek kesişim sayısı fiyatın kanal içinde aktif hareket ettiğini kanıtlar.',
+            en: 'Shows how many times the price crosses the median line. High cross count proves the price is moving actively within the channel.'
+        },
+        'tradedays': {
+            tr: 'Hissenin analiz süresi boyunca aktif işlem gördüğü günlerin oranını kontrol eder. Veri eksikliği olan veya düşük likiditeli hisseleri filtreler.',
+            en: 'Checks the ratio of days the stock actively traded during the analysis period. Filters out symbols with low liquidity.'
+        }
+    };
+
+    function setLanguage(lang) {
+        localStorage.setItem('wolde_lang', lang);
+
+        // Update Buttons
+        document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
+        const activeBtn = document.getElementById(`lang-${lang}`);
+        if (activeBtn) activeBtn.classList.add('active');
+
+        // Update Tooltips
+        document.querySelectorAll('[data-key]').forEach(el => {
+            const key = el.getAttribute('data-key');
+            if (translations[key] && translations[key][lang]) {
+                el.innerText = translations[key][lang];
+            }
+        });
+    }
+
+    function initLanguage() {
+        const savedLang = localStorage.getItem('wolde_lang') || 'tr';
+        setLanguage(savedLang);
     }
 </script>
 
