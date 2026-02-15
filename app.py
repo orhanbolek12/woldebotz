@@ -319,7 +319,10 @@ def load_and_analyze_imbalance(force=False, days=20, min_green_bars=12, min_red_
             is_new = res['ticker'] not in baseline
             res['is_new'] = is_new
             res['days'] = days
-            res['max_wick'] = long_wick
+            res['is_new'] = is_new
+            res['days'] = days
+            # Do not overwrite max_wick with the filter parameter
+            # res['max_wick'] = long_wick
             
         # Update cache and set current results as baseline for next scan
         imbalance_cache.update({
@@ -517,7 +520,10 @@ def process_imbalance_job(job_id, tickers):
     for res in results:
         res['is_new'] = res['ticker'] not in baseline
         res['days'] = days
-        res['max_wick'] = long_wick
+        res['is_new'] = res['ticker'] not in baseline
+        res['days'] = days
+        # Do not overwrite max_wick with the filter parameter
+        # res['max_wick'] = long_wick
         
     jobs[job_id]['results'] = results
     jobs[job_id]['results'] = results

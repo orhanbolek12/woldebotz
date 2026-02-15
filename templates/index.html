@@ -2125,7 +2125,7 @@
 
             const displayDays = item.days || item.total_days || 30;
             const displayWick = item.max_wick || 0.12;
-            const detailStr = `(LAST ${displayDays} DAYS | WICK <= ${displayWick})`;
+            const detailStr = `(LAST ${displayDays} DAYS | MAX WICK: ${displayWick})`;
 
             tr.innerHTML = `
                     <td>
