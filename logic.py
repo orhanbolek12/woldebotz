@@ -424,6 +424,8 @@ def fetch_range_ai(tickers, days=90,
                    max_daily_move=5.0, use_max_daily_move=True,
                    avg_gap=1.2, use_avg_gap=True,
                    trade_days=70.0, use_trade_days=True,
+                   edge_zone_pct=0.6, use_edge_zone=False,
+                   median_cross=20, use_median_cross=False,
                    progress_callback=None):
     results = []
     total = len(tickers)
@@ -512,8 +514,12 @@ def fetch_range_ai(tickers, days=90,
             if np.isnan(avg_gap_val): avg_gap_val = 0
             if use_avg_gap and avg_gap_val > avg_gap: continue
             
-            # 8. Zones & Touches (30% logic)
-            zone_size = point_range * 0.30
+            # 8. Zones & Touches (30% logic or % Price logic)
+            if use_edge_zone:
+                zone_size = low_min * (edge_zone_pct / 100)
+            else:
+                zone_size = point_range * 0.30
+
             low_zone_limit = low_min + zone_size
             high_zone_limit = high_max - zone_size
             
@@ -531,6 +537,17 @@ def fetch_range_ai(tickers, days=90,
             middle_ratio_val = (middle_count / days_with_data) * 100
             
             if use_middle_ratio and middle_ratio_val < middle_ratio: continue
+
+            # 10. Median Cross Count
+            median_price = (low_min + high_max) / 2
+            closes = df_slice['Close'].values
+            median_crosses = 0
+            for k in range(1, len(closes)):
+                if (closes[k-1] < median_price and closes[k] > median_price) or \
+                   (closes[k-1] > median_price and closes[k] < median_price):
+                    median_crosses += 1
+            
+            if use_median_cross and median_crosses < median_cross: continue
 
             # --- PREPARE RESULT ---
             # Re-calculate simple cycle stats for display if needed, 
@@ -598,6 +615,7 @@ def fetch_range_ai(tickers, days=90,
                 'touch_low': int(low_touches),
                 'touch_high': int(high_touches),
                 'middle_ratio': s(round(middle_ratio_val, 1)),
+                'median_cross': int(median_crosses),
                 'signal': signal,
                 'avg_days_low_to_high': s(avg_days_lh),
                 'avg_days_high_to_low': s(avg_days_hl),

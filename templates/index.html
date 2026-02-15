@@ -1159,12 +1159,23 @@
                 <div class="range-controls-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
                     <!-- Lookback -->
                     <div class="control-item">
-                        <label style="display:flex; justify-content:space-between; align-items:center;">
-                            <span>Lookback</span>
-                        </label>
+                        <label>Lookback</label>
                         <div class="unit-wrapper">
                             <input type="number" id="rangeDays" value="90" min="1" max="365">
                             <span class="unit-tag">Days</span>
+                        </div>
+                    </div>
+
+                    <!-- Range % -->
+                    <div class="control-item">
+                        <label style="display:flex; justify-content:space-between; align-items:center;">
+                            <span>Range %</span>
+                            <input type="checkbox" id="use_range_pct" class="cyber-check" checked
+                                onchange="toggleInput('rangePct', this)">
+                        </label>
+                        <div class="unit-wrapper">
+                            <input type="number" id="rangePct" value="9.0" step="0.5" min="0">
+                            <span class="unit-tag">%</span>
                         </div>
                     </div>
 
@@ -1339,12 +1350,84 @@
                         </div>
                     </div>
 
-                    <!-- Apply Suggestions Button -->
-                    <div class="control-item" style="display:flex; align-items:flex-end;">
-                        <button onclick="applyRangeSuggestions()" class="sidebar-btn"
-                            style="height:42px; background:rgba(59, 130, 246, 0.1); border-color:rgba(59, 130, 246, 0.3);">
-                            Apply Suggestions
-                        </button>
+                    <!-- EDGE ZONE -->
+                    <div class="control-item">
+                        <label style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="display:flex; align-items:center;">
+                                EDGE %
+                                <span class="tooltip">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" style="opacity:0.6;">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                                    </svg>
+                                    <span class="tooltiptext">Kenar bölgesi genişliğidir. %0.6 fiyat gibi değerler
+                                        kullanılarak fiyatın sınırlara ne kadar yaklaştığı hassas ölçülür.</span>
+                                </span>
+                            </span>
+                            <input type="checkbox" id="use_edge_zone" class="cyber-check"
+                                onchange="toggleInput('rangeEdgeZone', this)">
+                        </label>
+                        <div class="unit-wrapper">
+                            <input type="number" id="rangeEdgeZone" value="0.6" step="0.1" min="0" disabled
+                                style="opacity:0.5;">
+                            <span class="unit-tag">%</span>
+                        </div>
+                    </div>
+
+                    <!-- MEDIAN CROSS -->
+                    <div class="control-item">
+                        <label style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="display:flex; align-items:center;">
+                                MED CROSS
+                                <span class="tooltip">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" style="opacity:0.6;">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                                    </svg>
+                                    <span class="tooltiptext">Fiyatın orta çizgiyi (median) kaç kez kestiğini gösterir.
+                                        Yüksek kesişim sayısı fiyatın menzil içinde aktif hareket ettiğini
+                                        kanıtlar.</span>
+                                </span>
+                            </span>
+                            <input type="checkbox" id="use_median_cross" class="cyber-check"
+                                onchange="toggleInput('rangeMedCross', this)">
+                        </label>
+                        <input type="number" id="rangeMedCross" value="20" min="1" disabled style="opacity:0.5;">
+                    </div>
+
+                    <!-- Trade Days -->
+                    <div class="control-item">
+                        <label style="display:flex; justify-content:space-between; align-items:center;">
+                            <span>Trade Days</span>
+                            <input type="checkbox" id="use_trade_days" class="cyber-check" checked
+                                onchange="toggleInput('rangeTradeDays', this)">
+                        </label>
+                        <div class="unit-wrapper">
+                            <input type="number" id="rangeTradeDays" value="70" min="0" max="100">
+                            <span class="unit-tag">%</span>
+                        </div>
+                    </div>
+
+                    <!-- Wolde Suggests Button -->
+                    <div class="control-item"
+                        style="grid-column: 1 / -1; margin-top: 1rem; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 1.5rem;">
+                        <div style="display: flex; gap: 1rem; align-items: center; justify-content: center;">
+                            <label class="switch" style="width: 50px; height: 26px;">
+                                <input type="checkbox" id="woldeSuggestsToggle" onchange="applyWoldeSuggests(this)">
+                                <span class="slider" style="border-radius: 20px;"></span>
+                            </label>
+                            <span style="font-weight: 800; color:var(--accent-secondary); letter-spacing: 2px;">WOLDE
+                                SUGGESTS</span>
+
+                            <button onclick="applyRangeSuggestions()" class="sidebar-btn"
+                                style="width: auto; padding: 0.5rem 1.5rem; background:rgba(59, 130, 246, 0.1); border-color:rgba(59, 130, 246, 0.3);">
+                                Phase 3 Defaults
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1835,6 +1918,7 @@
                             <th style="cursor:pointer;" onclick="sortRangeResults('max_daily_move')">Max Vol ↕</th>
                             <th>Touch (L/H)</th>
                             <th style="cursor:pointer;" onclick="sortRangeResults('middle_ratio')">Mid% ↕</th>
+                            <th style="cursor:pointer;" onclick="sortRangeResults('median_cross')">MedX ↕</th>
                             <th style="cursor:pointer;" onclick="sortRangeResults('avg_total_cycle')">Cycle ↕</th>
                             <th>Action</th>
                         </tr>
@@ -2158,6 +2242,8 @@
 
                         // Collect dynamic parameters
                         formData.append('days', document.getElementById('rangeDays').value);
+                        formData.append('range_pct', document.getElementById('rangePct').value);
+                        formData.append('use_range_pct', document.getElementById('use_range_pct').checked);
                         formData.append('atr_price', document.getElementById('rangeAtrPrice').value);
                         formData.append('use_atr_price', document.getElementById('use_atr_price').checked);
                         formData.append('adx', document.getElementById('rangeAdx').value);
@@ -2172,9 +2258,13 @@
                         formData.append('use_max_daily_move', document.getElementById('use_max_vol').checked);
                         formData.append('avg_gap', document.getElementById('rangeGap').value);
                         formData.append('use_avg_gap', document.getElementById('use_avg_gap').checked);
-                        // Range % remains 9.0 for now as it wasn't requested for adjustment
-                        formData.append('range_pct', 9.0);
-                        formData.append('use_range_pct', 'true');
+
+                        formData.append('edge_zone_pct', document.getElementById('rangeEdgeZone').value);
+                        formData.append('use_edge_zone', document.getElementById('use_edge_zone').checked);
+                        formData.append('median_cross', document.getElementById('rangeMedCross').value);
+                        formData.append('use_median_cross', document.getElementById('use_median_cross').checked);
+                        formData.append('trade_days', document.getElementById('rangeTradeDays').value);
+                        formData.append('use_trade_days', document.getElementById('use_trade_days').checked);
 
                         updateProgress(Math.round((completed / total) * 100), `Analyzing ${batch.join(', ')}...`);
 
@@ -2643,6 +2733,7 @@
                             <span style="color:var(--error); font-weight:700;">${item.touch_high}</span>
                         </td>
                         <td style="color:${item.middle_ratio < 60 ? 'var(--error)' : 'var(--text-primary)'}">${item.middle_ratio !== null ? item.middle_ratio : '-'}%</td>
+                        <td>${item.median_cross !== null ? item.median_cross : '-'}</td>
                         <td><span style="font-weight:700; color:var(--accent-primary);">${item.avg_total_cycle !== null ? Math.round(item.avg_total_cycle) : '-'}</span></td>
                         <td><a href="${tvUrl}" target="_blank" class="tv-btn">Chart</a></td>
                     `;
@@ -4119,6 +4210,7 @@
     function applyRangeSuggestions() {
         // Lookback
         document.getElementById('rangeDays').value = 90;
+        document.getElementById('rangePct').value = 9.0;
 
         // Detailed Filters
         const filters = {
@@ -4128,7 +4220,8 @@
             'rangeTouch': 5,
             'rangeMidZone': 60,
             'rangeMaxVol': 5.0,
-            'rangeGap': 1.2
+            'rangeGap': 1.2,
+            'rangeTradeDays': 70
         };
 
         for (const [id, val] of Object.entries(filters)) {
@@ -4138,16 +4231,16 @@
 
         // Toggles
         const toggles = [
-            'use_atr_price', 'use_adx', 'use_slope_pct',
-            'use_touch', 'use_middle_ratio', 'use_max_vol', 'use_avg_gap'
+            'use_range_pct', 'use_atr_price', 'use_adx', 'use_slope_pct',
+            'use_touch', 'use_middle_ratio', 'use_max_vol', 'use_avg_gap', 'use_trade_days'
         ];
 
         toggles.forEach(id => {
             const cb = document.getElementById(id);
             if (cb) {
                 cb.checked = true;
-                // Get the input ID associated with this checkbox to enable it
                 let inputId = '';
+                if (id === 'use_range_pct') inputId = 'rangePct';
                 if (id === 'use_atr_price') inputId = 'rangeAtrPrice';
                 if (id === 'use_adx') inputId = 'rangeAdx';
                 if (id === 'use_slope_pct') inputId = 'rangeSlope';
@@ -4155,14 +4248,71 @@
                 if (id === 'use_middle_ratio') inputId = 'rangeMidZone';
                 if (id === 'use_max_vol') inputId = 'rangeMaxVol';
                 if (id === 'use_avg_gap') inputId = 'rangeGap';
+                if (id === 'use_trade_days') inputId = 'rangeTradeDays';
+                if (inputId) toggleInput(inputId, cb);
+            }
+        });
 
-                if (inputId) {
-                    const input = document.getElementById(inputId);
-                    if (input) {
-                        input.disabled = false;
-                        input.style.opacity = '1';
-                    }
-                }
+        // Ensure others are off
+        ['use_edge_zone', 'use_median_cross'].forEach(id => {
+            const cb = document.getElementById(id);
+            if (cb) {
+                cb.checked = false;
+                let inputId = (id === 'use_edge_zone') ? 'rangeEdgeZone' : 'rangeMedCross';
+                toggleInput(inputId, cb);
+            }
+        });
+
+        const woldeToggle = document.getElementById('woldeSuggestsToggle');
+        if (woldeToggle) woldeToggle.checked = false;
+    }
+
+    function applyWoldeSuggests(toggle) {
+        if (!toggle.checked) return;
+
+        // Wolde values
+        document.getElementById('rangeDays').value = 90;
+        document.getElementById('rangePct').value = 5.0;
+        document.getElementById('rangeAtrPrice').value = 1.2;
+        document.getElementById('rangeAdx').value = 18;
+        document.getElementById('rangeSlope').value = 2.0;
+        document.getElementById('rangeTouch').value = 6;
+        document.getElementById('rangeMaxVol').value = 3.0;
+        document.getElementById('rangeMedCross').value = 20;
+        document.getElementById('rangeEdgeZone').value = 0.6;
+        document.getElementById('rangeTradeDays').value = 65;
+
+        // Toggles ON
+        const toggles = [
+            'use_range_pct', 'use_atr_price', 'use_adx', 'use_slope_pct',
+            'use_touch', 'use_max_vol', 'use_edge_zone', 'use_median_cross', 'use_trade_days'
+        ];
+
+        toggles.forEach(id => {
+            const cb = document.getElementById(id);
+            if (cb) {
+                cb.checked = true;
+                let inputId = '';
+                if (id === 'use_range_pct') inputId = 'rangePct';
+                if (id === 'use_atr_price') inputId = 'rangeAtrPrice';
+                if (id === 'use_adx') inputId = 'rangeAdx';
+                if (id === 'use_slope_pct') inputId = 'rangeSlope';
+                if (id === 'use_touch') inputId = 'rangeTouch';
+                if (id === 'use_max_vol') inputId = 'rangeMaxVol';
+                if (id === 'use_edge_zone') inputId = 'rangeEdgeZone';
+                if (id === 'use_median_cross') inputId = 'rangeMedCross';
+                if (id === 'use_trade_days') inputId = 'rangeTradeDays';
+                if (inputId) toggleInput(inputId, cb);
+            }
+        });
+
+        // Toggles OFF
+        ['use_middle_ratio', 'use_avg_gap'].forEach(id => {
+            const cb = document.getElementById(id);
+            if (cb) {
+                cb.checked = false;
+                let inputId = (id === 'use_middle_ratio') ? 'rangeMidZone' : 'rangeGap';
+                toggleInput(inputId, cb);
             }
         });
     }

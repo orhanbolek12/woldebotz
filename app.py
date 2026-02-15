@@ -568,6 +568,12 @@ def analyze_range_batch():
     avg_gap = float(request.form.get('avg_gap', 1.2))
     use_avg_gap = request.form.get('use_avg_gap', 'true').lower() == 'true'
 
+    edge_zone_pct = float(request.form.get('edge_zone_pct', 0.6))
+    use_edge_zone = request.form.get('use_edge_zone', 'false').lower() == 'true'
+    
+    median_cross = int(request.form.get('median_cross', 20))
+    use_median_cross = request.form.get('use_median_cross', 'false').lower() == 'true'
+
     try:
         results = fetch_range_ai(tickers, 
                                 days=days, 
@@ -579,7 +585,9 @@ def analyze_range_batch():
                                 slope_pct=slope_pct, use_slope_pct=use_slope_pct,
                                 middle_ratio=middle_ratio, use_middle_ratio=use_middle_ratio,
                                 max_daily_move=max_daily_move, use_max_daily_move=use_max_daily_move,
-                                avg_gap=avg_gap, use_avg_gap=use_avg_gap)
+                                avg_gap=avg_gap, use_avg_gap=use_avg_gap,
+                                edge_zone_pct=edge_zone_pct, use_edge_zone=use_edge_zone,
+                                median_cross=median_cross, use_median_cross=use_median_cross)
     except Exception as e:
         import traceback
         trace = traceback.format_exc()
