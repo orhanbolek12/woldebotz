@@ -4361,17 +4361,17 @@
     function applyWoldeSuggests(toggle) {
         if (!toggle.checked) return;
 
-        // Optimized "Sweet Spot" Wolde values for ~40-50 results
+        // Looser "Sweet Spot" Wolde values for ~40-50 results
         document.getElementById('rangeDays').value = 90;
-        document.getElementById('rangePct').value = 8.5;
-        document.getElementById('rangeAtrPrice').value = 2.0;
-        document.getElementById('rangeAdx').value = 22.0;
-        document.getElementById('rangeSlope').value = 3.5;
-        document.getElementById('rangeTouch').value = 5;
-        document.getElementById('rangeMedCross').value = 15;
+        document.getElementById('rangePct').value = 10.0;
+        document.getElementById('rangeAtrPrice').value = 2.5;
+        document.getElementById('rangeAdx').value = 25.0;
+        document.getElementById('rangeSlope').value = 5.0;
+        document.getElementById('rangeTouch').value = 4;
+        document.getElementById('rangeMedCross').value = 12;
         document.getElementById('rangeEdgeZone').value = 1.0;
 
-        // Toggles ON (Strictly specified in the "Sweet Spot" recommendation + Edge % addition)
+        // Toggles ON
         const togglesOn = [
             'use_range_pct', 'use_atr_price', 'use_adx', 'use_slope_pct',
             'use_touch', 'use_median_cross', 'use_edge_zone'
@@ -4393,7 +4393,7 @@
             }
         });
 
-        // Toggles OFF (Everything not in the specified list)
+        // Toggles OFF
         ['use_max_vol', 'use_middle_ratio', 'use_avg_gap', 'use_trade_days'].forEach(id => {
             const cb = document.getElementById(id);
             if (cb) {
