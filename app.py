@@ -611,7 +611,8 @@ def analyze_imbalance_batch():
         res['is_new'] = res['ticker'] not in baseline
         res['days'] = days
         res['min_count'] = min_count
-        res['max_wick'] = max_wick
+        # res['max_wick'] = max_wick
+
         
     return jsonify({'results': results})
 
