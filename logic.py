@@ -590,6 +590,67 @@ def fetch_range_ai(tickers, days=90,
             avg_days_hl = round(sum(transitions_hl) / len(transitions_hl)) if transitions_hl else 0
             avg_total_cycle = avg_days_lh + avg_days_hl
 
+            # --- CALCULATE RANGE SCORE (0-100) ---
+            score = 0
+            
+            # 1. Range Structure (Max 30)
+            if percent_range <= 4: score += 30
+            elif percent_range <= 6: score += 24
+            elif percent_range <= 8: score += 18
+            elif percent_range <= 10: score += 10
+            
+            # 2. Mean Reversion (Max 25)
+            # Median Crosses (Max 15)
+            if median_crosses >= 20: score += 15
+            elif median_crosses >= 15: score += 12
+            elif median_crosses >= 10: score += 8
+            elif median_crosses >= 6: score += 4
+            
+            # Edge Touches (Max 10)
+            total_touches = low_touches + high_touches
+            if total_touches >= 12: score += 10
+            elif total_touches >= 8: score += 7
+            elif total_touches >= 6: score += 4
+            elif total_touches >= 4: score += 2
+            
+            # 3. Volatility Fit (Max 20)
+            # ATR/Price (Max 12)
+            if atr_price_ratio <= 1.2: score += 12
+            elif atr_price_ratio <= 1.6: score += 9
+            elif atr_price_ratio <= 2.0: score += 6
+            elif atr_price_ratio <= 2.5: score += 3
+            
+            # Max Daily Move (Max 8)
+            if max_daily_move_val <= 3: score += 8
+            elif max_daily_move_val <= 4: score += 6
+            elif max_daily_move_val <= 5: score += 3
+            elif max_daily_move_val <= 6: score += 1
+            
+            # 4. Stability (Max 15)
+            # ADX (Max 8)
+            if current_adx <= 18: score += 8
+            elif current_adx <= 22: score += 6
+            elif current_adx <= 26: score += 3
+            
+            # Slope % (Max 7)
+            abs_slope = abs(slope_pct_val)
+            if abs_slope <= 2: score += 7
+            elif abs_slope <= 3: score += 5
+            elif abs_slope <= 4: score += 3
+            elif abs_slope <= 6: score += 1
+            
+            # 5. Tradability (Max 10)
+            if trade_days_ratio >= 98: score += 10
+            elif trade_days_ratio >= 95: score += 8
+            elif trade_days_ratio >= 90: score += 5
+            
+            # Score Grade
+            grade = "elenir"
+            if score >= 85: grade = "A+"
+            elif score >= 70: grade = "A"
+            elif score >= 55: grade = "B"
+            elif score >= 40: grade = "C"
+
             # Signal Logic (based on current price)
             signal = "Neutral"
             if current_price <= low_zone_limit: signal = "Buy"
@@ -616,6 +677,11 @@ def fetch_range_ai(tickers, days=90,
                 'touch_high': int(high_touches),
                 'middle_ratio': s(round(middle_ratio_val, 1)),
                 'median_cross': int(median_crosses),
+                'atr_ratio': s(atr_price_ratio),
+                'cycle': avg_total_cycle,
+                'max_vol_p': s(max_daily_move_val),
+                'score': score,
+                'grade': grade,
                 'signal': signal,
                 'avg_days_low_to_high': s(avg_days_lh),
                 'avg_days_high_to_low': s(avg_days_hl),
