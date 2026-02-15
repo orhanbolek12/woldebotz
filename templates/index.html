@@ -1999,19 +1999,12 @@
                     <thead>
                         <tr>
                             <th style="cursor:pointer;" onclick="sortRangeResults('ticker')">Ticker ↕</th>
+                            <th>Current / Range</th>
                             <th style="cursor:pointer;" onclick="sortRangeResults('percent_range')">% Range ↕</th>
+                            <th>Touch (L/H)</th>
+                            <th style="cursor:pointer;" onclick="sortRangeResults('cycle')">Cycle ↕</th>
                             <th style="cursor:pointer; background:rgba(67, 97, 238, 0.1);"
                                 onclick="sortRangeResults('score')">Score ↕</th>
-                            <th>Current / Range</th>
-                            <th>Signal</th>
-                            <th style="cursor:pointer;" onclick="sortRangeResults('atr_ratio')">ATR/P ↕</th>
-                            <th style="cursor:pointer;" onclick="sortRangeResults('adx')">ADX ↕</th>
-                            <th style="cursor:pointer;" onclick="sortRangeResults('slope_pct')">Slope ↕</th>
-                            <th style="cursor:pointer;" onclick="sortRangeResults('max_vol_p')">Max Vol ↕</th>
-                            <th>Touch (L/H)</th>
-                            <th style="cursor:pointer;" onclick="sortRangeResults('middle_ratio')">Mid% ↕</th>
-                            <th style="cursor:pointer;" onclick="sortRangeResults('median_cross')">MedX ↕</th>
-                            <th style="cursor:pointer;" onclick="sortRangeResults('cycle')">Cycle ↕</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -2714,11 +2707,9 @@
         const headers = document.querySelectorAll('#customResultsTable th');
         headers.forEach(h => h.style.background = 'transparent');
 
-        // Find the clicked header to highlight (Score is special)
+        // Find the clicked header to highlight
         const headerIndex = {
-            'ticker': 0, 'percent_range': 1, 'score': 2, 'atr_ratio': 5,
-            'adx': 6, 'slope_pct': 7, 'max_vol_p': 8, 'middle_ratio': 10,
-            'median_cross': 11, 'cycle': 12
+            'ticker': 0, 'percent_range': 2, 'cycle': 4, 'score': 5
         };
         const idx = headerIndex[col];
         if (idx !== undefined) headers[idx].style.background = 'rgba(67, 97, 238, 0.1)';
@@ -2834,27 +2825,20 @@
                             </div>
                             <div style="font-size:0.7rem; color:var(--text-tertiary);">R: ${item.point_range} pts</div>
                         </td>
-                        <td><span style="color:var(--accent-secondary); font-weight:600;">${item.percent_range}%</span></td>
-                        <td>
-                            <div style="font-weight:800; color:${scoreColor}; font-size:1.1rem;">${item.score}</div>
-                            <div style="font-size:0.65rem; font-weight:800; text-transform:uppercase; color:${scoreColor}">${item.grade}</div>
-                        </td>
                         <td>
                             <div style="font-size:0.85rem; font-weight:600;">$${item.current}</div>
                             <div style="font-size:0.7rem; color:var(--text-tertiary);">L:$${item.min} H:$${item.max}</div>
                         </td>
-                        <td>${signalBadge}</td>
-                        <td style="font-weight:600; color:${item.atr_ratio > 2.2 ? 'var(--error)' : 'var(--text-primary)'}">${item.atr_ratio !== null ? item.atr_ratio : '-'}%</td>
-                        <td style="font-weight:600; color:${item.adx > 25 ? 'var(--warning)' : 'var(--text-secondary)'}">${item.adx !== null ? item.adx : '-'}</td>
-                        <td style="color:${Math.abs(item.slope_pct) > 3 ? 'var(--error)' : 'var(--text-primary)'}">${item.slope_pct !== null ? item.slope_pct : '-'}%</td>
-                        <td style="color:${item.max_vol_p > 5 ? 'var(--error)' : 'var(--text-primary)'}">${item.max_vol_p !== null ? item.max_vol_p : '-'}%</td>
+                        <td><span style="color:var(--accent-secondary); font-weight:600;">${item.percent_range}%</span></td>
                         <td>
                             <span style="color:var(--success); font-weight:700;">${item.touch_low}</span> / 
                             <span style="color:var(--error); font-weight:700;">${item.touch_high}</span>
                         </td>
-                        <td style="color:${item.middle_ratio < 60 ? 'var(--error)' : 'var(--text-primary)'}">${item.middle_ratio !== null ? item.middle_ratio : '-'}%</td>
-                        <td>${item.median_cross !== null ? item.median_cross : '-'}</td>
                         <td><span style="font-weight:700; color:var(--accent-primary);">${item.cycle !== null ? Math.round(item.cycle) : '-'}</span></td>
+                        <td>
+                            <div style="font-weight:800; color:${scoreColor}; font-size:1.1rem;">${item.score}</div>
+                            <div style="font-size:0.65rem; font-weight:800; text-transform:uppercase; color:${scoreColor}">${item.grade}</div>
+                        </td>
                         <td><a href="${tvUrl}" target="_blank" class="tv-btn">Chart</a></td>
                     `;
             }
