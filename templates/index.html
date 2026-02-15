@@ -4361,25 +4361,23 @@
     function applyWoldeSuggests(toggle) {
         if (!toggle.checked) return;
 
-        // Wolde values
+        // Optimized "Sweet Spot" Wolde values for ~40-50 results
         document.getElementById('rangeDays').value = 90;
-        document.getElementById('rangePct').value = 5.0;
-        document.getElementById('rangeAtrPrice').value = 1.2;
-        document.getElementById('rangeAdx').value = 18;
-        document.getElementById('rangeSlope').value = 2.0;
-        document.getElementById('rangeTouch').value = 6;
-        document.getElementById('rangeMaxVol').value = 3.0;
-        document.getElementById('rangeMedCross').value = 20;
-        document.getElementById('rangeEdgeZone').value = 0.6;
-        document.getElementById('rangeTradeDays').value = 65;
+        document.getElementById('rangePct').value = 8.5;
+        document.getElementById('rangeAtrPrice').value = 2.0;
+        document.getElementById('rangeAdx').value = 22.0;
+        document.getElementById('rangeSlope').value = 3.5;
+        document.getElementById('rangeTouch').value = 5;
+        document.getElementById('rangeMedCross').value = 15;
+        document.getElementById('rangeEdgeZone').value = 1.0;
 
-        // Toggles ON
-        const toggles = [
+        // Toggles ON (Strictly specified in the "Sweet Spot" recommendation + Edge % addition)
+        const togglesOn = [
             'use_range_pct', 'use_atr_price', 'use_adx', 'use_slope_pct',
-            'use_touch', 'use_max_vol', 'use_edge_zone', 'use_median_cross', 'use_trade_days'
+            'use_touch', 'use_median_cross', 'use_edge_zone'
         ];
 
-        toggles.forEach(id => {
+        togglesOn.forEach(id => {
             const cb = document.getElementById(id);
             if (cb) {
                 cb.checked = true;
@@ -4389,21 +4387,23 @@
                 if (id === 'use_adx') inputId = 'rangeAdx';
                 if (id === 'use_slope_pct') inputId = 'rangeSlope';
                 if (id === 'use_touch') inputId = 'rangeTouch';
-                if (id === 'use_max_vol') inputId = 'rangeMaxVol';
-                if (id === 'use_edge_zone') inputId = 'rangeEdgeZone';
                 if (id === 'use_median_cross') inputId = 'rangeMedCross';
-                if (id === 'use_trade_days') inputId = 'rangeTradeDays';
+                if (id === 'use_edge_zone') inputId = 'rangeEdgeZone';
                 if (inputId) toggleInput(inputId, cb);
             }
         });
 
-        // Toggles OFF
-        ['use_middle_ratio', 'use_avg_gap'].forEach(id => {
+        // Toggles OFF (Everything not in the specified list)
+        ['use_max_vol', 'use_middle_ratio', 'use_avg_gap', 'use_trade_days'].forEach(id => {
             const cb = document.getElementById(id);
             if (cb) {
                 cb.checked = false;
-                let inputId = (id === 'use_middle_ratio') ? 'rangeMidZone' : 'rangeGap';
-                toggleInput(inputId, cb);
+                let inputId = '';
+                if (id === 'use_max_vol') inputId = 'rangeMaxVol';
+                if (id === 'use_middle_ratio') inputId = 'rangeMidZone';
+                if (id === 'use_avg_gap') inputId = 'rangeGap';
+                if (id === 'use_trade_days') inputId = 'rangeTradeDays';
+                if (inputId) toggleInput(inputId, cb);
             }
         });
     }
