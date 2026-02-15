@@ -26,6 +26,48 @@
             --accent-glow: rgba(59, 130, 246, 0.15);
         }
 
+        /* Filter Buttons & Sorting */
+        .filter-btn {
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            font-size: 0.7rem;
+            transition: all 0.2s;
+            opacity: 0.5;
+            color: var(--text-secondary);
+            background: transparent;
+        }
+
+        .filter-btn.active {
+            opacity: 1;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            font-weight: 600;
+        }
+
+        .green-filter.active {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        .red-filter.active {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: var(--error);
+            color: var(--error);
+        }
+
+        th.sortable {
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.2s;
+        }
+
+        th.sortable:hover {
+            color: var(--accent-primary);
+            text-shadow: 0 0 8px var(--accent-glow);
+        }
+
         * {
             box-sizing: border-box;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1609,13 +1651,23 @@
                 <table id="imbalanceResultsTable">
                     <thead>
                         <tr>
-                            <th>Ticker</th>
-                            <th>Pattern</th>
-                            <th>Match Count</th>
-                            <th>Avg Wick</th>
-                            <th>Max Wick</th>
-                            <th>Avg End $</th>
-                            <th>Avg Max $</th>
+                            <th class="sortable" onclick="sortImbalanceTable(0, 'string')">Ticker ↕</th>
+                            <th>
+                                <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+                                    <span class="sortable" onclick="sortImbalanceTable(1, 'string')">Pattern ↕</span>
+                                    <div style="display:flex; gap:4px;">
+                                        <button id="btnFilterGreen" class="filter-btn green-filter active"
+                                            onclick="toggleImbFilter('Green')">Green</button>
+                                        <button id="btnFilterRed" class="filter-btn red-filter active"
+                                            onclick="toggleImbFilter('Red')">Red</button>
+                                    </div>
+                                </div>
+                            </th>
+                            <th class="sortable" onclick="sortImbalanceTable(2, 'number')">Match Count ↕</th>
+                            <th class="sortable" onclick="sortImbalanceTable(3, 'number')">Avg Wick ↕</th>
+                            <th class="sortable" onclick="sortImbalanceTable(4, 'number')">Max Wick ↕</th>
+                            <th class="sortable" onclick="sortImbalanceTable(5, 'number')">Avg End $ ↕</th>
+                            <th class="sortable" onclick="sortImbalanceTable(6, 'number')">Avg Max $ ↕</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -2154,6 +2206,72 @@
         });
 
         document.getElementById('noResults').style.display = 'none';
+    }
+
+
+
+
+
+
+
+    let imbSortDir = 1; // 1: asc, -1: desc
+    let imbFilters = { 'Green': true, 'Red': true };
+
+    function toggleImbFilter(type) {
+        event.stopPropagation(); // prevent header sort click if inside th
+        imbFilters[type] = !imbFilters[type];
+
+        // Update Buttons
+        const btn = document.getElementById(`btnFilter${type}`);
+        if (imbFilters[type]) btn.classList.add('active');
+        else btn.classList.remove('active');
+
+        // Filter Rows
+        const tbody = document.querySelector('#imbalanceResultsTable tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+
+        rows.forEach(row => {
+            const patternCell = row.cells[1].innerText;
+            const isGreen = patternCell.includes('Green');
+            const isRed = patternCell.includes('Red');
+
+            // Logic: 
+            // If Green is checked, show Green rows.
+            // If Red is checked, show Red rows.
+            // If both off, show none.
+            // If both on, show all.
+
+            let show = false;
+            if (isGreen && imbFilters['Green']) show = true;
+            if (isRed && imbFilters['Red']) show = true;
+
+            row.style.display = show ? '' : 'none';
+        });
+    }
+
+    function sortImbalanceTable(n, type) {
+        const table = document.getElementById("imbalanceResultsTable");
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+
+        // Toggle direction
+        imbSortDir *= -1;
+
+        rows.sort((rowA, rowB) => {
+            let cellA = rowA.cells[n].innerText.trim();
+            let cellB = rowB.cells[n].innerText.trim();
+
+            if (type === 'number') {
+                // Remove symbols like +, $
+                cellA = parseFloat(cellA.replace(/[^\d.-]/g, '')) || 0;
+                cellB = parseFloat(cellB.replace(/[^\d.-]/g, '')) || 0;
+                return (cellA - cellB) * imbSortDir;
+            } else {
+                return cellA.localeCompare(cellB) * imbSortDir;
+            }
+        });
+
+        rows.forEach(row => tbody.appendChild(row));
     }
 
     function copyImbalanceTickers() {
