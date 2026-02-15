@@ -541,26 +541,45 @@ def analyze_range_batch():
     tickers = [t.strip() for t in tickers_str.split(',') if t.strip()]
     
     # Get parameters
-    days = 90 # Hardcoded for Phase 3 Range AI Logic
-    # days = int(request.form.get('days', 90))
-    min_points = float(request.form.get('min_points', 0.5))
-    max_points = float(request.form.get('max_points', 1.0))
-    max_percent = float(request.form.get('max_percent', 5.0))
+    days = int(request.form.get('days', 90))
     
-    # Checkbox filters (sent as strings 'true'/'false')
-    filter_min_point = request.form.get('filter_min_point', 'false').lower() == 'true'
-    filter_point = request.form.get('filter_point', 'true').lower() == 'true'
-    filter_percent = request.form.get('filter_percent', 'true').lower() == 'true'
+    # All range filters
+    range_pct = float(request.form.get('range_pct', 9.0))
+    use_range_pct = request.form.get('use_range_pct', 'true').lower() == 'true'
     
+    atr_price = float(request.form.get('atr_price', 2.2))
+    use_atr_price = request.form.get('use_atr_price', 'true').lower() == 'true'
+    
+    adx = float(request.form.get('adx', 22.0))
+    use_adx = request.form.get('use_adx', 'true').lower() == 'true'
+    
+    touch_limit = int(request.form.get('touch_limit', 5))
+    use_touch = request.form.get('use_touch', 'true').lower() == 'true'
+    
+    slope_pct = float(request.form.get('slope_pct', 3.0))
+    use_slope_pct = request.form.get('use_slope_pct', 'true').lower() == 'true'
+    
+    middle_ratio = float(request.form.get('middle_ratio', 60.0))
+    use_middle_ratio = request.form.get('use_middle_ratio', 'true').lower() == 'true'
+    
+    max_daily_move = float(request.form.get('max_daily_move', 5.0))
+    use_max_daily_move = request.form.get('use_max_daily_move', 'true').lower() == 'true'
+    
+    avg_gap = float(request.form.get('avg_gap', 1.2))
+    use_avg_gap = request.form.get('use_avg_gap', 'true').lower() == 'true'
+
     try:
         results = fetch_range_ai(tickers, 
                                 days=days, 
-                                min_points=min_points,
-                                max_points=max_points, 
-                                max_percent=max_percent,
-                                filter_min_point=filter_min_point,
-                                filter_point=filter_point,
-                                filter_percent=filter_percent)
+                                range_pct=range_pct, use_range_pct=use_range_pct,
+                                atr_price=atr_price, use_atr_price=use_atr_price,
+                                adx=adx, use_adx=use_adx,
+                                touch_low=touch_limit, use_touch_low=use_touch,
+                                touch_high=touch_limit, use_touch_high=use_touch,
+                                slope_pct=slope_pct, use_slope_pct=use_slope_pct,
+                                middle_ratio=middle_ratio, use_middle_ratio=use_middle_ratio,
+                                max_daily_move=max_daily_move, use_max_daily_move=use_max_daily_move,
+                                avg_gap=avg_gap, use_avg_gap=use_avg_gap)
     except Exception as e:
         import traceback
         trace = traceback.format_exc()

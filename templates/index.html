@@ -798,6 +798,66 @@
             cursor: pointer;
         }
 
+        /* Tooltip Container */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+
+        /* Tooltip Text */
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 250px;
+            background-color: #0f172a;
+            color: #f8fafc;
+            text-align: left;
+            border-radius: 6px;
+            padding: 10px;
+            position: absolute;
+            z-index: 100;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -125px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            border: 1px solid var(--accent-primary);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+            font-size: 0.75rem;
+            line-height: 1.4;
+            font-weight: 400;
+            text-transform: none;
+            letter-spacing: normal;
+            pointer-events: none;
+        }
+
+        /* Tooltip Arrow */
+        .tooltip .tooltiptext::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: var(--accent-primary) transparent transparent transparent;
+        }
+
+        /* Show Tooltip on Hover */
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .cyber-check {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent-primary);
+            cursor: pointer;
+        }
+
         /* Premium Intel Hub Components */
         .intel-grid {
             display: grid;
@@ -1096,36 +1156,195 @@
                     <label>Target Nodes (Separated by Newline)</label>
                     <textarea id="tickers" placeholder="AAPL&#10;TSLA&#10;NVDA..."></textarea>
                 </div>
-                <div class="range-controls-grid">
+                <div class="range-controls-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+                    <!-- Lookback -->
                     <div class="control-item">
-                        <label>Active Logic</label>
-                        <div
-                            style="font-size:0.8rem; color:var(--text-secondary); background:var(--surface-hover); padding:0.5rem; border-radius:4px;">
-                            Phase 3 Advanced
+                        <label style="display:flex; justify-content:space-between; align-items:center;">
+                            <span>Lookback</span>
+                        </label>
+                        <div class="unit-wrapper">
+                            <input type="number" id="rangeDays" value="90" min="1" max="365">
+                            <span class="unit-tag">Days</span>
                         </div>
                     </div>
+
+                    <!-- ATR/P -->
                     <div class="control-item">
-                        <label>Lookback</label>
-                        <div style="font-weight:700; color:var(--accent-primary);">90 Days</div>
-                    </div>
-                    <div class="control-item" style="grid-column: span 2;">
-                        <label>Hardcoded Filters</label>
-                        <div style="display:flex; flex-wrap:wrap; gap:0.5rem; font-size:0.75rem;">
-                            <span style="background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">ATR/P
-                                &le; 2.2%</span>
-                            <span style="background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">ADX
-                                &le; 22</span>
-                            <span style="background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">Slope
-                                &le; 3%</span>
-                            <span style="background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">Touch
-                                &ge; 5</span>
-                            <span style="background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">MidZone
-                                &ge; 60%</span>
-                            <span style="background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">Max Vol
-                                &le; 5%</span>
-                            <span style="background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">Gap
-                                &le; 1.2%</span>
+                        <label style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="display:flex; align-items:center;">
+                                ATR/P
+                                <span class="tooltip">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" style="opacity:0.6;">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                                    </svg>
+                                    <span class="tooltiptext">Ortalama Hareket Aralığı / Fiyat oranıdır. Volatilitenin
+                                        fiyatın ne kadarı olduğunu gösterir ve menzilin çok sert hareketli olup
+                                        olmadığını belirler.</span>
+                                </span>
+                            </span>
+                            <input type="checkbox" id="use_atr_price" class="cyber-check" checked
+                                onchange="toggleInput('rangeAtrPrice', this)">
+                        </label>
+                        <div class="unit-wrapper">
+                            <input type="number" id="rangeAtrPrice" value="2.2" step="0.1" min="0">
+                            <span class="unit-tag">%</span>
                         </div>
+                    </div>
+
+                    <!-- ADX -->
+                    <div class="control-item">
+                        <label style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="display:flex; align-items:center;">
+                                ADX
+                                <span class="tooltip">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" style="opacity:0.6;">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                                    </svg>
+                                    <span class="tooltiptext">Ortalama Yönsel Endeks. Trendin gücünü ölçer. Düşük ADX
+                                        değerleri yatay seyreden piyasayı (range) işaret eder.</span>
+                                </span>
+                            </span>
+                            <input type="checkbox" id="use_adx" class="cyber-check" checked
+                                onchange="toggleInput('rangeAdx', this)">
+                        </label>
+                        <input type="number" id="rangeAdx" value="22.0" step="0.5" min="0">
+                    </div>
+
+                    <!-- SLOPE -->
+                    <div class="control-item">
+                        <label style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="display:flex; align-items:center;">
+                                SLOPE
+                                <span class="tooltip">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" style="opacity:0.6;">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                                    </svg>
+                                    <span class="tooltiptext">Fiyatın eğimidir. Belirlenen süredeki fiyatın ne kadar
+                                        yukarı veya aşağı eğimli olduğunu ölçer, yataylık kontrolü sağlar.</span>
+                                </span>
+                            </span>
+                            <input type="checkbox" id="use_slope_pct" class="cyber-check" checked
+                                onchange="toggleInput('rangeSlope', this)">
+                        </label>
+                        <div class="unit-wrapper">
+                            <input type="number" id="rangeSlope" value="3.0" step="0.1" min="0">
+                            <span class="unit-tag">%</span>
+                        </div>
+                    </div>
+
+                    <!-- TOUCH -->
+                    <div class="control-item">
+                        <label style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="display:flex; align-items:center;">
+                                TOUCH
+                                <span class="tooltip">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" style="opacity:0.6;">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                                    </svg>
+                                    <span class="tooltiptext">Fiyatın belirlenen kanalın alt veya üst sınırlarına kaç
+                                        kez dokunduğunu gösterir. Dokunma sayısı arttıkça menzil güvenilirliği
+                                        artar.</span>
+                                </span>
+                            </span>
+                            <input type="checkbox" id="use_touch" class="cyber-check" checked
+                                onchange="toggleInput('rangeTouch', this)">
+                        </label>
+                        <input type="number" id="rangeTouch" value="5" min="1">
+                    </div>
+
+                    <!-- MIDZONE -->
+                    <div class="control-item">
+                        <label style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="display:flex; align-items:center;">
+                                MIDZONE
+                                <span class="tooltip">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" style="opacity:0.6;">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                                    </svg>
+                                    <span class="tooltiptext">Fiyatın kanalın orta bölgesinde ne kadar süre geçirdiğini
+                                        ölçer. Çoğunlukla ortada kalması menzilin sağlamlığını gösterir.</span>
+                                </span>
+                            </span>
+                            <input type="checkbox" id="use_middle_ratio" class="cyber-check" checked
+                                onchange="toggleInput('rangeMidZone', this)">
+                        </label>
+                        <div class="unit-wrapper">
+                            <input type="number" id="rangeMidZone" value="60" min="0" max="100">
+                            <span class="unit-tag">%</span>
+                        </div>
+                    </div>
+
+                    <!-- MAX VOL -->
+                    <div class="control-item">
+                        <label style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="display:flex; align-items:center;">
+                                MAX VOL
+                                <span class="tooltip">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" style="opacity:0.6;">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                                    </svg>
+                                    <span class="tooltiptext">Gün içi en yüksek volatiliteyi ölçer. Beklenmedik sert
+                                        iğne hareketlerinin menzili bozup bozmadığını kontrol eder.</span>
+                                </span>
+                            </span>
+                            <input type="checkbox" id="use_max_vol" class="cyber-check" checked
+                                onchange="toggleInput('rangeMaxVol', this)">
+                        </label>
+                        <div class="unit-wrapper">
+                            <input type="number" id="rangeMaxVol" value="5.0" step="0.1" min="0">
+                            <span class="unit-tag">%</span>
+                        </div>
+                    </div>
+
+                    <!-- GAP -->
+                    <div class="control-item">
+                        <label style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="display:flex; align-items:center;">
+                                GAP
+                                <span class="tooltip">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" style="opacity:0.6;">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                                    </svg>
+                                    <span class="tooltiptext">Açılış boşluklarının ortalamasını ölçer. Çok fazla gap
+                                        bırakan hisseler menzil stratejisi için riskli kabul edilir.</span>
+                                </span>
+                            </span>
+                            <input type="checkbox" id="use_avg_gap" class="cyber-check" checked
+                                onchange="toggleInput('rangeGap', this)">
+                        </label>
+                        <div class="unit-wrapper">
+                            <input type="number" id="rangeGap" value="1.2" step="0.1" min="0">
+                            <span class="unit-tag">%</span>
+                        </div>
+                    </div>
+
+                    <!-- Apply Suggestions Button -->
+                    <div class="control-item" style="display:flex; align-items:flex-end;">
+                        <button onclick="applyRangeSuggestions()" class="sidebar-btn"
+                            style="height:42px; background:rgba(59, 130, 246, 0.1); border-color:rgba(59, 130, 246, 0.3);">
+                            Apply Suggestions
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1936,8 +2155,26 @@
                     try {
                         const formData = new FormData();
                         formData.append('tickers', batchStr);
-                        // Phase 3 hardcoded logic - no params needed from frontend
-                        formData.append('days', 90);
+
+                        // Collect dynamic parameters
+                        formData.append('days', document.getElementById('rangeDays').value);
+                        formData.append('atr_price', document.getElementById('rangeAtrPrice').value);
+                        formData.append('use_atr_price', document.getElementById('use_atr_price').checked);
+                        formData.append('adx', document.getElementById('rangeAdx').value);
+                        formData.append('use_adx', document.getElementById('use_adx').checked);
+                        formData.append('slope_pct', document.getElementById('rangeSlope').value);
+                        formData.append('use_slope_pct', document.getElementById('use_slope_pct').checked);
+                        formData.append('touch_limit', document.getElementById('rangeTouch').value);
+                        formData.append('use_touch', document.getElementById('use_touch').checked);
+                        formData.append('middle_ratio', document.getElementById('rangeMidZone').value);
+                        formData.append('use_middle_ratio', document.getElementById('use_middle_ratio').checked);
+                        formData.append('max_daily_move', document.getElementById('rangeMaxVol').value);
+                        formData.append('use_max_daily_move', document.getElementById('use_max_vol').checked);
+                        formData.append('avg_gap', document.getElementById('rangeGap').value);
+                        formData.append('use_avg_gap', document.getElementById('use_avg_gap').checked);
+                        // Range % remains 9.0 for now as it wasn't requested for adjustment
+                        formData.append('range_pct', 9.0);
+                        formData.append('use_range_pct', 'true');
 
                         updateProgress(Math.round((completed / total) * 100), `Analyzing ${batch.join(', ')}...`);
 
@@ -3877,6 +4114,57 @@
             input.disabled = true;
             input.style.opacity = '0.5';
         }
+    }
+
+    function applyRangeSuggestions() {
+        // Lookback
+        document.getElementById('rangeDays').value = 90;
+
+        // Detailed Filters
+        const filters = {
+            'rangeAtrPrice': 2.2,
+            'rangeAdx': 22.0,
+            'rangeSlope': 3.0,
+            'rangeTouch': 5,
+            'rangeMidZone': 60,
+            'rangeMaxVol': 5.0,
+            'rangeGap': 1.2
+        };
+
+        for (const [id, val] of Object.entries(filters)) {
+            const el = document.getElementById(id);
+            if (el) el.value = val;
+        }
+
+        // Toggles
+        const toggles = [
+            'use_atr_price', 'use_adx', 'use_slope_pct',
+            'use_touch', 'use_middle_ratio', 'use_max_vol', 'use_avg_gap'
+        ];
+
+        toggles.forEach(id => {
+            const cb = document.getElementById(id);
+            if (cb) {
+                cb.checked = true;
+                // Get the input ID associated with this checkbox to enable it
+                let inputId = '';
+                if (id === 'use_atr_price') inputId = 'rangeAtrPrice';
+                if (id === 'use_adx') inputId = 'rangeAdx';
+                if (id === 'use_slope_pct') inputId = 'rangeSlope';
+                if (id === 'use_touch') inputId = 'rangeTouch';
+                if (id === 'use_middle_ratio') inputId = 'rangeMidZone';
+                if (id === 'use_max_vol') inputId = 'rangeMaxVol';
+                if (id === 'use_avg_gap') inputId = 'rangeGap';
+
+                if (inputId) {
+                    const input = document.getElementById(inputId);
+                    if (input) {
+                        input.disabled = false;
+                        input.style.opacity = '1';
+                    }
+                }
+            }
+        });
     }
 </script>
 

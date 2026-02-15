@@ -413,22 +413,20 @@ def fetch_imbalance(tickers, days=30, min_count=20, max_wick=0.12, min_profit=0.
     if progress_callback: progress_callback(total, total)
     return results
 
-def fetch_range_ai(tickers, days=90, max_points=1.0, max_percent=5.0, min_points=0, 
-                   filter_min_point=False, filter_point=True, filter_percent=True, progress_callback=None):
+def fetch_range_ai(tickers, days=90, 
+                   range_pct=9.0, use_range_pct=True,
+                   atr_price=2.2, use_atr_price=True,
+                   adx=22.0, use_adx=True,
+                   touch_low=5, use_touch_low=True,
+                   touch_high=5, use_touch_high=True,
+                   slope_pct=3.0, use_slope_pct=True,
+                   middle_ratio=60.0, use_middle_ratio=True,
+                   max_daily_move=5.0, use_max_daily_move=True,
+                   avg_gap=1.2, use_avg_gap=True,
+                   trade_days=70.0, use_trade_days=True,
+                   progress_callback=None):
     results = []
     total = len(tickers)
-    
-    # Hardcoded Advanced Filters (Phase 3)
-    FILTER_RANGE_PCT = 9.0
-    FILTER_ATR_PRICE = 2.2
-    FILTER_ADX = 22.0
-    FILTER_TOUCH_LOW = 5
-    FILTER_TOUCH_HIGH = 5
-    FILTER_SLOPE_PCT = 3.0
-    FILTER_MIDDLE_RATIO = 60.0
-    FILTER_MAX_DAILY_MOVE = 5.0
-    FILTER_AVG_GAP = 1.2
-    FILTER_TRADE_DAYS = 70.0
 
     for i, raw_ticker in enumerate(tickers):
         if progress_callback:
@@ -460,7 +458,7 @@ def fetch_range_ai(tickers, days=90, max_points=1.0, max_percent=5.0, min_points
             
             # 1. Trade Days Ratio Check
             trade_days_ratio = (days_with_data / days) * 100
-            if trade_days_ratio < FILTER_TRADE_DAYS: continue
+            if use_trade_days and trade_days_ratio < trade_days: continue
 
             # Basic Stats
             low_min = df_slice['Low'].min()
@@ -473,18 +471,18 @@ def fetch_range_ai(tickers, days=90, max_points=1.0, max_percent=5.0, min_points
             percent_range = (point_range / low_min) * 100 if low_min > 0 else 0
             
             # 2. Range % Check
-            if percent_range > FILTER_RANGE_PCT: continue
+            if use_range_pct and percent_range > range_pct: continue
 
             # 3. ATR / Price Ratio Check
             current_atr = df_slice['ATR'].iloc[-1]
             if pd.isna(current_atr): continue
             atr_price_ratio = (current_atr / current_price) * 100
-            if atr_price_ratio > FILTER_ATR_PRICE: continue
+            if use_atr_price and atr_price_ratio > atr_price: continue
             
             # 4. ADX Check
             current_adx = df_slice['ADX'].iloc[-1]
             if pd.isna(current_adx): current_adx = 0 # Handle nan
-            if current_adx > FILTER_ADX: continue
+            if use_adx and current_adx > adx: continue
             
             # 5. Slope (Linear Regression)
             y = df_slice['Close'].values
@@ -496,23 +494,23 @@ def fetch_range_ai(tickers, days=90, max_points=1.0, max_percent=5.0, min_points
             mean_price = y.mean()
             
             # Slope % = (End - Start) / Mean * 100
-            slope_pct = ((reg_end - reg_start) / mean_price) * 100
-            if abs(slope_pct) > FILTER_SLOPE_PCT: continue
+            slope_pct_val = ((reg_end - reg_start) / mean_price) * 100
+            if use_slope_pct and abs(slope_pct_val) > slope_pct: continue
             
             # 6. Max Daily Move (Intraday Volatility)
             # (High - Low) / Prev Close * 100
             prev_close = df_slice['Close'].shift(1)
             daily_move = (df_slice['High'] - df_slice['Low']) / prev_close * 100
-            max_daily_move = daily_move.max()
-            if np.isnan(max_daily_move): max_daily_move = 0
-            if max_daily_move > FILTER_MAX_DAILY_MOVE: continue
+            max_daily_move_val = daily_move.max()
+            if np.isnan(max_daily_move_val): max_daily_move_val = 0
+            if use_max_daily_move and max_daily_move_val > max_daily_move: continue
             
             # 7. Avg Gap
             # abs(Open - Prev Close) / Prev Close * 100
             gap_pct = abs(df_slice['Open'] - prev_close) / prev_close * 100
-            avg_gap = gap_pct.mean()
-            if np.isnan(avg_gap): avg_gap = 0
-            if avg_gap > FILTER_AVG_GAP: continue
+            avg_gap_val = gap_pct.mean()
+            if np.isnan(avg_gap_val): avg_gap_val = 0
+            if use_avg_gap and avg_gap_val > avg_gap: continue
             
             # 8. Zones & Touches (30% logic)
             zone_size = point_range * 0.30
@@ -523,15 +521,16 @@ def fetch_range_ai(tickers, days=90, max_points=1.0, max_percent=5.0, min_points
             low_touches = (df_slice['Low'] <= low_zone_limit).sum()
             high_touches = (df_slice['High'] >= high_zone_limit).sum()
             
-            if low_touches < FILTER_TOUCH_LOW or high_touches < FILTER_TOUCH_HIGH: continue
+            if use_touch_low and low_touches < touch_low: continue
+            if use_touch_high and high_touches < touch_high: continue
             
             # 9. Middle Zone Close Ratio
             # Strictly between limits
             in_middle = (df_slice['Close'] > low_zone_limit) & (df_slice['Close'] < high_zone_limit)
             middle_count = in_middle.sum()
-            middle_ratio = (middle_count / days_with_data) * 100
+            middle_ratio_val = (middle_count / days_with_data) * 100
             
-            if middle_ratio < FILTER_MIDDLE_RATIO: continue
+            if use_middle_ratio and middle_ratio_val < middle_ratio: continue
 
             # --- PREPARE RESULT ---
             # Re-calculate simple cycle stats for display if needed, 
@@ -593,12 +592,12 @@ def fetch_range_ai(tickers, days=90, max_points=1.0, max_percent=5.0, min_points
                 'percent_range': s(round(percent_range, 2)),
                 'atr_price_pct': s(round(atr_price_ratio, 2)),
                 'adx': s(round(current_adx, 1)),
-                'slope_pct': s(round(slope_pct, 2)),
-                'max_daily_move': s(round(max_daily_move, 2)),
-                'avg_gap': s(round(avg_gap, 2)),
+                'slope_pct': s(round(slope_pct_val, 2)),
+                'max_daily_move': s(round(max_daily_move_val, 2)),
+                'avg_gap': s(round(avg_gap_val, 2)),
                 'touch_low': int(low_touches),
                 'touch_high': int(high_touches),
-                'middle_ratio': s(round(middle_ratio, 1)),
+                'middle_ratio': s(round(middle_ratio_val, 1)),
                 'signal': signal,
                 'avg_days_low_to_high': s(avg_days_lh),
                 'avg_days_high_to_low': s(avg_days_hl),
