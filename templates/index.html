@@ -1593,20 +1593,58 @@
                 </div>
                 <div class="imbalance-controls-grid">
                     <div class="control-item">
-                        <label>Search Period</label>
+                        <label style="display:flex; align-items:center;">
+                            Search Period
+                            <span class="tooltip">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" style="opacity:0.6;">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                                </svg>
+                                <span class="tooltiptext" data-key="imb_search_period">Analiz edilecek geçmiş gün
+                                    sayısını belirler. Belirtilen süre içindeki mumlar taranarak dengesizlik alanları
+                                    aranır.</span>
+                            </span>
+                        </label>
                         <div class="unit-wrapper">
                             <input type="number" id="imbDays" value="30" min="1" max="180">
                             <span class="unit-tag">Days</span>
                         </div>
                     </div>
                     <div class="control-item">
-                        <label>Min Occurrences</label>
+                        <label style="display:flex; align-items:center;">
+                            Min Occurrences
+                            <span class="tooltip">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" style="opacity:0.6;">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                                </svg>
+                                <span class="tooltiptext" data-key="imb_min_count">Bir formasyonun geçerli sayılması
+                                    için gereken minimum tekrar sayısıdır. Daha yüksek değerler daha güvenilir sinyaller
+                                    sağlar.</span>
+                            </span>
+                        </label>
                         <input type="number" id="imbMinCount" value="6" min="1">
                     </div>
                     <!-- Max Wick Ratio with Toggle -->
                     <div class="control-item">
                         <label style="display:flex; justify-content:space-between; align-items:center;">
-                            <span>Max Wick Ratio</span>
+                            <span style="display:flex; align-items:center;">
+                                Max Wick Ratio
+                                <span class="tooltip">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" style="opacity:0.6;">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                                    </svg>
+                                    <span class="tooltiptext" data-key="imb_max_wick">Mumun iğne boyunun gövdesine göre
+                                        maksimum oranını kısıtlar. Çok uzun iğneli mumların elenmesini sağlar.</span>
+                                </span>
+                            </span>
                             <input type="checkbox" id="imbFilterWick" class="cyber-check" checked
                                 onchange="toggleInput('imbMaxWick', this)">
                         </label>
@@ -1615,7 +1653,20 @@
                     <!-- Min End Day Profit with Toggle -->
                     <div class="control-item">
                         <label style="display:flex; justify-content:space-between; align-items:center;">
-                            <span>Min End Profit</span>
+                            <span style="display:flex; align-items:center;">
+                                Min End Profit
+                                <span class="tooltip tooltip-right">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" style="opacity:0.6;">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                                    </svg>
+                                    <span class="tooltiptext" data-key="imb_min_profit">Formasyon oluştuktan sonra gün
+                                        sonuna kadar beklenen minimum kar miktarını belirler. Kar potansiyeli düşük
+                                        olanları eler.</span>
+                                </span>
+                            </span>
                             <input type="checkbox" id="imbFilterProfit" class="cyber-check"
                                 onchange="toggleInput('imbMinProfit', this)">
                         </label>
@@ -4470,6 +4521,22 @@
         'tradedays': {
             tr: 'Hissenin analiz süresi boyunca aktif işlem gördüğü günlerin oranını kontrol eder. Veri eksikliği olan veya düşük likiditeli hisseleri filtreler.',
             en: 'Checks the ratio of days the stock actively traded during the analysis period. Filters out symbols with low liquidity.'
+        },
+        'imb_search_period': {
+            tr: 'Analiz edilecek geçmiş gün sayısını belirler. Belirtilen süre içindeki mumlar taranarak dengesizlik alanları aranır.',
+            en: 'Sets the number of past days to analyze. Candles within the specified period are scanned to find imbalance areas.'
+        },
+        'imb_min_count': {
+            tr: 'Bir formasyonun geçerli sayılması için gereken minimum tekrar sayısıdır. Daha yüksek değerler daha güvenilir sinyaller sağlar.',
+            en: 'The minimum number of repetitions required for a pattern to be considered valid. Higher values provide more reliable signals.'
+        },
+        'imb_max_wick': {
+            tr: 'Mumun iğne boyunun gövdesine göre maksimum oranını kısıtlar. Çok uzun iğneli mumların elenmesini sağlar.',
+            en: 'Constrains the maximum ratio of the candle wick to its body. Ensures that candles with very long wicks are filtered out.'
+        },
+        'imb_min_profit': {
+            tr: 'Formasyon oluştuktan sonra gün sonuna kadar beklenen minimum kar miktarını belirler. Kar potansiyeli düşük olanları eler.',
+            en: 'Sets the minimum profit expected by the end of the day after the pattern forms. Filters out those with low profit potential.'
         }
     };
 
