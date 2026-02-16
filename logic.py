@@ -7,6 +7,16 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 
+def sanitize_val(val, decimals=None):
+    if val is None or (isinstance(val, float) and np.isnan(val)) or (isinstance(val, float) and np.isinf(val)):
+        return None
+    if decimals is not None:
+        try:
+            return round(float(val), decimals)
+        except:
+            return None
+    return val
+
 def calculate_atr(df, period=14):
     high_low = df['High'] - df['Low']
     high_close = np.abs(df['High'] - df['Close'].shift())
@@ -270,11 +280,11 @@ def fetch_and_process(tickers, progress_callback=None):
                     'ticker': raw_ticker,
                     'yf_symbol': yf_ticker,
                     'tv_symbol': tv_link_symbol, 
-                    'spread': round(total_range, 2),
-                    'min': round(low_min, 2),
-                    'max': round(high_max, 2),
-                    'current': round(df['Close'].iloc[-1], 2),
-                    'avg_daily_spread': round(avg_daily_spread, 3),
+                    'spread': sanitize_val(total_range, 2),
+                    'min': sanitize_val(low_min, 2),
+                    'max': sanitize_val(high_max, 2),
+                    'current': sanitize_val(df['Close'].iloc[-1], 2),
+                    'avg_daily_spread': sanitize_val(avg_daily_spread, 3),
                     'pattern': pattern
                 })
         except Exception as e:
@@ -364,10 +374,10 @@ def fetch_imbalance(tickers, days=30, min_count=20, max_wick=0.12, min_profit=0.
                 patterns_found.append({
                     'type': 'Long', 
                     'count': len(valid_green), 
-                    'avg_wick': avg_w,
-                    'max_wick': max_w,
-                    'avg_end': avg_end,
-                    'avg_max': avg_max
+                    'avg_wick': sanitize_val(avg_w, 4),
+                    'max_wick': sanitize_val(max_w, 4),
+                    'avg_end': sanitize_val(avg_end, 4),
+                    'avg_max': sanitize_val(avg_max, 4)
                 })
             
             if len(valid_red) >= min_count:
@@ -388,10 +398,10 @@ def fetch_imbalance(tickers, days=30, min_count=20, max_wick=0.12, min_profit=0.
                 patterns_found.append({
                     'type': 'Short', 
                     'count': len(valid_red), 
-                    'avg_wick': avg_w,
-                    'max_wick': max_w,
-                    'avg_end': avg_end,
-                    'avg_max': avg_max
+                    'avg_wick': sanitize_val(avg_w, 4),
+                    'max_wick': sanitize_val(max_w, 4),
+                    'avg_end': sanitize_val(avg_end, 4),
+                    'avg_max': sanitize_val(avg_max, 4)
                 })
             
             for p in patterns_found:
@@ -663,29 +673,29 @@ def fetch_range_ai(tickers, days=90,
                 'ticker': raw_ticker,
                 'yf_symbol': yf_ticker,
                 'tv_symbol': tv_symbol,
-                'min': s(round(low_min, 2)),
-                'max': s(round(high_max, 2)),
-                'current': s(round(current_price, 2)),
-                'point_range': s(round(point_range, 2)),
-                'percent_range': s(round(percent_range, 2)),
-                'atr_price_pct': s(round(atr_price_ratio, 2)),
-                'adx': s(round(current_adx, 1)),
-                'slope_pct': s(round(slope_pct_val, 2)),
-                'max_daily_move': s(round(max_daily_move_val, 2)),
-                'avg_gap': s(round(avg_gap_val, 2)),
+                'min': sanitize_val(low_min, 2),
+                'max': sanitize_val(high_max, 2),
+                'current': sanitize_val(current_price, 2),
+                'point_range': sanitize_val(point_range, 2),
+                'percent_range': sanitize_val(percent_range, 2),
+                'atr_price_pct': sanitize_val(atr_price_ratio, 2),
+                'adx': sanitize_val(current_adx, 1),
+                'slope_pct': sanitize_val(slope_pct_val, 2),
+                'max_daily_move': sanitize_val(max_daily_move_val, 2),
+                'avg_gap': sanitize_val(avg_gap_val, 2),
                 'touch_low': int(low_touches),
                 'touch_high': int(high_touches),
-                'middle_ratio': s(round(middle_ratio_val, 1)),
+                'middle_ratio': sanitize_val(middle_ratio_val, 1),
                 'median_cross': int(median_crosses),
-                'atr_ratio': s(atr_price_ratio),
-                'cycle': avg_total_cycle,
-                'max_vol_p': s(max_daily_move_val),
-                'score': score,
+                'atr_ratio': sanitize_val(atr_price_ratio),
+                'cycle': sanitize_val(avg_total_cycle),
+                'max_vol_p': sanitize_val(max_daily_move_val),
+                'score': sanitize_val(score),
                 'grade': grade,
                 'signal': signal,
-                'avg_days_low_to_high': s(avg_days_lh),
-                'avg_days_high_to_low': s(avg_days_hl),
-                'avg_total_cycle': s(avg_total_cycle)
+                'avg_days_low_to_high': sanitize_val(avg_days_lh),
+                'avg_days_high_to_low': sanitize_val(avg_days_hl),
+                'avg_total_cycle': sanitize_val(avg_total_cycle)
             })
 
         except Exception as e:
@@ -773,7 +783,7 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
                     break
             # Check for NaN in pre_div_close
             if pre_div_close is None or pd.isna(pre_div_close):
-                dividend_analysis.append({'ex_date': ex_date_str, 'amount': round(amount, 3), 'error': 'Price data missing', 'recovered': False, 'recovery_days': 9999, 'current_distance': 0, 'window_recv_pct': 0})
+                dividend_analysis.append({'ex_date': ex_date_str, 'amount': sanitize_val(amount, 3), 'error': 'Price data missing', 'recovered': False, 'recovery_days': 9999, 'current_distance': 0, 'window_recv_pct': 0})
                 continue
             recovered = False
             recovery_days = None
@@ -901,12 +911,12 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
             
             dividend_analysis.append({
                 'ex_date': ex_date_str, 
-                'amount': round(amount, 3), 
-                'pre_div_close': round(pre_div_close, 2), 
+                'amount': sanitize_val(amount, 3), 
+                'pre_div_close': sanitize_val(pre_div_close, 2), 
                 'recovered': recovered, 
                 'recovery_days': recovery_days, 
                 'current_distance': 0 if recovered else current_distance, 
-                'window_recv_pct': window_recv_pct,
+                'window_recv_pct': sanitize_val(window_recv_pct, 1),
                 'pre_div_14d': pre_div_14d_analysis
             })
         last_div_date = None
@@ -1011,7 +1021,7 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
             'ticker': raw_ticker, 
             'tv_symbol': tv_symbol, 
             'dividends': dividend_analysis, 
-            'current_price': round(current_price, 2) if current_price is not None else None, 
+            'current_price': sanitize_val(current_price, 2), 
             'days_since_last_div': days_since_last,
             'next_div_days': next_div_days,
             'next_ex_date': next_ex_date.strftime('%Y-%m-%d') if next_ex_date else None,
@@ -1169,36 +1179,36 @@ def fetch_rebalance_patterns(tickers, months_back=12, progress_callback=None):
                 'ticker': raw_ticker,
                 'yf_symbol': yf_ticker,
                 'tv_symbol': tv_symbol,
-                'avg_pre_3_diff': round(sum(pre_diffs) / len(pre_diffs), 3),
-                'pre_3_min': round(min(pre_diffs), 3),
-                'pre_3_max': round(max(pre_diffs), 3),
-                'pre_3_std': round(pd.Series(pre_diffs).std(), 3) if len(pre_diffs) > 1 else 0,
-                'pre_3_std_pct': round(pd.Series(pre_pcts).std(), 3) if len(pre_pcts) > 1 else 0,
+                'avg_pre_3_diff': sanitize_val(sum(pre_diffs) / len(pre_diffs), 3),
+                'pre_3_min': sanitize_val(min(pre_diffs), 3),
+                'pre_3_max': sanitize_val(max(pre_diffs), 3),
+                'pre_3_std': sanitize_val(pd.Series(pre_diffs).std(), 3) if len(pre_diffs) > 1 else 0,
+                'pre_3_std_pct': sanitize_val(pd.Series(pre_pcts).std(), 3) if len(pre_pcts) > 1 else 0,
                 'pre_3_pos': sum(1 for d in pre_diffs if d > 0),
                 'pre_3_neg': sum(1 for d in pre_diffs if d < 0),
                 
-                'avg_post_3_diff': round(sum(post_diffs) / len(post_diffs), 3),
-                'post_3_min': round(min(post_diffs), 3),
-                'post_3_max': round(max(post_diffs), 3),
-                'post_3_std': round(pd.Series(post_diffs).std(), 3) if len(post_diffs) > 1 else 0,
-                'post_3_std_pct': round(pd.Series(post_pcts).std(), 3) if len(post_pcts) > 1 else 0,
+                'avg_post_3_diff': sanitize_val(sum(post_diffs) / len(post_diffs), 3),
+                'post_3_min': sanitize_val(min(post_diffs), 3),
+                'post_3_max': sanitize_val(max(post_diffs), 3),
+                'post_3_std': sanitize_val(pd.Series(post_diffs).std(), 3) if len(post_diffs) > 1 else 0,
+                'post_3_std_pct': sanitize_val(pd.Series(post_pcts).std(), 3) if len(post_pcts) > 1 else 0,
                 'post_3_pos': sum(1 for d in post_diffs if d > 0),
                 'post_3_neg': sum(1 for d in post_diffs if d < 0),
                 
-                'avg_reba_body_diff': round(sum(reba_body_diffs) / len(reba_body_diffs), 3),
-                'reba_body_min': round(min(reba_body_diffs), 3),
-                'reba_body_max': round(max(reba_body_diffs), 3),
-                'reba_body_std': round(pd.Series(reba_body_diffs).std(), 3) if len(reba_body_diffs) > 1 else 0,
-                'reba_body_std_pct': round(pd.Series(reba_body_pcts).std(), 3) if len(reba_body_pcts) > 1 else 0,
+                'avg_reba_body_diff': sanitize_val(sum(reba_body_diffs) / len(reba_body_diffs), 3),
+                'reba_body_min': sanitize_val(min(reba_body_diffs), 3),
+                'reba_body_max': sanitize_val(max(reba_body_diffs), 3),
+                'reba_body_std': sanitize_val(pd.Series(reba_body_diffs).std(), 3) if len(reba_body_diffs) > 1 else 0,
+                'reba_body_std_pct': sanitize_val(pd.Series(reba_body_pcts).std(), 3) if len(reba_body_pcts) > 1 else 0,
                 'reba_body_pos': sum(1 for d in reba_body_diffs if d > 0),
                 'reba_body_neg': sum(1 for d in reba_body_diffs if d < 0),
                 
-                'avg_reba_range_diff': round(sum(reba_range_diffs) / len(reba_range_diffs), 3),
+                'avg_reba_range_diff': sanitize_val(sum(reba_range_diffs) / len(reba_range_diffs), 3),
                 'reba_dominant_color': reba_dominant,
-                'avg_vol_90': round(sum([e['avg_vol_90'] for e in recent_events]) / len(recent_events), 0),
-                'avg_pre_vol': round(sum([e['pre_vol_avg'] for e in recent_events]) / len(recent_events), 0),
-                'avg_reb_vol': round(sum([e['reb_vol'] for e in recent_events]) / len(recent_events), 0),
-                'avg_post_vol': round(sum([e['post_vol_avg'] for e in recent_events]) / len(recent_events), 0),
+                'avg_vol_90': sanitize_val(sum([e['avg_vol_90'] for e in recent_events]) / len(recent_events), 0),
+                'avg_pre_vol': sanitize_val(sum([e['pre_vol_avg'] for e in recent_events]) / len(recent_events), 0),
+                'avg_reb_vol': sanitize_val(sum([e['reb_vol'] for e in recent_events]) / len(recent_events), 0),
+                'avg_post_vol': sanitize_val(sum([e['post_vol_avg'] for e in recent_events]) / len(recent_events), 0),
                 'sample_size': len(recent_events),
                 'details': recent_events
             })
