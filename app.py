@@ -808,58 +808,6 @@ def delete_master_list_ticker():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/get_cef_list_tickers', methods=['GET'])
-def get_cef_list_tickers():
-    """
-    Returns the current CEF List tickers from cef_tickers.txt
-    """
-    return jsonify({'tickers': get_tickers_from_file('cef_tickers.txt')})
-
-
-@app.route('/add_cef_list_ticker', methods=['POST'])
-def add_cef_list_ticker():
-    """
-    Adds a new ticker to the CEF List (cef_tickers.txt)
-    """
-    ticker = request.form.get('ticker', '').strip().upper()
-    if not ticker:
-        return jsonify({'error': 'No ticker provided'}), 400
-    
-    try:
-        tickers = get_tickers_from_file('cef_tickers.txt')
-        if ticker not in tickers:
-            tickers.append(ticker)
-            if save_tickers_to_file('cef_tickers.txt', tickers):
-                return jsonify({'success': True, 'message': f'{ticker} added to CEF List'})
-            return jsonify({'success': False, 'message': 'Failed to save changes'}), 500
-        else:
-            return jsonify({'success': False, 'message': f'{ticker} already exists in CEF List'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/delete_cef_list_ticker', methods=['POST'])
-def delete_cef_list_ticker():
-    """
-    Removes a ticker from the CEF List (cef_tickers.txt)
-    """
-    ticker = request.form.get('ticker', '').strip().upper()
-    if not ticker:
-        return jsonify({'error': 'No ticker provided'}), 400
-    
-    try:
-        tickers = get_tickers_from_file('cef_tickers.txt')
-        if ticker in tickers:
-            tickers.remove(ticker)
-            if save_tickers_to_file('cef_tickers.txt', tickers):
-                return jsonify({'success': True, 'message': f'{ticker} removed from CEF List'})
-            return jsonify({'success': False, 'message': 'Failed to save changes'}), 500
-        else:
-            return jsonify({'success': False, 'message': f'{ticker} not found in CEF List'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
 @app.route('/get_pff_holdings', methods=['GET'])
 def get_pff_holdings():
     """
