@@ -1244,11 +1244,12 @@
                                         düşük ve en yüksek fiyatı arasındaki farkı (kanal genişliğini) ölçer.</span>
                                 </span>
                             </span>
-                            <input type="checkbox" id="use_range_pct" class="cyber-check" checked
+                            <input type="checkbox" id="use_range_pct" class="cyber-check"
                                 onchange="toggleInput('rangePct', this)">
                         </label>
                         <div class="unit-wrapper">
-                            <input type="number" id="rangePct" value="9.0" step="0.5" min="0">
+                            <input type="number" id="rangePct" value="9.0" step="0.5" min="0" disabled
+                                style="opacity:0.5;">
                             <span class="unit-tag">%</span>
                         </div>
                     </div>
@@ -1270,11 +1271,12 @@
                                         olmadığını belirler.</span>
                                 </span>
                             </span>
-                            <input type="checkbox" id="use_atr_price" class="cyber-check" checked
+                            <input type="checkbox" id="use_atr_price" class="cyber-check"
                                 onchange="toggleInput('rangeAtrPrice', this)">
                         </label>
                         <div class="unit-wrapper">
-                            <input type="number" id="rangeAtrPrice" value="2.2" step="0.1" min="0">
+                            <input type="number" id="rangeAtrPrice" value="2.2" step="0.1" min="0" disabled
+                                style="opacity:0.5;">
                             <span class="unit-tag">%</span>
                         </div>
                     </div>
@@ -1295,10 +1297,11 @@
                                         ölçer. Düşük ADX değerleri yatay seyreden piyasayı (kanal) işaret eder.</span>
                                 </span>
                             </span>
-                            <input type="checkbox" id="use_adx" class="cyber-check" checked
+                            <input type="checkbox" id="use_adx" class="cyber-check"
                                 onchange="toggleInput('rangeAdx', this)">
                         </label>
-                        <input type="number" id="rangeAdx" value="22.0" step="0.5" min="0">
+                        <input type="number" id="rangeAdx" value="22.0" step="0.5" min="0" disabled
+                            style="opacity:0.5;">
                     </div>
 
                     <!-- SLOPE -->
@@ -1318,11 +1321,12 @@
                                         sağlar.</span>
                                 </span>
                             </span>
-                            <input type="checkbox" id="use_slope_pct" class="cyber-check" checked
+                            <input type="checkbox" id="use_slope_pct" class="cyber-check"
                                 onchange="toggleInput('rangeSlope', this)">
                         </label>
                         <div class="unit-wrapper">
-                            <input type="number" id="rangeSlope" value="3.0" step="0.1" min="0">
+                            <input type="number" id="rangeSlope" value="3.0" step="0.1" min="0" disabled
+                                style="opacity:0.5;">
                             <span class="unit-tag">%</span>
                         </div>
                     </div>
@@ -1343,10 +1347,10 @@
                                         sınırlarına kaç kez dokunduğunu gösterir.</span>
                                 </span>
                             </span>
-                            <input type="checkbox" id="use_touch" class="cyber-check" checked
+                            <input type="checkbox" id="use_touch" class="cyber-check"
                                 onchange="toggleInput('rangeTouch', this)">
                         </label>
-                        <input type="number" id="rangeTouch" value="5" min="1">
+                        <input type="number" id="rangeTouch" value="5" min="1" disabled style="opacity:0.5;">
                     </div>
 
                     <!-- MIDZONE -->
@@ -1366,11 +1370,12 @@
                                         gösterir.</span>
                                 </span>
                             </span>
-                            <input type="checkbox" id="use_middle_ratio" class="cyber-check" checked
+                            <input type="checkbox" id="use_middle_ratio" class="cyber-check"
                                 onchange="toggleInput('rangeMidZone', this)">
                         </label>
                         <div class="unit-wrapper">
-                            <input type="number" id="rangeMidZone" value="60" min="0" max="100">
+                            <input type="number" id="rangeMidZone" value="60" min="0" max="100" disabled
+                                style="opacity:0.5;">
                             <span class="unit-tag">%</span>
                         </div>
                     </div>
@@ -1392,11 +1397,12 @@
                                         eder.</span>
                                 </span>
                             </span>
-                            <input type="checkbox" id="use_max_vol" class="cyber-check" checked
+                            <input type="checkbox" id="use_max_vol" class="cyber-check"
                                 onchange="toggleInput('rangeMaxVol', this)">
                         </label>
                         <div class="unit-wrapper">
-                            <input type="number" id="rangeMaxVol" value="5.0" step="0.1" min="0">
+                            <input type="number" id="rangeMaxVol" value="5.0" step="0.1" min="0" disabled
+                                style="opacity:0.5;">
                             <span class="unit-tag">%</span>
                         </div>
                     </div>
@@ -1417,11 +1423,12 @@
                                         Çok fazla gap bırakan hisseler kanal stratejisi için riskli kabul edilir.</span>
                                 </span>
                             </span>
-                            <input type="checkbox" id="use_avg_gap" class="cyber-check" checked
+                            <input type="checkbox" id="use_avg_gap" class="cyber-check"
                                 onchange="toggleInput('rangeGap', this)">
                         </label>
                         <div class="unit-wrapper">
-                            <input type="number" id="rangeGap" value="1.2" step="0.1" min="0">
+                            <input type="number" id="rangeGap" value="1.2" step="0.1" min="0" disabled
+                                style="opacity:0.5;">
                             <span class="unit-tag">%</span>
                         </div>
                     </div>
@@ -1493,11 +1500,12 @@
                                         likiditeli hisseleri filtreler.</span>
                                 </span>
                             </span>
-                            <input type="checkbox" id="use_trade_days" class="cyber-check" checked
+                            <input type="checkbox" id="use_trade_days" class="cyber-check"
                                 onchange="toggleInput('rangeTradeDays', this)">
                         </label>
                         <div class="unit-wrapper">
-                            <input type="number" id="rangeTradeDays" value="70" min="0" max="100">
+                            <input type="number" id="rangeTradeDays" value="70" min="0" max="100" disabled
+                                style="opacity:0.5;">
                             <span class="unit-tag">%</span>
                         </div>
                     </div>
