@@ -940,39 +940,49 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
         if not next_ex_date:
             try:
                 # INFO FETCH WITH RETRY
-                ex_div_ts = None
-                cal = None
+                possible_dates = []
+                today = datetime.now()
             
                 for attempt in range(max_retries):
                     try:
+                        # Check ticker info
                         ex_div_ts = ticker.info.get("exDividendDate")
-                        if ex_div_ts: break
+                        if ex_div_ts:
+                            dt = datetime.fromtimestamp(ex_div_ts)
+                            # Only accept if it's today or in the future
+                            if dt.date() >= today.date():
+                                possible_dates.append(dt)
                         
+                        # Check ticker calendar
                         cal = ticker.calendar
-                        if cal: break
+                        if isinstance(cal, dict) and 'Ex-Dividend Date' in cal:
+                            val = cal['Ex-Dividend Date']
+                            if hasattr(val, 'iloc'): # Series
+                                val = val.iloc[0]
+                            elif isinstance(val, list) and val:
+                                val = val[0]
+                                
+                            if hasattr(val, 'date'): # date or datetime
+                                dt = datetime.combine(val, datetime.min.time()) if not isinstance(val, datetime) else val
+                                if dt.date() >= today.date():
+                                    possible_dates.append(dt)
+                        
+                        if possible_dates: break
                     except:
                         time.sleep(1)
-    
-                if ex_div_ts:
-                    next_ex_date = datetime.fromtimestamp(ex_div_ts)
-                elif cal and 'Ex-Dividend Date' in cal:
-                    val = cal['Ex-Dividend Date']
-                    # Helper for Calendar List/Series
-                    if hasattr(val, 'iloc'): # Series
-                        val = val.iloc[0]
-                    elif isinstance(val, list) and val:
-                        val = val[0]
-                        
-                    if hasattr(val, 'date'): # Could be date or datetime
-                        next_ex_date = datetime.combine(val, datetime.min.time()) if not isinstance(val, datetime) else val
-                    elif isinstance(val, (str, datetime)): # Direct value
-                         next_ex_date = val
+                
+                if possible_dates:
+                    # Sort by proximity to today and pick the earliest future date
+                    possible_dates.sort()
+                    next_ex_date = possible_dates[0]
+                    logging.info(f"Found announced ex-date for {yf_ticker}: {next_ex_date}")
             except Exception as e:
                 logging.error(f"Next Div Logic Error {raw_ticker}: {e}")
         
-        # Estimation Fallback
+        # Estimation Fallback (Only if no future announced date was found)
         if not next_ex_date or (isinstance(next_ex_date, datetime) and next_ex_date.date() < datetime.now().date()):
             if not dividends.empty:
+                # Get the absolute latest historical dividend date
                 last_ex = dividends.index[-1].replace(tzinfo=None)
                 
                 # Smarter Frequency Detection
@@ -996,10 +1006,11 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
                 
                 if freq < 20: freq = 30 # Default to monthly if very low
                 
-                # Roll forward until we find a date in the future
+                # Roll forward from the latest *real* ex-dividend date until we find a date in the future
                 next_ex_date = last_ex + timedelta(days=freq)
                 while next_ex_date.date() < datetime.now().date():
                     next_ex_date += timedelta(days=freq)
+                logging.info(f"Estimated next ex-date for {yf_ticker}: {next_ex_date} (freq={freq}d)")
         
         if next_ex_date:
             next_div_days = (next_ex_date.date() - datetime.now().date()).days
