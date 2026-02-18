@@ -5,7 +5,7 @@ import os
 os.environ['XDG_CACHE_HOME'] = '/tmp'
 
 from flask import Flask, render_template, request, jsonify
-from logic import fetch_and_process, fetch_imbalance, fetch_range_ai, analyze_dividend_recovery
+from logic import fetch_and_process, fetch_imbalance, fetch_range_ai, analyze_dividend_recovery, fetch_rebalance_patterns
 import threading
 import uuid
 import time
@@ -13,12 +13,116 @@ from datetime import datetime, timedelta, timezone
 
 import json
 import os
+import glob
+import pandas as pd
+import logging
 
 app = Flask(__name__)
+
+# Caching for sector map to avoid repeated disk reads
+_sector_map_cache = None
+
+SECTOR_MAP_FILE = 'sector_map.json'
+
+def get_sector_map():
+    global _sector_map_cache
+    
+    # Return cached version if available
+    if _sector_map_cache is not None:
+        return _sector_map_cache
+
+    try:
+        # Load from static JSON file (deployed with the app)
+        if os.path.exists(SECTOR_MAP_FILE):
+            with open(SECTOR_MAP_FILE, 'r', encoding='utf-8') as f:
+                _sector_map_cache = json.load(f)
+            logging.info(f"Sector Map: Loaded {len(_sector_map_cache)} mappings from {SECTOR_MAP_FILE}")
+            return _sector_map_cache
+        else:
+            logging.error(f"Sector Map: {SECTOR_MAP_FILE} not found.")
+            return {}
+            
+    except Exception as e:
+        import traceback
+        logging.error(f"Error loading sector map: {e}\n{traceback.format_exc()}")
+        return {}
 
 # Persistence files
 HISTORY_FILE = 'results_history.json'
 IMBALANCE_FILE = 'imbalance_history.json'
+
+# Helper to get tickers from file
+def get_tickers_from_file(filename):
+    try:
+        if os.path.exists(filename):
+            with open(filename, 'r') as f:
+                content = f.read()
+            return sorted(list(set([t.strip().upper() for t in content.replace('\n', ',').split(',') if t.strip()])))
+        return []
+    except Exception as e:
+        print(f"Error reading {filename}: {e}")
+        return []
+
+def save_tickers_to_file(filename, tickers):
+    try:
+        with open(filename, 'w') as f:
+            f.write(','.join(sorted(list(set(tickers)))))
+        return True
+    except Exception as e:
+        print(f"Error saving to {filename}: {e}")
+        return False
+
+@app.route('/get_cef_tickers', methods=['GET'])
+def get_cef_tickers():
+    return jsonify({'tickers': get_tickers_from_file('cef_tickers.txt')})
+
+@app.route('/add_cef_ticker', methods=['POST'])
+def add_cef_ticker():
+    data = request.get_json()
+    ticker = data.get('ticker', '').strip().upper()
+    if not ticker:
+        return jsonify({'error': 'Ticker cannot be empty'}), 400
+    
+    current_tickers = get_tickers_from_file('cef_tickers.txt')
+    if ticker not in current_tickers:
+        current_tickers.append(ticker)
+        if save_tickers_to_file('cef_tickers.txt', current_tickers):
+            return jsonify({'message': f'Ticker {ticker} added.', 'tickers': sorted(current_tickers)}), 200
+        else:
+            return jsonify({'error': 'Failed to save tickers'}), 500
+    else:
+        return jsonify({'message': f'Ticker {ticker} already exists.', 'tickers': sorted(current_tickers)}), 200
+
+@app.route('/remove_cef_ticker', methods=['POST'])
+def remove_cef_ticker():
+    data = request.get_json()
+    ticker = data.get('ticker', '').strip().upper()
+    if not ticker:
+        return jsonify({'error': 'Ticker cannot be empty'}), 400
+    
+    current_tickers = get_tickers_from_file('cef_tickers.txt')
+    if ticker in current_tickers:
+        current_tickers.remove(ticker)
+        if save_tickers_to_file('cef_tickers.txt', current_tickers):
+            return jsonify({'message': f'Ticker {ticker} removed.', 'tickers': sorted(current_tickers)}), 200
+        else:
+            return jsonify({'error': 'Failed to save tickers'}), 500
+    else:
+        return jsonify({'message': f'Ticker {ticker} not found.', 'tickers': sorted(current_tickers)}), 200
+
+@app.route('/update_cef_tickers', methods=['POST'])
+def update_cef_tickers():
+    data = request.get_json()
+    tickers_list = data.get('tickers', [])
+    if not isinstance(tickers_list, list):
+        return jsonify({'error': 'Invalid input, expected a list of tickers'}), 400
+    
+    cleaned_tickers = sorted(list(set([t.strip().upper() for t in tickers_list if t.strip()])))
+    
+    if save_tickers_to_file('cef_tickers.txt', cleaned_tickers):
+        return jsonify({'message': 'CEF tickers updated successfully.', 'tickers': cleaned_tickers}), 200
+    else:
+        return jsonify({'error': 'Failed to save tickers'}), 500
 
 # In-memory storage
 jobs = {}
@@ -171,7 +275,7 @@ def load_and_analyze_prefs(force=False):
         print(f"Error in background prefs analysis: {e}")
         prefs_cache['status'] = 'error'
 
-def load_and_analyze_imbalance(force=False, days=20, min_green_bars=12, min_red_bars=12, long_wick=0.05, short_wick=0.05):
+def load_and_analyze_imbalance(force=False, days=20, min_green_bars=12, min_red_bars=12, long_wick=0.05, short_wick=0.05, min_profit=0.10, filter_wick=True, filter_profit=False):
     global imbalance_cache
     now_ts = time.time()
     if not force and (now_ts - imbalance_cache['last_updated_ts'] < 86400) and imbalance_cache['results']:
@@ -198,8 +302,11 @@ def load_and_analyze_imbalance(force=False, days=20, min_green_bars=12, min_red_
         
         new_results = fetch_imbalance(unique_tickers, 
                                       days=days,
-                                      min_count=min_green_bars, # Reuse the min_green as general min_count for bg task
-                                      max_wick=long_wick,       # Reuse long_wick as general max_wick for bg task
+                                      min_count=min_green_bars, 
+                                      max_wick=long_wick,
+                                      min_profit=min_profit,
+                                      filter_wick=filter_wick,
+                                      filter_profit=filter_profit,
                                       progress_callback=progress_wrapper)
         
         if imbalance_cache.get('stop_requested'):
@@ -212,7 +319,10 @@ def load_and_analyze_imbalance(force=False, days=20, min_green_bars=12, min_red_
             is_new = res['ticker'] not in baseline
             res['is_new'] = is_new
             res['days'] = days
-            res['max_wick'] = long_wick
+            res['is_new'] = is_new
+            res['days'] = days
+            # Do not overwrite max_wick with the filter parameter
+            # res['max_wick'] = long_wick
             
         # Update cache and set current results as baseline for next scan
         imbalance_cache.update({
@@ -277,9 +387,13 @@ def refresh_imbalance():
     min_red = int(request.form.get('min_red_bars', 12))
     long_wick = float(request.form.get('long_wick_size', 0.05))
     short_wick = float(request.form.get('short_wick_size', 0.05))
-    
+    min_profit = float(request.form.get('min_profit', 0.10))
+    # Checkbox handling: 'true' string from JS FormData
+    filter_wick = request.form.get('filter_wick', 'true').lower() == 'true'
+    filter_profit = request.form.get('filter_profit', 'false').lower() == 'true'
+
     threading.Thread(target=load_and_analyze_imbalance, 
-                    args=(True, days, min_green, min_green, long_wick, long_wick), 
+                    args=(True, days, min_green, min_green, long_wick, long_wick, min_profit, filter_wick, filter_profit), 
                     daemon=True).start()
     return jsonify({'status': 'started'})
 
@@ -366,7 +480,10 @@ def find_imbalance():
         'min_green_bars': min_green,
         'min_red_bars': min_red,
         'long_wick_size': long_wick,
-        'short_wick_size': short_wick
+        'short_wick_size': short_wick,
+        'min_profit': float(request.form.get('min_profit', 0.10)),
+        'filter_wick': request.form.get('filter_wick', 'true').lower() == 'true',
+        'filter_profit': request.form.get('filter_profit', 'false').lower() == 'true'
     }
     
     thread = threading.Thread(target=process_imbalance_job, args=(job_id, tickers))
@@ -385,11 +502,17 @@ def process_imbalance_job(job_id, tickers):
     min_red = job_data.get('min_red_bars', 12)
     long_wick = job_data.get('long_wick_size', 0.05)
     short_wick = job_data.get('short_wick_size', 0.05)
+    min_profit = job_data.get('min_profit', 0.10)
+    filter_wick = job_data.get('filter_wick', True)
+    filter_profit = job_data.get('filter_profit', False)
         
     results = fetch_imbalance(tickers, 
                              days=days,
                              min_count=min_green,
                              max_wick=long_wick,
+                             min_profit=min_profit,
+                             filter_wick=filter_wick,
+                             filter_profit=filter_profit,
                              progress_callback=update_progress)
     
     # NEW logic for manual imbalance search
@@ -397,7 +520,10 @@ def process_imbalance_job(job_id, tickers):
     for res in results:
         res['is_new'] = res['ticker'] not in baseline
         res['days'] = days
-        res['max_wick'] = long_wick
+        res['is_new'] = res['ticker'] not in baseline
+        res['days'] = days
+        # Do not overwrite max_wick with the filter parameter
+        # res['max_wick'] = long_wick
         
     jobs[job_id]['results'] = results
     jobs[job_id]['results'] = results
@@ -416,14 +542,52 @@ def analyze_range_batch():
     
     # Get parameters
     days = int(request.form.get('days', 90))
-    max_points = float(request.form.get('max_points', 1.0))
-    max_percent = float(request.form.get('max_percent', 5.0))
     
+    # All range filters
+    range_pct = float(request.form.get('range_pct', 9.0))
+    use_range_pct = request.form.get('use_range_pct', 'true').lower() == 'true'
+    
+    atr_price = float(request.form.get('atr_price', 2.2))
+    use_atr_price = request.form.get('use_atr_price', 'true').lower() == 'true'
+    
+    adx = float(request.form.get('adx', 22.0))
+    use_adx = request.form.get('use_adx', 'true').lower() == 'true'
+    
+    touch_limit = int(request.form.get('touch_limit', 5))
+    use_touch = request.form.get('use_touch', 'true').lower() == 'true'
+    
+    slope_pct = float(request.form.get('slope_pct', 3.0))
+    use_slope_pct = request.form.get('use_slope_pct', 'true').lower() == 'true'
+    
+    middle_ratio = float(request.form.get('middle_ratio', 60.0))
+    use_middle_ratio = request.form.get('use_middle_ratio', 'true').lower() == 'true'
+    
+    max_daily_move = float(request.form.get('max_daily_move', 5.0))
+    use_max_daily_move = request.form.get('use_max_daily_move', 'true').lower() == 'true'
+    
+    avg_gap = float(request.form.get('avg_gap', 1.2))
+    use_avg_gap = request.form.get('use_avg_gap', 'true').lower() == 'true'
+
+    edge_zone_pct = float(request.form.get('edge_zone_pct', 0.6))
+    use_edge_zone = request.form.get('use_edge_zone', 'false').lower() == 'true'
+    
+    median_cross = int(request.form.get('median_cross', 20))
+    use_median_cross = request.form.get('use_median_cross', 'false').lower() == 'true'
+
     try:
         results = fetch_range_ai(tickers, 
                                 days=days, 
-                                max_points=max_points, 
-                                max_percent=max_percent)
+                                range_pct=range_pct, use_range_pct=use_range_pct,
+                                atr_price=atr_price, use_atr_price=use_atr_price,
+                                adx=adx, use_adx=use_adx,
+                                touch_low=touch_limit, use_touch_low=use_touch,
+                                touch_high=touch_limit, use_touch_high=use_touch,
+                                slope_pct=slope_pct, use_slope_pct=use_slope_pct,
+                                middle_ratio=middle_ratio, use_middle_ratio=use_middle_ratio,
+                                max_daily_move=max_daily_move, use_max_daily_move=use_max_daily_move,
+                                avg_gap=avg_gap, use_avg_gap=use_avg_gap,
+                                edge_zone_pct=edge_zone_pct, use_edge_zone=use_edge_zone,
+                                median_cross=median_cross, use_median_cross=use_median_cross)
     except Exception as e:
         import traceback
         trace = traceback.format_exc()
@@ -449,13 +613,19 @@ def analyze_imbalance_batch():
     min_count = int(request.form.get('min_count', 20))
     candle_color = request.form.get('candle_color', 'Green') # 'Green' or 'Red'
     max_wick = float(request.form.get('max_wick', 0.12))
+    min_profit = float(request.form.get('min_profit', 0.10))
+    filter_wick = request.form.get('filter_wick', 'true').lower() == 'true'
+    filter_profit = request.form.get('filter_profit', 'false').lower() == 'true'
     
     # Run analysis synchronously with error capture
     try:
         results = fetch_imbalance(tickers, 
                                  days=days,
                                  min_count=min_count,
-                                 max_wick=max_wick)
+                                 max_wick=max_wick,
+                                 min_profit=min_profit,
+                                 filter_wick=filter_wick,
+                                 filter_profit=filter_profit)
     except Exception as e:
         import traceback
         trace = traceback.format_exc()
@@ -468,42 +638,11 @@ def analyze_imbalance_batch():
         res['is_new'] = res['ticker'] not in baseline
         res['days'] = days
         res['min_count'] = min_count
-        res['max_wick'] = max_wick
+        # res['max_wick'] = max_wick
+
         
     return jsonify({'results': results})
 
-
-CEF_SECTORS = {
-    "Asian Stocks": ["KF","IAE","CAF","IFN","TDF","IIF"],
-    "Convertible Bonds": ["BCV","CCD","CHI","ACV","NCV","ECF","NCZ","CHY","AVK"],
-    "Corporate Bonds": ["PAXS","BCAT","NPCT","DLY","PTY","PCN","RCS","WDI","PAI","WEA","JHI","OPP","PFL","IGI","JHS","PFN","VBF","PIM","GDO","SABA","FSCO"],
-    "Covered Call Stocks": ["GNT","STK","NFJ","BDJ","HEQ","ETV","ETW","EXG","IGA","ETB","BXMX","EOI","ETJ","DIAX","FFA","MCN","CII","ETY","BST","SPXX","QQQX","BSTZ","EOS"],
-    "Diversified": ["FOF","CGO","PDX","CHW","GLO","SCD","GLV","RIV","ZTR"],
-    "Diversified Bonds": ["NMAI","PDI","DSL","BIT","FT","VGI","PGP","BHK","DBL","MGF","AWF","BTZ","GOF"],
-    "Emerging Market Bonds": ["EDD","TEI","MSD","EMD","EDF"],
-    "Emerging Market Stocks": ["EMF","IHD"],
-    "Energy": ["PEO","BCX","NML","KYN","TYG","BGR","GGN","EMO","SRV"],
-    "Europe Stocks": ["CEE","GF","EEA","SWZ"],
-    "Global Stocks": ["AEF","IAF","IDE","RGT","AGD","LGI","GLQ","GGZ","ASGI","AOD","EOD","MEGI","BGY","GGT","GDL","IGD","ETO","BOE","ETG","HGLB"],
-    "Healthcare": ["BME","HQL","HQH","BMEZ","THW","THQ","GRX"],
-    "High Yield Bonds": ["GHY","NHS","HIO","DHF","PHK","KIO","EHI","EAD","PDO","HIX","RSF","HYT","ISD","CIF","SDHY","HYI","BGH","VLT","DHY","CIK","PCF"],
-    "International Bonds": ["FCO","TBLD","FAX","JGH","BWG","MMT","PPT","MCR"],
-    "Limited Duration Bonds": ["ERC","EVG","FTF","BLW","EVV"],
-    "MBS": ["DMO","JLS","BKT","JMM","FMY","PCM"],
-    "Municipal Bonds": ["NCA","RMM","MUA","NMCO","MIY","NMT","CEV","NIM","BTA","MMD","RFM","RMMZ","NKX","OIA","BFZ","RFMZ","MUJ","MQY","NMZ","BKN","NDMO","NBH","MYI","NMS","MPA","EIM","PCQ","NPV","CXE","VPV","SBI","EOT","MQT","MUC","MYD","MFM","BFK","MVF","MHD","MVT","NVG","MUE","PNI","PML","DMB","VMO","VKQ","BYM","BLE","AFB","VTN","CXH","LEO","PMM","MMU","EVN","MHF","BHV","VFL","MYN","NAN","CMU","BNY","FMN","NMI","NRK","GBAB","NQP","IQI","MHN","KTF","NBB","NUW","NAZ","NUV","NXP","DTF","IIM","NEA","PMO","NAC","ETX","NZF","VCV","NAD","BTT","BBN","DSM","VGM","NXJ","NNY","VKI","NOM"],
-    "Preferred Stocks": ["PDT","DFP","NPFD","PFO","JPC","FLC","PFD","PTA","FPF","FFC","HPS","PSF","LDP","HPF","HPI"],
-    "Private Equity": ["RMT","RVT"],
-    "Real Estate": ["IGR","AWP","RLTY","RA","JRI"],
-    "Specialty": ["BTO","FINS"],
-    "U.S. Government Bonds": ["WIA","WIW","MIN"],
-    "U.S. Real Estate": ["RQI","RNP","PGZ","RFI","JRS","NRO"],
-    "U.S. Stocks": ["FUND","SOR","GCV","GDV","HTD","EVT","GAM","AIO","GRF","SPE","TY","NIE","JCE","GAB","CPZ","ADX","STEW","ECAT","ASG","USA","CRF","CLM","BTX","NBXG"],
-    "Utilities": ["BUI","UTF","DPG","GLU","DNP","UTG","ERH","GUT"]
-}
-
-@app.route('/get_cef_sectors', methods=['GET'])
-def get_cef_sectors():
-    return jsonify(CEF_SECTORS)
 
 @app.route('/analyze_dividend_recovery', methods=['POST'])
 def analyze_dividend_recovery_endpoint():
@@ -528,6 +667,257 @@ def analyze_dividend_recovery_endpoint():
     
     return jsonify({'results': results})
 
+@app.route('/analyze_rebalance_batch', methods=['POST'])
+def analyze_rebalance_batch():
+    """
+    Synchronous endpoint for month-end rebalance pattern analysis.
+    Designed for small batches to avoid timeouts.
+    """
+    tickers_str = request.form.get('tickers', '')
+    months_back = int(request.form.get('months_back', 12))
+    
+    if not tickers_str.strip():
+        return jsonify({'results': []})
+        
+    tickers = [t.strip().upper() for t in tickers_str.replace('\n', ',').split(',') if t.strip()]
+    
+    try:
+        results = fetch_rebalance_patterns(tickers, months_back=months_back)
+    except Exception as e:
+        import traceback
+        trace = traceback.format_exc()
+        print(f"Rebalance Analysis Failed: {e}\n{trace}")
+        return jsonify({'results': [], 'error': str(e), 'trace': trace})
+        
+    return jsonify({'results': results})
+
+
+@app.route('/get_master_list_tickers', methods=['GET'])
+def get_master_list_tickers():
+    """
+    Returns the current Master List tickers from tickers.txt with sector info
+    """
+    try:
+        sector_map = get_sector_map()
+        if os.path.exists('tickers.txt'):
+            with open('tickers.txt', 'r') as f:
+                content = f.read()
+            tickers = [t.strip().upper() for t in content.replace('\n', ',').split(',') if t.strip()]
+            unique_tickers = sorted(list(set(tickers)))
+            
+            # Map tickers to objects with sector
+            ticker_objects = []
+            for t in unique_tickers:
+                ticker_objects.append({
+                    'ticker': t,
+                    'sector': sector_map.get(t, 'Other')
+                })
+            return jsonify({'tickers': ticker_objects})
+        return jsonify({'tickers': []})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/add_master_list_ticker', methods=['POST'])
+def add_master_list_ticker():
+    """
+    Adds a new ticker to the Master List (tickers.txt)
+    """
+    ticker = request.form.get('ticker', '').strip().upper()
+    if not ticker:
+        return jsonify({'error': 'No ticker provided'}), 400
+    
+    try:
+        # Read existing tickers
+        tickers = []
+        if os.path.exists('tickers.txt'):
+            with open('tickers.txt', 'r') as f:
+                content = f.read()
+            tickers = [t.strip() for t in content.replace('\n', ',').split(',') if t.strip()]
+        
+        # Add new ticker if not already present
+        if ticker not in tickers:
+            tickers.append(ticker)
+            # Write back to file
+            with open('tickers.txt', 'w') as f:
+                f.write(','.join(sorted(tickers)))
+            return jsonify({'success': True, 'message': f'{ticker} added to Master List'})
+        else:
+            return jsonify({'success': False, 'message': f'{ticker} already exists in Master List'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/delete_master_list_ticker', methods=['POST'])
+def delete_master_list_ticker():
+    """
+    Removes a ticker from the Master List (tickers.txt)
+    """
+    ticker = request.form.get('ticker', '').strip().upper()
+    if not ticker:
+        return jsonify({'error': 'No ticker provided'}), 400
+    
+    try:
+        tickers = get_tickers_from_file('tickers.txt')
+        if ticker in tickers:
+            tickers.remove(ticker)
+            if save_tickers_to_file('tickers.txt', tickers):
+                return jsonify({'success': True, 'message': f'{ticker} removed from Master List'})
+            return jsonify({'success': False, 'message': 'Failed to save changes'}), 500
+        else:
+            return jsonify({'success': False, 'message': f'{ticker} not found in Master List'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/get_cef_list_tickers', methods=['GET'])
+def get_cef_list_tickers():
+    """
+    Returns the current CEF List tickers from cef_tickers.txt
+    """
+    return jsonify({'tickers': get_tickers_from_file('cef_tickers.txt')})
+
+
+@app.route('/add_cef_list_ticker', methods=['POST'])
+def add_cef_list_ticker():
+    """
+    Adds a new ticker to the CEF List (cef_tickers.txt)
+    """
+    ticker = request.form.get('ticker', '').strip().upper()
+    if not ticker:
+        return jsonify({'error': 'No ticker provided'}), 400
+    
+    try:
+        tickers = get_tickers_from_file('cef_tickers.txt')
+        if ticker not in tickers:
+            tickers.append(ticker)
+            if save_tickers_to_file('cef_tickers.txt', tickers):
+                return jsonify({'success': True, 'message': f'{ticker} added to CEF List'})
+            return jsonify({'success': False, 'message': 'Failed to save changes'}), 500
+        else:
+            return jsonify({'success': False, 'message': f'{ticker} already exists in CEF List'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/delete_cef_list_ticker', methods=['POST'])
+def delete_cef_list_ticker():
+    """
+    Removes a ticker from the CEF List (cef_tickers.txt)
+    """
+    ticker = request.form.get('ticker', '').strip().upper()
+    if not ticker:
+        return jsonify({'error': 'No ticker provided'}), 400
+    
+    try:
+        tickers = get_tickers_from_file('cef_tickers.txt')
+        if ticker in tickers:
+            tickers.remove(ticker)
+            if save_tickers_to_file('cef_tickers.txt', tickers):
+                return jsonify({'success': True, 'message': f'{ticker} removed from CEF List'})
+            return jsonify({'success': False, 'message': 'Failed to save changes'}), 500
+        else:
+            return jsonify({'success': False, 'message': f'{ticker} not found in CEF List'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/get_pff_holdings', methods=['GET'])
+def get_pff_holdings():
+    """
+    Returns PFF holdings. 
+    Prioritizes 'pff_preferred_stocks_analysis.csv' (Analyzed Preferred Stocks).
+    Falls back to 'pff_holdings.csv' (Raw ETF Holdings) if analysis not found.
+    """
+    try:
+        import pandas as pd
+        
+        # 1. Try to load the Analyzed Preferred Stocks file first
+        analysis_path = 'pff_holdings_tickers.csv'
+        if os.path.exists(analysis_path):
+            try:
+                # Format: Base Ticker,Company Name,Preferred Stock,Last Price,Full Name
+                df = pd.read_csv(analysis_path)
+                holdings = []
+                for _, row in df.iterrows():
+                    ticker = row.get('Preferred Stock')
+                    name = row.get('Full Name')
+                    last_price = row.get('Last Price')
+                    weight = row.get('Weight (%)')
+                    market_value = row.get('Market Value')
+                    quantity = row.get('Quantity')
+                    
+                    if pd.notna(ticker):
+                        holdings.append({
+                            'ticker': ticker,
+                            'name': name if pd.notna(name) else '',
+                            'price': float(last_price) if pd.notna(last_price) else 0.0,
+                            'weight': float(weight) if pd.notna(weight) else 0.0,
+                            'market_value': float(market_value) if pd.notna(market_value) else 0.0,
+                            'quantity': float(quantity) if pd.notna(quantity) else 0.0,
+                            'is_analyzed': True 
+                        })
+                # Map sectors to analyzed holdings
+                sector_map = get_sector_map()
+                for h in holdings:
+                    if h.get('ticker'):
+                        h['sector'] = sector_map.get(h['ticker'].upper(), 'Other')
+                    else:
+                        h['sector'] = 'Other'
+                return jsonify({'holdings': holdings, 'source': 'analysis'})
+            except Exception as e:
+                logging.error(f"Failed to read analysis file: {e}")
+                # Fallthrough to raw file
+        
+        # 2. Fallback to Raw PFF Holdings CSV
+        csv_path = os.path.join(os.environ.get('TEMP', '/tmp'), 'pff_holdings.csv')
+        
+        if not os.path.exists(csv_path):
+            return jsonify({'error': 'No PFF data found. Please run the analyzer script.'}), 404
+        
+        # Read CSV (skip first 9 rows which are metadata)
+        df = pd.read_csv(csv_path, skiprows=9)
+        
+        # Extract relevant columns and sort by weight
+        holdings = []
+        for _, row in df.iterrows():
+            ticker = row.get('Ticker')
+            name = row.get('Name')
+            weight = row.get('Weight (%)')
+            market_value = row.get('Market Value')
+            
+            if pd.notna(ticker) and ticker != '-':
+                # Handle Market Value string format "1,234.56"
+                mv_val = 0.0
+                if pd.notna(market_value):
+                    try:
+                        mv_val = float(str(market_value).replace(',', ''))
+                    except:
+                        pass
+
+                holdings.append({
+                    'ticker': ticker,
+                    'name': name if pd.notna(name) else '',
+                    'weight': float(weight) if pd.notna(weight) else 0.0,
+                    'market_value': mv_val,
+                    'is_analyzed': False
+                })
+        
+        # Map Sectors to PFF holdings
+        sector_map = get_sector_map()
+        for h in holdings:
+            if h.get('ticker'):
+                h['sector'] = sector_map.get(h['ticker'].upper(), 'Other')
+            else:
+                h['sector'] = 'Other'
+
+        return jsonify({'holdings': holdings, 'source': 'raw'})
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e), 'trace': traceback.format_exc()}), 500
+
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    # Railway uses PORT environment variable
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=False, host='0.0.0.0', port=port)
