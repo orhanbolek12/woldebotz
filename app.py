@@ -74,41 +74,79 @@ def save_tickers_to_file(filename, tickers):
 
 @app.route('/get_cef_tickers', methods=['GET'])
 def get_cef_tickers():
+    """
+    Returns the current CEF tickers from cef_tickers.txt as a simple list of strings.
+    Used for analysis functions.
+    """
     return jsonify({'tickers': get_tickers_from_file('cef_tickers.txt')})
 
-@app.route('/add_cef_ticker', methods=['POST'])
-def add_cef_ticker():
-    data = request.get_json()
-    ticker = data.get('ticker', '').strip().upper()
-    if not ticker:
-        return jsonify({'error': 'Ticker cannot be empty'}), 400
-    
-    current_tickers = get_tickers_from_file('cef_tickers.txt')
-    if ticker not in current_tickers:
-        current_tickers.append(ticker)
-        if save_tickers_to_file('cef_tickers.txt', current_tickers):
-            return jsonify({'message': f'Ticker {ticker} added.', 'tickers': sorted(current_tickers)}), 200
-        else:
-            return jsonify({'error': 'Failed to save tickers'}), 500
-    else:
-        return jsonify({'message': f'Ticker {ticker} already exists.', 'tickers': sorted(current_tickers)}), 200
+@app.route('/get_cef_list_tickers', methods=['GET'])
+def get_cef_list_tickers():
+    """
+    Returns the current CEF tickers from cef_tickers.txt with sector info.
+    Used for the management UI.
+    """
+    try:
+        sector_map = get_sector_map()
+        tickers = get_tickers_from_file('cef_tickers.txt')
+        unique_tickers = sorted(list(set(tickers)))
+        
+        # Map tickers to objects with sector
+        ticker_objects = []
+        for t in unique_tickers:
+            ticker_objects.append({
+                'ticker': t,
+                'sector': sector_map.get(t, 'Other')
+            })
+        return jsonify({'tickers': ticker_objects})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
-@app.route('/remove_cef_ticker', methods=['POST'])
-def remove_cef_ticker():
-    data = request.get_json()
-    ticker = data.get('ticker', '').strip().upper()
+@app.route('/add_cef_list_ticker', methods=['POST'])
+def add_cef_list_ticker():
+    """
+    Adds a new ticker to the CEF List (cef_tickers.txt).
+    Frontend uses FormData.
+    """
+    ticker = request.form.get('ticker', '').strip().upper()
     if not ticker:
-        return jsonify({'error': 'Ticker cannot be empty'}), 400
+        return jsonify({'error': 'No ticker provided'}), 400
     
-    current_tickers = get_tickers_from_file('cef_tickers.txt')
-    if ticker in current_tickers:
-        current_tickers.remove(ticker)
-        if save_tickers_to_file('cef_tickers.txt', current_tickers):
-            return jsonify({'message': f'Ticker {ticker} removed.', 'tickers': sorted(current_tickers)}), 200
+    try:
+        current_tickers = get_tickers_from_file('cef_tickers.txt')
+        if ticker not in current_tickers:
+            current_tickers.append(ticker)
+            if save_tickers_to_file('cef_tickers.txt', current_tickers):
+                return jsonify({'success': True, 'message': f'{ticker} added to CEF List'})
+            else:
+                return jsonify({'success': False, 'message': 'Failed to save tickers'})
         else:
-            return jsonify({'error': 'Failed to save tickers'}), 500
-    else:
-        return jsonify({'message': f'Ticker {ticker} not found.', 'tickers': sorted(current_tickers)}), 200
+            return jsonify({'success': False, 'message': f'{ticker} already exists in CEF List'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/delete_cef_list_ticker', methods=['POST'])
+def delete_cef_list_ticker():
+    """
+    Removes a ticker from the CEF List (cef_tickers.txt).
+    Frontend uses FormData.
+    """
+    ticker = request.form.get('ticker', '').strip().upper()
+    if not ticker:
+        return jsonify({'error': 'No ticker provided'}), 400
+    
+    try:
+        current_tickers = get_tickers_from_file('cef_tickers.txt')
+        if ticker in current_tickers:
+            current_tickers.remove(ticker)
+            if save_tickers_to_file('cef_tickers.txt', current_tickers):
+                return jsonify({'success': True, 'message': f'{ticker} removed from CEF List'})
+            else:
+                return jsonify({'success': False, 'message': 'Failed to save tickers'})
+        else:
+            return jsonify({'success': False, 'message': f'{ticker} not found in CEF List'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/update_cef_tickers', methods=['POST'])
 def update_cef_tickers():

@@ -2281,9 +2281,16 @@
             document.getElementById('analyzeBtn').disabled = true;
             document.getElementById('analyzeBtn').innerText = "Loading CEF List...";
             try {
-                const tRes = await fetch('/get_cef_tickers');
+                // If sector filters are active in the modal, we should probably respect them
+                // However, for immediate consistency, we fetch enriched list if available
+                const tRes = await fetch('/get_cef_list_tickers');
                 const tData = await tRes.json();
-                tickers = tData.tickers || [];
+
+                if (cefListSelectedSectors.size > 0) {
+                    tickers = tData.tickers.filter(t => cefListSelectedSectors.has(t.sector)).map(t => t.ticker);
+                } else {
+                    tickers = tData.tickers.map(t => t.ticker);
+                }
             } catch (e) {
                 alert("Failed to load CEF list: " + e.message);
                 resetUI();
@@ -2459,9 +2466,13 @@
             document.getElementById('analyzeImbalanceBtn').disabled = true;
             document.getElementById('analyzeImbalanceBtn').innerText = "Loading CEF List...";
             try {
-                const tRes = await fetch('/get_cef_tickers');
+                const tRes = await fetch('/get_cef_list_tickers');
                 const tData = await tRes.json();
-                tickers = tData.tickers || [];
+                if (cefListSelectedSectors.size > 0) {
+                    tickers = tData.tickers.filter(t => cefListSelectedSectors.has(t.sector)).map(t => t.ticker);
+                } else {
+                    tickers = tData.tickers.map(t => t.ticker);
+                }
             } catch (e) {
                 alert("Failed to load CEF list: " + e.message);
                 resetUI();
@@ -2991,9 +3002,13 @@
             document.getElementById('analyzeDividendBtn').disabled = true;
             document.getElementById('analyzeDividendBtn').innerText = "Loading CEF List...";
             try {
-                const tRes = await fetch('/get_cef_tickers');
+                const tRes = await fetch('/get_cef_list_tickers');
                 const tData = await tRes.json();
-                tickers = tData.tickers || [];
+                if (cefListSelectedSectors.size > 0) {
+                    tickers = tData.tickers.filter(t => cefListSelectedSectors.has(t.sector)).map(t => t.ticker);
+                } else {
+                    tickers = tData.tickers.map(t => t.ticker);
+                }
             } catch (e) {
                 alert("Failed to load CEF list: " + e.message);
                 resetUI();
@@ -3568,9 +3583,13 @@
             document.getElementById('analyzeRebalanceBtn').disabled = true;
             document.getElementById('analyzeRebalanceBtn').innerText = "Loading CEF List...";
             try {
-                const tRes = await fetch('/get_cef_tickers');
+                const tRes = await fetch('/get_cef_list_tickers');
                 const tData = await tRes.json();
-                tickers = tData.tickers || [];
+                if (cefListSelectedSectors.size > 0) {
+                    tickers = tData.tickers.filter(t => cefListSelectedSectors.has(t.sector)).map(t => t.ticker);
+                } else {
+                    tickers = tData.tickers.map(t => t.ticker);
+                }
             } catch (e) {
                 alert("Failed to load CEF list: " + e.message);
                 resetUI();
@@ -4059,6 +4078,10 @@
         document.getElementById('newCEFTicker').value = '';
     }
 
+    let cefListRawData = [];
+    let cefListData = [];
+    let cefListSelectedSectors = new Set();
+
     async function loadCEFListInModal() {
         const container = document.getElementById('cefListContainer');
         const countSpan = document.getElementById('cefListCount');
@@ -4070,28 +4093,13 @@
             const data = await res.json();
 
             if (data.tickers && data.tickers.length > 0) {
-                container.innerHTML = '';
-                countSpan.innerText = data.tickers.length;
+                cefListRawData = data.tickers;
 
-                data.tickers.forEach(ticker => {
-                    const item = document.createElement('div');
-                    item.style.background = 'rgba(255,255,255,0.05)';
-                    item.style.border = '1px solid var(--glass-border)';
-                    item.style.borderRadius = '4px';
-                    item.style.padding = '0.5rem';
-                    item.style.display = 'flex';
-                    item.style.justifyContent = 'space-between';
-                    item.style.alignItems = 'center';
-                    item.style.fontSize = '0.85rem';
-                    item.style.fontWeight = '700';
-                    item.style.color = 'white';
+                // Initialize Sector Filter UI
+                renderCEFSectorFilter();
 
-                    item.innerHTML = `
-                        <span>${ticker}</span>
-                        <button onclick="deleteCEFListTicker('${ticker}')" style="background:transparent; border:none; color:var(--error); cursor:pointer; font-weight:bold; font-size:1.2rem; line-height:1;">&times;</button>
-                    `;
-                    container.appendChild(item);
-                });
+                // Apply existing filters
+                applyCEFListFilter();
             } else {
                 container.innerHTML = '<div style="color:var(--text-secondary); text-align:center; grid-column:1/-1; padding:2rem;">No tickers in CEF List</div>';
                 countSpan.innerText = '0';
@@ -4099,6 +4107,95 @@
         } catch (e) {
             container.innerHTML = `<div style="color:var(--error); text-align:center; grid-column:1/-1; padding:2rem;">Error: ${e.message}</div>`;
         }
+    }
+
+    function renderCEFSectorFilter() {
+        const filterContainer = document.getElementById('cefSectorFilter');
+        if (!filterContainer) return;
+
+        const sectors = [...new Set(cefListRawData.map(t => t.sector))].sort();
+        filterContainer.innerHTML = '';
+
+        sectors.forEach(sector => {
+            const label = document.createElement('label');
+            label.className = 'sector-checkbox-item';
+            if (cefListSelectedSectors.has(sector)) {
+                label.classList.add('active');
+            }
+
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.checked = cefListSelectedSectors.has(sector);
+            cb.onchange = () => {
+                if (cb.checked) {
+                    cefListSelectedSectors.add(sector);
+                    label.classList.add('active');
+                } else {
+                    cefListSelectedSectors.delete(sector);
+                    label.classList.remove('active');
+                }
+                applyCEFListFilter();
+            };
+
+            label.appendChild(cb);
+            label.appendChild(document.createTextNode(sector));
+            filterContainer.appendChild(label);
+        });
+    }
+
+    function cefSelectAllSectors() {
+        const sectors = [...new Set(cefListRawData.map(t => t.sector))];
+        sectors.forEach(s => cefListSelectedSectors.add(s));
+        renderCEFSectorFilter();
+        applyCEFListFilter();
+    }
+
+    function cefClearSectors() {
+        cefListSelectedSectors.clear();
+        renderCEFSectorFilter();
+        applyCEFListFilter();
+    }
+
+    function applyCEFListFilter() {
+        if (cefListSelectedSectors.size === 0) {
+            cefListData = [...cefListRawData];
+        } else {
+            cefListData = cefListRawData.filter(t => cefListSelectedSectors.has(t.sector));
+        }
+        renderCEFList();
+    }
+
+    function renderCEFList() {
+        const container = document.getElementById('cefListContainer');
+        const countSpan = document.getElementById('cefListCount');
+        const showingSpan = document.getElementById('cefListShowing');
+
+        container.innerHTML = '';
+        countSpan.innerText = cefListRawData.length;
+        if (showingSpan) showingSpan.innerText = cefListData.length;
+
+        cefListData.forEach(item => {
+            const ticker = item.ticker;
+            const sector = item.sector;
+            const div = document.createElement('div');
+            div.style.background = 'rgba(255,255,255,0.05)';
+            div.style.border = '1px solid var(--glass-border)';
+            div.style.borderRadius = '4px';
+            div.style.padding = '0.5rem 0.6rem';
+            div.style.display = 'flex';
+            div.style.justifyContent = 'space-between';
+            div.style.alignItems = 'center';
+            div.style.fontSize = '0.8rem';
+
+            div.innerHTML = `
+                <div>
+                    <div style="font-weight:800; color:white;">${ticker}</div>
+                    <div style="font-size:0.65rem; color:var(--text-secondary);">${sector}</div>
+                </div>
+                <button onclick="deleteCEFListTicker('${ticker}')" style="background:transparent; border:none; color:var(--error); cursor:pointer; font-weight:bold; font-size:1rem; line-height:1;">&times;</button>
+            `;
+            container.appendChild(div);
+        });
     }
 
     async function addCEFListTicker() {
@@ -4567,14 +4664,18 @@
 <div id="cefListModal" class="modal-overlay"
     style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; backdrop-filter:blur(5px); align-items:center; justify-content:center;">
     <div class="glass-card"
-        style="width:90%; max-width:600px; max-height:85vh; display:flex; flex-direction:column; padding:2rem; margin:0;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+        style="width:95%; max-width:900px; max-height:90vh; display:flex; flex-direction:column; padding:0; margin:0; overflow:hidden;">
+
+        <!-- Header -->
+        <div
+            style="display:flex; justify-content:space-between; align-items:center; padding:1.5rem 2rem; border-bottom:1px solid var(--glass-border);">
             <h2 style="margin:0; font-family:'Outfit'; font-weight:800; font-size:1.5rem;">Manage CEF List</h2>
             <button onclick="closeCEFListModal()"
                 style="background:transparent; border:none; color:var(--text-secondary); cursor:pointer; font-size:1.5rem;">&times;</button>
         </div>
 
-        <div class="input-group" style="margin-bottom:1rem;">
+        <!-- Add Ticker Row -->
+        <div style="padding:1rem 2rem; border-bottom:1px solid var(--glass-border); background:rgba(0,0,0,0.2);">
             <div style="display:flex; gap:0.5rem;">
                 <input type="text" id="newCEFTicker" placeholder="TICKER"
                     style="flex:1; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; padding:0.8rem; border-radius:4px; font-weight:700; text-transform:uppercase;">
@@ -4583,15 +4684,39 @@
             </div>
         </div>
 
-        <div id="cefListContainer"
-            style="flex:1; overflow-y:auto; background:rgba(0,0,0,0.3); border-radius:8px; padding:1rem; display:grid; grid-template-columns:repeat(auto-fill, minmax(100px, 1fr)); gap:0.8rem; align-content:start;">
-            <!-- Tickers will be loaded here -->
-            <div style="color:var(--text-secondary); text-align:center; grid-column:1/-1; padding:2rem;">Loading...
-            </div>
-        </div>
+        <!-- Two Column Layout -->
+        <div style="display:flex; flex:1; overflow:hidden;">
 
-        <div style="margin-top:1rem; text-align:right; font-size:0.8rem; color:var(--text-secondary);">
-            Total: <span id="cefListCount">0</span> tickers
+            <!-- Left Sidebar: Sector Filters -->
+            <div
+                style="width:180px; min-width:180px; border-right:1px solid var(--glass-border); background:rgba(0,0,0,0.3); display:flex; flex-direction:column;">
+                <div style="padding:1rem; border-bottom:1px solid var(--glass-border);">
+                    <div
+                        style="font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-secondary); margin-bottom:0.8rem;">
+                        Filter by Sector</div>
+                    <div style="display:flex; flex-direction:column; gap:0.4rem;">
+                        <button onclick="cefSelectAllSectors()" class="sidebar-btn">Select All</button>
+                        <button onclick="cefClearSectors()" class="sidebar-btn secondary">Clear Selection</button>
+                    </div>
+                </div>
+                <div id="cefSectorFilter" style="flex:1; overflow-y:auto; padding:0.8rem;">
+                    <!-- Sector checkboxes will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Right Side: Ticker Grid -->
+            <div style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+                <div id="cefListContainer"
+                    style="flex:1; overflow-y:auto; background:rgba(0,0,0,0.2); padding:1rem; display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:0.6rem; align-content:start;">
+                    <!-- Tickers will be loaded here -->
+                    <div style="color:var(--text-secondary); text-align:center; grid-column:1/-1; padding:2rem;">
+                        Loading...</div>
+                </div>
+                <div
+                    style="padding:1rem 1.5rem; text-align:right; font-size:0.8rem; color:var(--text-secondary); border-top:1px solid var(--glass-border);">
+                    Showing: <span id="cefListShowing">0</span> / Total: <span id="cefListCount">0</span> tickers
+                </div>
+            </div>
         </div>
     </div>
 </div>
