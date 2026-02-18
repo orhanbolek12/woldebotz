@@ -1177,7 +1177,8 @@
 
                         <div style="display:flex; align-items:center; gap:0.5rem; margin-left:1rem;">
                             <label class="switch">
-                                <input type="checkbox" id="rangeCefList" onchange="updateControlColors()">
+                                <input type="checkbox" id="rangeCefList"
+                                    onchange="updateControlColors(); toggleCefSectors('custom')">
                                 <span class="slider"></span>
                             </label>
                             <span id="labelCefList" onclick="openCEFListModal()"
@@ -1198,1012 +1199,1056 @@
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <div class="input-grid">
-                <div class="input-group">
-                    <label>Target Nodes (Separated by Newline)</label>
-                    <textarea id="tickers" placeholder="AAPL&#10;TSLA&#10;NVDA..."></textarea>
-                </div>
-                <div class="range-controls-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
-                    <!-- Lookback -->
-                    <div class="control-item">
-                        <label style="display:flex; align-items:center;">
-                            LOOKBACK
-                            <span class="tooltip tooltip-right">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2" style="opacity:0.6;">
-                                    <circle cx="12" cy="12" r="10" />
-                                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                                    <line x1="12" y1="17" x2="12.01" y2="17" />
-                                </svg>
-                                <span class="tooltiptext" data-key="lookback">Analiz edilecek geçmiş gün sayısını
-                                    belirler. Daha uzun süreler genel eğilimi, kısa süreler ise güncel durumu
-                                    gösterir.</span>
-                            </span>
-                        </label>
-                        <div class="unit-wrapper">
-                            <input type="number" id="rangeDays" value="90" min="1" max="365">
-                            <span class="unit-tag">Days</span>
-                        </div>
+                <div id="customCefSectors" class="cef-sector-grid"
+                    style="display:none; margin-top:1rem; padding:1rem; background:rgba(255,255,255,0.02); border-radius:8px; border:1px solid var(--glass-border);">
+                    <div
+                        style="font-size:0.75rem; font-weight:800; color:var(--text-secondary); text-transform:uppercase; letter-spacing:1px; margin-bottom:0.8rem; display:flex; justify-content:space-between; align-items:center;">
+                        <span>Select Sectors to Analyze (CEF List)</span>
+                        <button onclick="selectAllSectors('custom')"
+                            style="background:transparent; border:none; color:var(--accent-primary); font-size:0.7rem; font-weight:800; cursor:pointer; text-transform:uppercase;">Select
+                            All</button>
                     </div>
-
-                    <!-- Range % -->
-                    <div class="control-item">
-                        <label style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="display:flex; align-items:center;">
-                                RANGE %
-                                <span class="tooltip">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2" style="opacity:0.6;">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                                        <line x1="12" y1="17" x2="12.01" y2="17" />
-                                    </svg>
-                                    <span class="tooltiptext" data-key="range_pct">Hissenin belirli bir süre içindeki en
-                                        düşük ve en yüksek fiyatı arasındaki farkı (kanal genişliğini) ölçer.</span>
-                                </span>
-                            </span>
-                            <input type="checkbox" id="use_range_pct" class="cyber-check" checked
-                                onchange="toggleInput('rangePct', this)">
-                        </label>
-                        <div class="unit-wrapper">
-                            <input type="number" id="rangePct" value="9.0" step="0.5" min="0">
-                            <span class="unit-tag">%</span>
-                        </div>
-                    </div>
-
-                    <!-- ATR/P -->
-                    <div class="control-item">
-                        <label style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="display:flex; align-items:center;">
-                                ATR/P
-                                <span class="tooltip">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2" style="opacity:0.6;">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                                        <line x1="12" y1="17" x2="12.01" y2="17" />
-                                    </svg>
-                                    <span class="tooltiptext">Ortalama Hareket Aralığı / Fiyat oranıdır. Volatilitenin
-                                        fiyatın ne kadarı olduğunu gösterir ve menzilin çok sert hareketli olup
-                                        olmadığını belirler.</span>
-                                </span>
-                            </span>
-                            <input type="checkbox" id="use_atr_price" class="cyber-check" checked
-                                onchange="toggleInput('rangeAtrPrice', this)">
-                        </label>
-                        <div class="unit-wrapper">
-                            <input type="number" id="rangeAtrPrice" value="2.2" step="0.1" min="0">
-                            <span class="unit-tag">%</span>
-                        </div>
-                    </div>
-
-                    <!-- ADX -->
-                    <div class="control-item">
-                        <label style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="display:flex; align-items:center;">
-                                ADX
-                                <span class="tooltip">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2" style="opacity:0.6;">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                                        <line x1="12" y1="17" x2="12.01" y2="17" />
-                                    </svg>
-                                    <span class="tooltiptext" data-key="adx">Ortalama Yönsel Endeks. Trendin gücünü
-                                        ölçer. Düşük ADX değerleri yatay seyreden piyasayı (kanal) işaret eder.</span>
-                                </span>
-                            </span>
-                            <input type="checkbox" id="use_adx" class="cyber-check" checked
-                                onchange="toggleInput('rangeAdx', this)">
-                        </label>
-                        <input type="number" id="rangeAdx" value="22.0" step="0.5" min="0">
-                    </div>
-
-                    <!-- SLOPE -->
-                    <div class="control-item">
-                        <label style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="display:flex; align-items:center;">
-                                SLOPE
-                                <span class="tooltip tooltip-right">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2" style="opacity:0.6;">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                                        <line x1="12" y1="17" x2="12.01" y2="17" />
-                                    </svg>
-                                    <span class="tooltiptext" data-key="slope">Fiyatın eğimidir. Belirlenen süredeki
-                                        fiyatın ne kadar yukarı veya aşağı eğimli olduğunu ölçer, yataylık kontrolü
-                                        sağlar.</span>
-                                </span>
-                            </span>
-                            <input type="checkbox" id="use_slope_pct" class="cyber-check" checked
-                                onchange="toggleInput('rangeSlope', this)">
-                        </label>
-                        <div class="unit-wrapper">
-                            <input type="number" id="rangeSlope" value="3.0" step="0.1" min="0">
-                            <span class="unit-tag">%</span>
-                        </div>
-                    </div>
-
-                    <!-- TOUCH -->
-                    <div class="control-item">
-                        <label style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="display:flex; align-items:center;">
-                                TOUCH
-                                <span class="tooltip">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2" style="opacity:0.6;">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                                        <line x1="12" y1="17" x2="12.01" y2="17" />
-                                    </svg>
-                                    <span class="tooltiptext" data-key="touch">Fiyatın belirlenen kanalın alt veya üst
-                                        sınırlarına kaç kez dokunduğunu gösterir.</span>
-                                </span>
-                            </span>
-                            <input type="checkbox" id="use_touch" class="cyber-check" checked
-                                onchange="toggleInput('rangeTouch', this)">
-                        </label>
-                        <input type="number" id="rangeTouch" value="5" min="1">
-                    </div>
-
-                    <!-- MIDZONE -->
-                    <div class="control-item">
-                        <label style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="display:flex; align-items:center;">
-                                MIDZONE
-                                <span class="tooltip">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2" style="opacity:0.6;">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                                        <line x1="12" y1="17" x2="12.01" y2="17" />
-                                    </svg>
-                                    <span class="tooltiptext" data-key="midzone">Fiyatın kanalın orta bölgesinde ne
-                                        kadar süre geçirdiğini ölçer. Çoğunlukla ortada kalması kanalın sağlamlığını
-                                        gösterir.</span>
-                                </span>
-                            </span>
-                            <input type="checkbox" id="use_middle_ratio" class="cyber-check" checked
-                                onchange="toggleInput('rangeMidZone', this)">
-                        </label>
-                        <div class="unit-wrapper">
-                            <input type="number" id="rangeMidZone" value="60" min="0" max="100">
-                            <span class="unit-tag">%</span>
-                        </div>
-                    </div>
-
-                    <!-- MAX VOL -->
-                    <div class="control-item">
-                        <label style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="display:flex; align-items:center;">
-                                MAX VOL
-                                <span class="tooltip">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2" style="opacity:0.6;">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                                        <line x1="12" y1="17" x2="12.01" y2="17" />
-                                    </svg>
-                                    <span class="tooltiptext" data-key="maxvol">Gün içi en yüksek volatiliteyi ölçer.
-                                        Beklenmedik sert iğne hareketlerinin kanalı bozup bozmadığını kontrol
-                                        eder.</span>
-                                </span>
-                            </span>
-                            <input type="checkbox" id="use_max_vol" class="cyber-check" checked
-                                onchange="toggleInput('rangeMaxVol', this)">
-                        </label>
-                        <div class="unit-wrapper">
-                            <input type="number" id="rangeMaxVol" value="5.0" step="0.1" min="0">
-                            <span class="unit-tag">%</span>
-                        </div>
-                    </div>
-
-                    <!-- GAP -->
-                    <div class="control-item">
-                        <label style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="display:flex; align-items:center;">
-                                GAP
-                                <span class="tooltip tooltip-right">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2" style="opacity:0.6;">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                                        <line x1="12" y1="17" x2="12.01" y2="17" />
-                                    </svg>
-                                    <span class="tooltiptext" data-key="gap">Açılış boşluklarının ortalamasını ölçer.
-                                        Çok fazla gap bırakan hisseler kanal stratejisi için riskli kabul edilir.</span>
-                                </span>
-                            </span>
-                            <input type="checkbox" id="use_avg_gap" class="cyber-check" checked
-                                onchange="toggleInput('rangeGap', this)">
-                        </label>
-                        <div class="unit-wrapper">
-                            <input type="number" id="rangeGap" value="1.2" step="0.1" min="0">
-                            <span class="unit-tag">%</span>
-                        </div>
-                    </div>
-
-                    <!-- EDGE ZONE -->
-                    <div class="control-item">
-                        <label style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="display:flex; align-items:center;">
-                                EDGE %
-                                <span class="tooltip">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2" style="opacity:0.6;">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                                        <line x1="12" y1="17" x2="12.01" y2="17" />
-                                    </svg>
-                                    <span class="tooltiptext" data-key="edge">Kenar bölgesi genişliğidir. %0.6 fiyat
-                                        gibi değerler kullanılarak fiyatın sınırlara ne kadar yaklaştığı hassas
-                                        ölçülür.</span>
-                                </span>
-                            </span>
-                            <input type="checkbox" id="use_edge_zone" class="cyber-check"
-                                onchange="toggleInput('rangeEdgeZone', this)">
-                        </label>
-                        <div class="unit-wrapper">
-                            <input type="number" id="rangeEdgeZone" value="0.6" step="0.1" min="0" disabled
-                                style="opacity:0.5;">
-                            <span class="unit-tag">%</span>
-                        </div>
-                    </div>
-
-                    <!-- MEDIAN CROSS -->
-                    <div class="control-item">
-                        <label style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="display:flex; align-items:center;">
-                                MED CROSS
-                                <span class="tooltip">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2" style="opacity:0.6;">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                                        <line x1="12" y1="17" x2="12.01" y2="17" />
-                                    </svg>
-                                    <span class="tooltiptext" data-key="medcross">Fiyatın orta çizgiyi (median) kaç kez
-                                        kestiğini gösterir. Yüksek kesişim sayısı fiyatın kanal içinde aktif hareket
-                                        ettiğini kanıtlar.</span>
-                                </span>
-                            </span>
-                            <input type="checkbox" id="use_median_cross" class="cyber-check"
-                                onchange="toggleInput('rangeMedCross', this)">
-                        </label>
-                        <input type="number" id="rangeMedCross" value="20" min="1" disabled style="opacity:0.5;">
-                    </div>
-
-                    <!-- Trade Days -->
-                    <div class="control-item">
-                        <label style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="display:flex; align-items:center;">
-                                TRADE DAYS
-                                <span class="tooltip">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2" style="opacity:0.6;">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                                        <line x1="12" y1="17" x2="12.01" y2="17" />
-                                    </svg>
-                                    <span class="tooltiptext" data-key="tradedays">Hissenin analiz süresi boyunca aktif
-                                        işlem gördüğü günlerin oranını kontrol eder. Veri eksikliği olan veya düşük
-                                        likiditeli hisseleri filtreler.</span>
-                                </span>
-                            </span>
-                            <input type="checkbox" id="use_trade_days" class="cyber-check" checked
-                                onchange="toggleInput('rangeTradeDays', this)">
-                        </label>
-                        <div class="unit-wrapper">
-                            <input type="number" id="rangeTradeDays" value="70" min="0" max="100">
-                            <span class="unit-tag">%</span>
-                        </div>
-                    </div>
-
-                    <!-- Wolde Suggests Button -->
-                    <div class="control-item"
-                        style="grid-column: 1 / -1; margin-top: 1rem; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 1.5rem;">
-                        <div style="display: flex; gap: 1rem; align-items: center; justify-content: center;">
-                            <label class="switch" style="width: 50px; height: 26px;">
-                                <input type="checkbox" id="woldeSuggestsToggle" onchange="applyWoldeSuggests(this)">
-                                <span class="slider" style="border-radius: 20px;"></span>
-                            </label>
-                            <span style="font-weight: 800; color:var(--accent-secondary); letter-spacing: 2px;">WOLDE
-                                SUGGESTS</span>
-
-                            <button onclick="applyRangeSuggestions()" class="sidebar-btn"
-                                style="width: auto; padding: 0.5rem 1.5rem; background:rgba(59, 130, 246, 0.1); border-color:rgba(59, 130, 246, 0.3);">
-                                Phase 3 Defaults
-                            </button>
-                        </div>
+                    <div id="customSectorCheckboxes"
+                        style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:0.5rem;">
+                        <!-- Dynamic sectors load here -->
                     </div>
                 </div>
             </div>
+</div>
+</div>
 
-            <button class="btn-primary" id="analyzeBtn" onclick="startRangeAnalysis()">
-                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                    <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+<div class="input-grid">
+    <div class="input-group">
+        <label>Target Nodes (Separated by Newline)</label>
+        <textarea id="tickers" placeholder="AAPL&#10;TSLA&#10;NVDA..."></textarea>
+    </div>
+    <div class="range-controls-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+        <!-- Lookback -->
+        <div class="control-item">
+            <label style="display:flex; align-items:center;">
+                LOOKBACK
+                <span class="tooltip tooltip-right">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        style="opacity:0.6;">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                    <span class="tooltiptext" data-key="lookback">Analiz edilecek geçmiş gün sayısını
+                        belirler. Daha uzun süreler genel eğilimi, kısa süreler ise güncel durumu
+                        gösterir.</span>
+                </span>
+            </label>
+            <div class="unit-wrapper">
+                <input type="number" id="rangeDays" value="90" min="1" max="365">
+                <span class="unit-tag">Days</span>
+            </div>
+        </div>
+
+        <!-- Range % -->
+        <div class="control-item">
+            <label style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="display:flex; align-items:center;">
+                    RANGE %
+                    <span class="tooltip">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="opacity:0.6;">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                        <span class="tooltiptext" data-key="range_pct">Hissenin belirli bir süre içindeki en
+                            düşük ve en yüksek fiyatı arasındaki farkı (kanal genişliğini) ölçer.</span>
+                    </span>
+                </span>
+                <input type="checkbox" id="use_range_pct" class="cyber-check" checked
+                    onchange="toggleInput('rangePct', this)">
+            </label>
+            <div class="unit-wrapper">
+                <input type="number" id="rangePct" value="9.0" step="0.5" min="0">
+                <span class="unit-tag">%</span>
+            </div>
+        </div>
+
+        <!-- ATR/P -->
+        <div class="control-item">
+            <label style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="display:flex; align-items:center;">
+                    ATR/P
+                    <span class="tooltip">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="opacity:0.6;">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                        <span class="tooltiptext">Ortalama Hareket Aralığı / Fiyat oranıdır. Volatilitenin
+                            fiyatın ne kadarı olduğunu gösterir ve menzilin çok sert hareketli olup
+                            olmadığını belirler.</span>
+                    </span>
+                </span>
+                <input type="checkbox" id="use_atr_price" class="cyber-check" checked
+                    onchange="toggleInput('rangeAtrPrice', this)">
+            </label>
+            <div class="unit-wrapper">
+                <input type="number" id="rangeAtrPrice" value="2.2" step="0.1" min="0">
+                <span class="unit-tag">%</span>
+            </div>
+        </div>
+
+        <!-- ADX -->
+        <div class="control-item">
+            <label style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="display:flex; align-items:center;">
+                    ADX
+                    <span class="tooltip">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="opacity:0.6;">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                        <span class="tooltiptext" data-key="adx">Ortalama Yönsel Endeks. Trendin gücünü
+                            ölçer. Düşük ADX değerleri yatay seyreden piyasayı (kanal) işaret eder.</span>
+                    </span>
+                </span>
+                <input type="checkbox" id="use_adx" class="cyber-check" checked
+                    onchange="toggleInput('rangeAdx', this)">
+            </label>
+            <input type="number" id="rangeAdx" value="22.0" step="0.5" min="0">
+        </div>
+
+        <!-- SLOPE -->
+        <div class="control-item">
+            <label style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="display:flex; align-items:center;">
+                    SLOPE
+                    <span class="tooltip tooltip-right">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="opacity:0.6;">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                        <span class="tooltiptext" data-key="slope">Fiyatın eğimidir. Belirlenen süredeki
+                            fiyatın ne kadar yukarı veya aşağı eğimli olduğunu ölçer, yataylık kontrolü
+                            sağlar.</span>
+                    </span>
+                </span>
+                <input type="checkbox" id="use_slope_pct" class="cyber-check" checked
+                    onchange="toggleInput('rangeSlope', this)">
+            </label>
+            <div class="unit-wrapper">
+                <input type="number" id="rangeSlope" value="3.0" step="0.1" min="0">
+                <span class="unit-tag">%</span>
+            </div>
+        </div>
+
+        <!-- TOUCH -->
+        <div class="control-item">
+            <label style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="display:flex; align-items:center;">
+                    TOUCH
+                    <span class="tooltip">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="opacity:0.6;">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                        <span class="tooltiptext" data-key="touch">Fiyatın belirlenen kanalın alt veya üst
+                            sınırlarına kaç kez dokunduğunu gösterir.</span>
+                    </span>
+                </span>
+                <input type="checkbox" id="use_touch" class="cyber-check" checked
+                    onchange="toggleInput('rangeTouch', this)">
+            </label>
+            <input type="number" id="rangeTouch" value="5" min="1">
+        </div>
+
+        <!-- MIDZONE -->
+        <div class="control-item">
+            <label style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="display:flex; align-items:center;">
+                    MIDZONE
+                    <span class="tooltip">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="opacity:0.6;">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                        <span class="tooltiptext" data-key="midzone">Fiyatın kanalın orta bölgesinde ne
+                            kadar süre geçirdiğini ölçer. Çoğunlukla ortada kalması kanalın sağlamlığını
+                            gösterir.</span>
+                    </span>
+                </span>
+                <input type="checkbox" id="use_middle_ratio" class="cyber-check" checked
+                    onchange="toggleInput('rangeMidZone', this)">
+            </label>
+            <div class="unit-wrapper">
+                <input type="number" id="rangeMidZone" value="60" min="0" max="100">
+                <span class="unit-tag">%</span>
+            </div>
+        </div>
+
+        <!-- MAX VOL -->
+        <div class="control-item">
+            <label style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="display:flex; align-items:center;">
+                    MAX VOL
+                    <span class="tooltip">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="opacity:0.6;">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                        <span class="tooltiptext" data-key="maxvol">Gün içi en yüksek volatiliteyi ölçer.
+                            Beklenmedik sert iğne hareketlerinin kanalı bozup bozmadığını kontrol
+                            eder.</span>
+                    </span>
+                </span>
+                <input type="checkbox" id="use_max_vol" class="cyber-check" checked
+                    onchange="toggleInput('rangeMaxVol', this)">
+            </label>
+            <div class="unit-wrapper">
+                <input type="number" id="rangeMaxVol" value="5.0" step="0.1" min="0">
+                <span class="unit-tag">%</span>
+            </div>
+        </div>
+
+        <!-- GAP -->
+        <div class="control-item">
+            <label style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="display:flex; align-items:center;">
+                    GAP
+                    <span class="tooltip tooltip-right">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="opacity:0.6;">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                        <span class="tooltiptext" data-key="gap">Açılış boşluklarının ortalamasını ölçer.
+                            Çok fazla gap bırakan hisseler kanal stratejisi için riskli kabul edilir.</span>
+                    </span>
+                </span>
+                <input type="checkbox" id="use_avg_gap" class="cyber-check" checked
+                    onchange="toggleInput('rangeGap', this)">
+            </label>
+            <div class="unit-wrapper">
+                <input type="number" id="rangeGap" value="1.2" step="0.1" min="0">
+                <span class="unit-tag">%</span>
+            </div>
+        </div>
+
+        <!-- EDGE ZONE -->
+        <div class="control-item">
+            <label style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="display:flex; align-items:center;">
+                    EDGE %
+                    <span class="tooltip">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="opacity:0.6;">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                        <span class="tooltiptext" data-key="edge">Kenar bölgesi genişliğidir. %0.6 fiyat
+                            gibi değerler kullanılarak fiyatın sınırlara ne kadar yaklaştığı hassas
+                            ölçülür.</span>
+                    </span>
+                </span>
+                <input type="checkbox" id="use_edge_zone" class="cyber-check"
+                    onchange="toggleInput('rangeEdgeZone', this)">
+            </label>
+            <div class="unit-wrapper">
+                <input type="number" id="rangeEdgeZone" value="0.6" step="0.1" min="0" disabled style="opacity:0.5;">
+                <span class="unit-tag">%</span>
+            </div>
+        </div>
+
+        <!-- MEDIAN CROSS -->
+        <div class="control-item">
+            <label style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="display:flex; align-items:center;">
+                    MED CROSS
+                    <span class="tooltip">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="opacity:0.6;">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                        <span class="tooltiptext" data-key="medcross">Fiyatın orta çizgiyi (median) kaç kez
+                            kestiğini gösterir. Yüksek kesişim sayısı fiyatın kanal içinde aktif hareket
+                            ettiğini kanıtlar.</span>
+                    </span>
+                </span>
+                <input type="checkbox" id="use_median_cross" class="cyber-check"
+                    onchange="toggleInput('rangeMedCross', this)">
+            </label>
+            <input type="number" id="rangeMedCross" value="20" min="1" disabled style="opacity:0.5;">
+        </div>
+
+        <!-- Trade Days -->
+        <div class="control-item">
+            <label style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="display:flex; align-items:center;">
+                    TRADE DAYS
+                    <span class="tooltip">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="opacity:0.6;">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                        <span class="tooltiptext" data-key="tradedays">Hissenin analiz süresi boyunca aktif
+                            işlem gördüğü günlerin oranını kontrol eder. Veri eksikliği olan veya düşük
+                            likiditeli hisseleri filtreler.</span>
+                    </span>
+                </span>
+                <input type="checkbox" id="use_trade_days" class="cyber-check" checked
+                    onchange="toggleInput('rangeTradeDays', this)">
+            </label>
+            <div class="unit-wrapper">
+                <input type="number" id="rangeTradeDays" value="70" min="0" max="100">
+                <span class="unit-tag">%</span>
+            </div>
+        </div>
+
+        <!-- Wolde Suggests Button -->
+        <div class="control-item"
+            style="grid-column: 1 / -1; margin-top: 1rem; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 1.5rem;">
+            <div style="display: flex; gap: 1rem; align-items: center; justify-content: center;">
+                <label class="switch" style="width: 50px; height: 26px;">
+                    <input type="checkbox" id="woldeSuggestsToggle" onchange="applyWoldeSuggests(this)">
+                    <span class="slider" style="border-radius: 20px;"></span>
+                </label>
+                <span style="font-weight: 800; color:var(--accent-secondary); letter-spacing: 2px;">WOLDE
+                    SUGGESTS</span>
+
+                <button onclick="applyRangeSuggestions()" class="sidebar-btn"
+                    style="width: auto; padding: 0.5rem 1.5rem; background:rgba(59, 130, 246, 0.1); border-color:rgba(59, 130, 246, 0.3);">
+                    Phase 3 Defaults
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<button class="btn-primary" id="analyzeBtn" onclick="startRangeAnalysis()">
+    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+        <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+    </svg>
+    Identify Range Stability
+</button>
+
+<div id="progressContainer" class="progress-area" style="display:none; margin-top:2rem;">
+    <div class="progress-header">
+        <span id="progressText">Initializing Range AI...</span>
+        <span id="progressPercent">0%</span>
+    </div>
+    <div class="progress-track">
+        <div id="progressFill" class="progress-fill"></div>
+    </div>
+</div>
+</section>
+
+
+
+<!-- Imbalance AI Section -->
+<section id="imbalanceSection" class="glass-card" style="display:none; animation: slideIn 0.6s ease-out;">
+    <div style="margin-bottom: 2rem;">
+        <div
+            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap: wrap; gap: 1rem;">
+            <h2 style="margin:0; font-family:'Outfit'; font-weight:800; font-size:1.4rem;">Imbalance AI Terminal
+            </h2>
+            <div class="master-list-control">
+                <div style="display:flex; align-items:center; gap:0.5rem;">
+                    <label class="switch">
+                        <input type="checkbox" id="imbMasterList" onchange="updateControlColors()">
+                        <span class="slider"></span>
+                    </label>
+                    <span id="imbLabelMasterList" onclick="openMasterListModal()"
+                        style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
+                        Master
+                        List</span>
+                </div>
+
+                <div style="display:flex; align-items:center; gap:0.5rem; margin-left:1rem;">
+                    <label class="switch">
+                        <input type="checkbox" id="imbCefList"
+                            onchange="updateControlColors(); toggleCefSectors('imbalance')">
+                        <span class="slider"></span>
+                    </label>
+                    <span id="imbLabelCefList" onclick="openCEFListModal()"
+                        style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
+                        CEF
+                        List</span>
+                </div>
+
+                <div style="display:flex; align-items:center; gap:0.5rem; margin-left:1rem;">
+                    <label class="switch">
+                        <input type="checkbox" id="imbPffList" onchange="updateControlColors()">
+                        <span class="slider"></span>
+                    </label>
+                    <span id="imbLabelPffList" onclick="openPFFModal()"
+                        style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
+                        PFF
+                        Holdings</span>
+                </div>
+            </div>
+        </div>
+        <div id="imbalanceCefSectors" class="cef-sector-grid"
+            style="display:none; margin-top:1rem; padding:1rem; background:rgba(255,255,255,0.02); border-radius:8px; border:1px solid var(--glass-border);">
+            <div
+                style="font-size:0.75rem; font-weight:800; color:var(--text-secondary); text-transform:uppercase; letter-spacing:1px; margin-bottom:0.8rem; display:flex; justify-content:space-between; align-items:center;">
+                <span>Select Sectors to Analyze (CEF List)</span>
+                <button onclick="selectAllSectors('imbalance')"
+                    style="background:transparent; border:none; color:var(--accent-primary); font-size:0.7rem; font-weight:800; cursor:pointer; text-transform:uppercase;">Select
+                    All</button>
+            </div>
+            <div id="imbalanceSectorCheckboxes"
+                style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:0.5rem;">
+                <!-- Dynamic sectors load here -->
+            </div>
+        </div>
+    </div>
+    </div>
+    </div>
+
+    <div class="input-grid">
+        <div class="input-group">
+            <label>Target Nodes</label>
+            <textarea id="imbalanceTickers" placeholder="AAPL&#10;MSFT..."></textarea>
+        </div>
+        <div class="imbalance-controls-grid">
+            <div class="control-item">
+                <label style="display:flex; align-items:center;">
+                    Search Period
+                    <span class="tooltip">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="opacity:0.6;">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                        <span class="tooltiptext" data-key="imb_search_period">Analiz edilecek geçmiş gün
+                            sayısını belirler. Belirtilen süre içindeki mumlar taranarak dengesizlik alanları
+                            aranır.</span>
+                    </span>
+                </label>
+                <div class="unit-wrapper">
+                    <input type="number" id="imbDays" value="30" min="1" max="180">
+                    <span class="unit-tag">Days</span>
+                </div>
+            </div>
+            <div class="control-item">
+                <label style="display:flex; align-items:center;">
+                    Min Occurrences
+                    <span class="tooltip">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="opacity:0.6;">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                        <span class="tooltiptext" data-key="imb_min_count">Bir formasyonun geçerli sayılması
+                            için gereken minimum tekrar sayısıdır. Daha yüksek değerler daha güvenilir sinyaller
+                            sağlar.</span>
+                    </span>
+                </label>
+                <input type="number" id="imbMinCount" value="6" min="1">
+            </div>
+            <!-- Max Wick Ratio with Toggle -->
+            <div class="control-item">
+                <label style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="display:flex; align-items:center;">
+                        Max Wick Ratio
+                        <span class="tooltip">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" style="opacity:0.6;">
+                                <circle cx="12" cy="12" r="10" />
+                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                                <line x1="12" y1="17" x2="12.01" y2="17" />
+                            </svg>
+                            <span class="tooltiptext" data-key="imb_max_wick">Mumun iğne boyunun gövdesine göre
+                                maksimum oranını kısıtlar. Çok uzun iğneli mumların elenmesini sağlar.</span>
+                        </span>
+                    </span>
+                    <input type="checkbox" id="imbFilterWick" class="cyber-check" checked
+                        onchange="toggleInput('imbMaxWick', this)">
+                </label>
+                <input type="number" id="imbMaxWick" value="0.12" step="0.01" min="0">
+            </div>
+            <!-- Min End Day Profit with Toggle -->
+            <div class="control-item">
+                <label style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="display:flex; align-items:center;">
+                        Min End Profit
+                        <span class="tooltip tooltip-right">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" style="opacity:0.6;">
+                                <circle cx="12" cy="12" r="10" />
+                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                                <line x1="12" y1="17" x2="12.01" y2="17" />
+                            </svg>
+                            <span class="tooltiptext" data-key="imb_min_profit">Formasyon oluştuktan sonra gün
+                                sonuna kadar beklenen minimum kar miktarını belirler. Kar potansiyeli düşük
+                                olanları eler.</span>
+                        </span>
+                    </span>
+                    <input type="checkbox" id="imbFilterProfit" class="cyber-check"
+                        onchange="toggleInput('imbMinProfit', this)">
+                </label>
+                <div class="unit-wrapper">
+                    <input type="number" id="imbMinProfit" value="0.10" step="0.01" min="0" disabled
+                        style="opacity:0.5;">
+                    <span class="unit-tag">$</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button class="btn-primary" id="analyzeImbalanceBtn" onclick="startImbalanceAnalysis()">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+        </svg>
+        Identify Imbalance Patterns
+    </button>
+
+    <div id="imbProgressContainer" class="progress-area" style="display:none; margin-top:2rem;">
+        <div class="progress-header">
+            <span id="imbProgressText">Scanning Patterns...</span>
+            <span id="imbProgressPercent">0%</span>
+        </div>
+        <div class="progress-track">
+            <div id="imbProgressFill" class="progress-fill"></div>
+        </div>
+    </div>
+</section>
+
+<!-- Dividend Recovery Section -->
+<section id="dividendSection" class="glass-card" style="display:none; animation: slideIn 0.6s ease-out;">
+    <div style="margin-bottom: 2rem;">
+        <div
+            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap: wrap; gap: 1rem;">
+            <h2 style="margin:0; font-family:'Outfit'; font-weight:800; font-size:1.4rem;">Dividend Recovery
+                Terminal</h2>
+            <div class="master-list-control">
+                <div style="display:flex; align-items:center; gap:0.5rem;">
+                    <label class="switch">
+                        <input type="checkbox" id="divMasterList" onchange="updateControlColors()">
+                        <span class="slider"></span>
+                    </label>
+                    <span id="divLabelMasterList" onclick="openMasterListModal()"
+                        style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
+                        Master
+                        List</span>
+                </div>
+
+                <div style="display:flex; align-items:center; gap:0.5rem; margin-left:1rem;">
+                    <label class="switch">
+                        <input type="checkbox" id="divCefList"
+                            onchange="updateControlColors(); toggleCefSectors('dividend')">
+                        <span class="slider"></span>
+                    </label>
+                    <span id="divLabelCefList" onclick="openCEFListModal()"
+                        style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
+                        CEF
+                        List</span>
+                </div>
+
+                <div style="display:flex; align-items:center; gap:0.5rem; margin-left:1rem;">
+                    <label class="switch">
+                        <input type="checkbox" id="divPffList" onchange="updateControlColors()">
+                        <span class="slider"></span>
+                    </label>
+                    <span id="divLabelPffList" onclick="openPFFModal()"
+                        style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
+                        PFF
+                        Holdings</span>
+                </div>
+            </div>
+        </div>
+        <div id="dividendCefSectors" class="cef-sector-grid"
+            style="display:none; margin-top:1rem; padding:1rem; background:rgba(255,255,255,0.02); border-radius:8px; border:1px solid var(--glass-border);">
+            <div
+                style="font-size:0.75rem; font-weight:800; color:var(--text-secondary); text-transform:uppercase; letter-spacing:1px; margin-bottom:0.8rem; display:flex; justify-content:space-between; align-items:center;">
+                <span>Select Sectors to Analyze (CEF List)</span>
+                <button onclick="selectAllSectors('dividend')"
+                    style="background:transparent; border:none; color:var(--accent-primary); font-size:0.7rem; font-weight:800; cursor:pointer; text-transform:uppercase;">Select
+                    All</button>
+            </div>
+            <div id="dividendSectorCheckboxes"
+                style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:0.5rem;">
+                <!-- Dynamic sectors load here -->
+            </div>
+        </div>
+    </div>
+
+    <div class="intel-grid">
+        <!-- LEFT: NODES ENTRY -->
+        <div class="input-group">
+            <div class="intel-header">
+                <label>TARGET NODES</label>
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                    style="opacity:0.5">
+                    <path d="M4 6h16M4 12h16M4 18h7"></path>
                 </svg>
-                Identify Range Stability
-            </button>
-
-            <div id="progressContainer" class="progress-area" style="display:none; margin-top:2rem;">
-                <div class="progress-header">
-                    <span id="progressText">Initializing Range AI...</span>
-                    <span id="progressPercent">0%</span>
-                </div>
-                <div class="progress-track">
-                    <div id="progressFill" class="progress-fill"></div>
-                </div>
             </div>
-        </section>
+            <textarea id="dividendTickers" class="textarea-premium" placeholder="BAC-Q&#10;PCG-G&#10;T-C..."></textarea>
+        </div>
 
-
-
-        <!-- Imbalance AI Section -->
-        <section id="imbalanceSection" class="glass-card" style="display:none; animation: slideIn 0.6s ease-out;">
-            <div style="margin-bottom: 2rem;">
-                <div
-                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap: wrap; gap: 1rem;">
-                    <h2 style="margin:0; font-family:'Outfit'; font-weight:800; font-size:1.4rem;">Imbalance AI Terminal
-                    </h2>
-                    <div class="master-list-control">
-                        <div style="display:flex; align-items:center; gap:0.5rem;">
-                            <label class="switch">
-                                <input type="checkbox" id="imbMasterList" onchange="updateControlColors()">
-                                <span class="slider"></span>
-                            </label>
-                            <span id="imbLabelMasterList" onclick="openMasterListModal()"
-                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
-                                Master
-                                List</span>
-                        </div>
-
-                        <div style="display:flex; align-items:center; gap:0.5rem; margin-left:1rem;">
-                            <label class="switch">
-                                <input type="checkbox" id="imbCefList" onchange="updateControlColors()">
-                                <span class="slider"></span>
-                            </label>
-                            <span id="imbLabelCefList" onclick="openCEFListModal()"
-                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
-                                CEF
-                                List</span>
-                        </div>
-
-                        <div style="display:flex; align-items:center; gap:0.5rem; margin-left:1rem;">
-                            <label class="switch">
-                                <input type="checkbox" id="imbPffList" onchange="updateControlColors()">
-                                <span class="slider"></span>
-                            </label>
-                            <span id="imbLabelPffList" onclick="openPFFModal()"
-                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
-                                PFF
-                                Holdings</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="input-grid">
-                <div class="input-group">
-                    <label>Target Nodes</label>
-                    <textarea id="imbalanceTickers" placeholder="AAPL&#10;MSFT..."></textarea>
-                </div>
-                <div class="imbalance-controls-grid">
-                    <div class="control-item">
-                        <label style="display:flex; align-items:center;">
-                            Search Period
-                            <span class="tooltip">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2" style="opacity:0.6;">
-                                    <circle cx="12" cy="12" r="10" />
-                                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                                    <line x1="12" y1="17" x2="12.01" y2="17" />
-                                </svg>
-                                <span class="tooltiptext" data-key="imb_search_period">Analiz edilecek geçmiş gün
-                                    sayısını belirler. Belirtilen süre içindeki mumlar taranarak dengesizlik alanları
-                                    aranır.</span>
-                            </span>
-                        </label>
-                        <div class="unit-wrapper">
-                            <input type="number" id="imbDays" value="30" min="1" max="180">
-                            <span class="unit-tag">Days</span>
-                        </div>
-                    </div>
-                    <div class="control-item">
-                        <label style="display:flex; align-items:center;">
-                            Min Occurrences
-                            <span class="tooltip">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2" style="opacity:0.6;">
-                                    <circle cx="12" cy="12" r="10" />
-                                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                                    <line x1="12" y1="17" x2="12.01" y2="17" />
-                                </svg>
-                                <span class="tooltiptext" data-key="imb_min_count">Bir formasyonun geçerli sayılması
-                                    için gereken minimum tekrar sayısıdır. Daha yüksek değerler daha güvenilir sinyaller
-                                    sağlar.</span>
-                            </span>
-                        </label>
-                        <input type="number" id="imbMinCount" value="6" min="1">
-                    </div>
-                    <!-- Max Wick Ratio with Toggle -->
-                    <div class="control-item">
-                        <label style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="display:flex; align-items:center;">
-                                Max Wick Ratio
-                                <span class="tooltip">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2" style="opacity:0.6;">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                                        <line x1="12" y1="17" x2="12.01" y2="17" />
-                                    </svg>
-                                    <span class="tooltiptext" data-key="imb_max_wick">Mumun iğne boyunun gövdesine göre
-                                        maksimum oranını kısıtlar. Çok uzun iğneli mumların elenmesini sağlar.</span>
-                                </span>
-                            </span>
-                            <input type="checkbox" id="imbFilterWick" class="cyber-check" checked
-                                onchange="toggleInput('imbMaxWick', this)">
-                        </label>
-                        <input type="number" id="imbMaxWick" value="0.12" step="0.01" min="0">
-                    </div>
-                    <!-- Min End Day Profit with Toggle -->
-                    <div class="control-item">
-                        <label style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="display:flex; align-items:center;">
-                                Min End Profit
-                                <span class="tooltip tooltip-right">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2" style="opacity:0.6;">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                                        <line x1="12" y1="17" x2="12.01" y2="17" />
-                                    </svg>
-                                    <span class="tooltiptext" data-key="imb_min_profit">Formasyon oluştuktan sonra gün
-                                        sonuna kadar beklenen minimum kar miktarını belirler. Kar potansiyeli düşük
-                                        olanları eler.</span>
-                                </span>
-                            </span>
-                            <input type="checkbox" id="imbFilterProfit" class="cyber-check"
-                                onchange="toggleInput('imbMinProfit', this)">
-                        </label>
-                        <div class="unit-wrapper">
-                            <input type="number" id="imbMinProfit" value="0.10" step="0.01" min="0" disabled
-                                style="opacity:0.5;">
-                            <span class="unit-tag">$</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <button class="btn-primary" id="analyzeImbalanceBtn" onclick="startImbalanceAnalysis()">
-                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                </svg>
-                Identify Imbalance Patterns
-            </button>
-
-            <div id="imbProgressContainer" class="progress-area" style="display:none; margin-top:2rem;">
-                <div class="progress-header">
-                    <span id="imbProgressText">Scanning Patterns...</span>
-                    <span id="imbProgressPercent">0%</span>
-                </div>
-                <div class="progress-track">
-                    <div id="imbProgressFill" class="progress-fill"></div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Dividend Recovery Section -->
-        <section id="dividendSection" class="glass-card" style="display:none; animation: slideIn 0.6s ease-out;">
-            <div style="margin-bottom: 2rem;">
-                <div
-                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap: wrap; gap: 1rem;">
-                    <h2 style="margin:0; font-family:'Outfit'; font-weight:800; font-size:1.4rem;">Dividend Recovery
-                        Terminal</h2>
-                    <div class="master-list-control">
-                        <div style="display:flex; align-items:center; gap:0.5rem;">
-                            <label class="switch">
-                                <input type="checkbox" id="divMasterList" onchange="updateControlColors()">
-                                <span class="slider"></span>
-                            </label>
-                            <span id="divLabelMasterList" onclick="openMasterListModal()"
-                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
-                                Master
-                                List</span>
-                        </div>
-
-                        <div style="display:flex; align-items:center; gap:0.5rem; margin-left:1rem;">
-                            <label class="switch">
-                                <input type="checkbox" id="divCefList" onchange="updateControlColors()">
-                                <span class="slider"></span>
-                            </label>
-                            <span id="divLabelCefList" onclick="openCEFListModal()"
-                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
-                                CEF
-                                List</span>
-                        </div>
-
-                        <div style="display:flex; align-items:center; gap:0.5rem; margin-left:1rem;">
-                            <label class="switch">
-                                <input type="checkbox" id="divPffList" onchange="updateControlColors()">
-                                <span class="slider"></span>
-                            </label>
-                            <span id="divLabelPffList" onclick="openPFFModal()"
-                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
-                                PFF
-                                Holdings</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="intel-grid">
-                <!-- LEFT: NODES ENTRY -->
-                <div class="input-group">
+        <!-- RIGHT: CONFIGURATION TERMINAL -->
+        <div class="config-terminal">
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+                <!-- Lookback Module -->
+                <div class="intel-module">
                     <div class="intel-header">
-                        <label>TARGET NODES</label>
+                        <label>LOOKBACK</label>
                         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
                             viewBox="0 0 24 24" style="opacity:0.5">
-                            <path d="M4 6h16M4 12h16M4 18h7"></path>
+                            <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
                     </div>
-                    <textarea id="dividendTickers" class="textarea-premium"
-                        placeholder="BAC-Q&#10;PCG-G&#10;T-C..."></textarea>
+                    <select id="divLookback"
+                        style="width:100%; background:rgba(0,0,0,0.5); border:1px solid var(--glass-border); border-radius:4px; padding:0.8rem; color:white;">
+                        <option value="3">Last 3 Dividends</option>
+                        <option value="4">Last 4 Dividends</option>
+                        <option value="5">Last 5 Dividends</option>
+                    </select>
                 </div>
 
-                <!-- RIGHT: CONFIGURATION TERMINAL -->
-                <div class="config-terminal">
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
-                        <!-- Lookback Module -->
-                        <div class="intel-module">
-                            <div class="intel-header">
-                                <label>LOOKBACK</label>
-                                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
-                                    viewBox="0 0 24 24" style="opacity:0.5">
-                                    <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                            </div>
-                            <select id="divLookback"
-                                style="width:100%; background:rgba(0,0,0,0.5); border:1px solid var(--glass-border); border-radius:4px; padding:0.8rem; color:white;">
-                                <option value="3">Last 3 Dividends</option>
-                                <option value="4">Last 4 Dividends</option>
-                                <option value="5">Last 5 Dividends</option>
-                            </select>
+                <!-- Sort Module -->
+                <div class="intel-module">
+                    <div class="intel-header">
+                        <label>SORT LOGIC</label>
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24" style="opacity:0.5">
+                            <path d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"></path>
+                        </svg>
+                    </div>
+                    <select id="divSort"
+                        style="width:100%; background:rgba(0,0,0,0.5); border:1px solid var(--glass-border); border-radius:4px; padding:0.8rem; color:white;">
+                        <option value="fastest">Fastest Recovery</option>
+                        <option value="slowest">Slowest Recovery</option>
+                        <option value="next_div">Upcoming Dividend</option>
+                    </select>
+
+                    <!-- Volume Surge Filter -->
+                    <div
+                        style="margin-top:12px; display:flex; align-items:center; gap:8px; padding-top:8px; border-top:1px dashed rgba(255,255,255,0.1);">
+                        <label class="switch-pro" style="transform: scale(0.85);">
+                            <input type="checkbox" id="divVolFilter">
+                            <span class="slider-pro"></span>
+                        </label>
+                        <span style="font-size:0.7rem; font-weight:700; color:#f59e0b;">
+                            VOL SURGE ONLY
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Recovery Window Module -->
+                <div class="intel-module">
+                    <div class="intel-header">
+                        <label>RECOVERY WINDOW</label>
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24" style="opacity:0.5">
+                            <path
+                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                            </path>
+                        </svg>
+                    </div>
+                    <div class="unit-wrapper">
+                        <input type="number" id="divRecWindow" value="5" min="1" max="30">
+                        <span class="unit-tag">Days</span>
+                    </div>
+                </div>
+
+                <!-- Recovery Range Module -->
+                <div class="intel-module">
+                    <div class="intel-header">
+                        <label>RECOVERY RANGE</label>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <label class="switch-pro" style="transform: scale(0.8);">
+                                <input type="checkbox" id="divStrictFilter">
+                                <span class="slider-pro"></span>
+                            </label>
+                            <span style="font-size:0.6rem; font-weight:800; opacity:0.6;">STRICT</span>
                         </div>
-
-                        <!-- Sort Module -->
-                        <div class="intel-module">
-                            <div class="intel-header">
-                                <label>SORT LOGIC</label>
-                                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
-                                    viewBox="0 0 24 24" style="opacity:0.5">
-                                    <path d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"></path>
-                                </svg>
+                    </div>
+                    <div class="range-wrapper" style="margin-top: 5px;">
+                        <div style="flex:1; position:relative;">
+                            <div class="unit-wrapper">
+                                <input type="number" id="divTargetPct" value="90" min="0" max="100">
+                                <span class="unit-tag">%</span>
                             </div>
-                            <select id="divSort"
-                                style="width:100%; background:rgba(0,0,0,0.5); border:1px solid var(--glass-border); border-radius:4px; padding:0.8rem; color:white;">
-                                <option value="fastest">Fastest Recovery</option>
-                                <option value="slowest">Slowest Recovery</option>
-                                <option value="next_div">Upcoming Dividend</option>
-                            </select>
+                            <label class="mini-label">
+                                <input type="checkbox" id="chkMin" class="cyber-check" checked
+                                    onchange="toggleInput('divTargetPct', this)">
+                                <span>MIN</span>
+                            </label>
+                        </div>
+                        <div style="flex:1; position:relative;">
+                            <div class="unit-wrapper">
+                                <input type="number" id="divMaxTargetPct" value="100" min="0" max="100">
+                                <span class="unit-tag">%</span>
+                            </div>
+                            <label class="mini-label">
+                                <input type="checkbox" id="chkMax" class="cyber-check" checked
+                                    onchange="toggleInput('divMaxTargetPct', this)">
+                                <span>MAX</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                            <!-- Volume Surge Filter -->
-                            <div
-                                style="margin-top:12px; display:flex; align-items:center; gap:8px; padding-top:8px; border-top:1px dashed rgba(255,255,255,0.1);">
-                                <label class="switch-pro" style="transform: scale(0.85);">
-                                    <input type="checkbox" id="divVolFilter">
-                                    <span class="slider-pro"></span>
-                                </label>
-                                <span style="font-size:0.7rem; font-weight:700; color:#f59e0b;">
-                                    VOL SURGE ONLY
-                                </span>
+            <!-- UPCOMING FILTER SUB-TERMINAL -->
+            <div class="sub-terminal">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                        <div
+                            style="width:8px; height:8px; border-radius:50%; background:var(--accent-primary); box-shadow:0 0 10px var(--accent-primary);">
+                        </div>
+                        <h3
+                            style="margin:0; font-size:0.9rem; letter-spacing:1px; text-transform:uppercase; font-weight:800;">
+                            Upcoming Ex-Date Radar</h3>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label class="switch-pro">
+                            <input type="checkbox" id="divUpcomingFilter">
+                            <span class="slider-pro"></span>
+                        </label>
+                        <span style="font-size:0.65rem; font-weight:800; color:var(--text-secondary);">ACTIVE
+                            RADAR</span>
+                    </div>
+                </div>
+
+                <div
+                    style="display:flex; align-items:center; gap:1.5rem; background:rgba(0,0,0,0.5); padding:1rem; border-radius:8px;">
+                    <div style="flex:1;">
+                        <div
+                            style="font-size:0.65rem; font-weight:800; color:var(--text-secondary); margin-bottom:0.5rem; text-transform:uppercase;">
+                            Scan Horizon</div>
+                        <div class="unit-wrapper">
+                            <input type="number" id="divUpcomingDays" value="14" min="1" max="90"
+                                style="background:transparent; border:none; padding-left:0 !important; font-size:1.2rem;">
+                            <span class="unit-tag">Days</span>
+                        </div>
+                        <div style="margin-top: 8px;">
+                            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                                <input type="checkbox" id="divIncludeToday" class="cyber-check">
+                                <span
+                                    style="font-size:0.65rem; font-weight:800; color:var(--text-secondary); opacity:0.8;">INCLUDE
+                                    TODAY</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div style="width:1px; height:40px; background:rgba(255,255,255,0.05);"></div>
+                    <div style="flex:2; font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">
+                        Filters results to only show tickers with an ex-dividend date within the specified
+                        horizon.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button class="btn-primary" id="analyzeDividendBtn" onclick="startDividendAnalysis()"
+        style="margin-top: 1rem; position: relative; z-index: 10;">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path
+                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+            </path>
+        </svg>
+        Analyze Dividend Recovery
+    </button>
+
+    <div id="divProgressContainer" class="progress-area" style="display:none; margin-top:2rem;">
+        <div class="progress-header">
+            <span id="divProgressText">Analyzing Dividends...</span>
+            <span id="divProgressPercent">0%</span>
+        </div>
+        <div class="progress-track">
+            <div id="divProgressFill" class="progress-fill"></div>
+        </div>
+    </div>
+</section>
+
+<!-- Rebalance Patterns Section -->
+<section id="rebalanceSection" class="glass-card" style="display:none; animation: slideIn 0.6s ease-out;">
+    <div style="margin-bottom: 2rem;">
+        <div
+            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap: wrap; gap: 1rem;">
+            <h2 style="margin:0; font-family:'Outfit'; font-weight:800; font-size:1.4rem;">Rebalance Pattern
+                Terminal</h2>
+            <div class="master-list-control">
+                <div style="display:flex; align-items:center; gap:0.5rem;">
+                    <label class="switch">
+                        <input type="checkbox" id="rebMasterList" onchange="updateControlColors()">
+                        <span class="slider"></span>
+                    </label>
+                    <span id="rebLabelMasterList" onclick="openMasterListModal()"
+                        style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
+                        Master List</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.5rem; margin-left:1rem;">
+                    <label class="switch">
+                        <input type="checkbox" id="rebCefList" onchange="updateControlColors()">
+                        <span class="slider"></span>
+                    </label>
+                    <span id="rebLabelCefList" onclick="openCEFListModal()"
+                        style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
+                        CEF List</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.5rem; margin-left:1rem;">
+                    <label class="switch">
+                        <input type="checkbox" id="rebPffList" onchange="updateControlColors()">
+                        <span class="slider"></span>
+                    </label>
+                    <span id="rebLabelPffList" onclick="openPFFModal()"
+                        style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
+                        PFF Holdings</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="intel-grid">
+        <div class="input-group">
+            <div class="intel-header">
+                <label>TARGET NODES</label>
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                    style="opacity:0.5">
+                    <path d="M4 6h16M4 12h16M4 18h7"></path>
+                </svg>
+            </div>
+            <textarea id="rebalanceTickers" class="textarea-premium" placeholder="AAPL&#10;MSFT..."></textarea>
+        </div>
+
+        <div class="config-terminal">
+            <div class="intel-module">
+                <div class="intel-header">
+                    <label>LOOKBACK PERIOD</label>
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                        style="opacity:0.5">
+                        <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <select id="rebMonths"
+                    style="width:100%; background:rgba(0,0,0,0.5); border:1px solid var(--glass-border); border-radius:4px; padding:0.8rem; color:white;">
+                    <option value="1">Last 1 Month</option>
+                    <option value="2">Last 2 Months</option>
+                    <option value="3" selected>Last 3 Months</option>
+                    <option value="4">Last 4 Months</option>
+                    <option value="5">Last 5 Months</option>
+                    <option value="6">Last 6 Months</option>
+                </select>
+            </div>
+            <div style="margin-top:1rem; color:var(--text-secondary); font-size:0.85rem; line-height: 1.5;">
+                <p>Analyzes price performance in the 3 trading days before and after each month-end rebalance
+                    day (last business day).</p>
+            </div>
+        </div>
+    </div>
+
+    <button class="btn-primary" id="analyzeRebalanceBtn" onclick="startRebalanceAnalysis()" style="margin-top: 1rem;">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+            </path>
+        </svg>
+        Analyze Rebalance Patterns
+    </button>
+
+    <div id="rebProgressContainer" class="progress-area" style="display:none; margin-top:2rem;">
+        <div class="progress-header">
+            <span id="rebProgressText">Analyzing Patterns...</span>
+            <span id="rebProgressPercent">0%</span>
+        </div>
+        <div class="progress-track">
+            <div id="rebProgressFill" class="progress-fill"></div>
+        </div>
+    </div>
+</section>
+
+<!-- Range AI Results Area -->
+<section id="customResultsCard" class="glass-card" style="display:none; animation: slideUp 0.6s ease-out;">
+    <div class="results-header">
+        <div>
+            <h2 class="results-title">Range Stability Output</h2>
+            <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:0.3rem;">
+                High-probability stability nodes identified by Range AI filters.
+            </p>
+        </div>
+        <div>
+            <span class="badge" id="rangeMatchCount">0 Symbols Found</span>
+            <button class="tv-btn" onclick="copyToClipboard('custom', this)">Copy Symbols</button>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table id="customResultsTable">
+            <thead>
+                <tr>
+                    <th style="cursor:pointer;" onclick="sortRangeResults('ticker')">Ticker ↕</th>
+                    <th>Current / Range</th>
+                    <th style="cursor:pointer;" onclick="sortRangeResults('percent_range')">% Range ↕</th>
+                    <th>Touch (L/H)</th>
+                    <th style="cursor:pointer;" onclick="sortRangeResults('cycle')">Cycle ↕</th>
+                    <th style="cursor:pointer; background:rgba(67, 97, 238, 0.1);" onclick="sortRangeResults('score')">
+                        Score ↕</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</section>
+
+<!-- Smart Watchlist results removed -->
+
+<!-- Imbalance AI Results Area -->
+<section id="imbalanceResultsCard" class="glass-card" style="display:none; animation: slideUp 0.6s ease-out;">
+    <div class="results-header">
+        <div>
+            <h2 class="results-title">Imbalance Pattern Output</h2>
+            <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:0.3rem;">
+                Directional liquidity imbalances detected in recent sessions.
+            </p>
+        </div>
+        <div>
+            <span id="imbMatchCount" class="badge">0 Symbols Found</span>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end;">
+                <button class="tv-btn" onclick="copyToClipboard('imbalance', this)">Copy All</button>
+                <button class="tv-btn" style="background: rgba(16,185,129,0.2); border-color: var(--success);"
+                    onclick="copyToClipboard('imbalance', this, 'Green')">Copy Green</button>
+                <button class="tv-btn" style="background: rgba(239,68,68,0.2); border-color: var(--error);"
+                    onclick="copyToClipboard('imbalance', this, 'Red')">Copy Red</button>
+            </div>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table id="imbalanceResultsTable">
+            <thead>
+                <tr>
+                    <th class="sortable" onclick="sortImbalanceTable(0, 'string')">Ticker ↕</th>
+                    <th>
+                        <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+                            <span class="sortable" onclick="sortImbalanceTable(1, 'string')">Pattern ↕</span>
+                            <div style="display:flex; gap:4px;">
+                                <button id="btnFilterGreen" class="filter-btn green-filter active"
+                                    onclick="toggleImbFilter('Green')">Green</button>
+                                <button id="btnFilterRed" class="filter-btn red-filter active"
+                                    onclick="toggleImbFilter('Red')">Red</button>
                             </div>
                         </div>
+                    </th>
+                    <th class="sortable" onclick="sortImbalanceTable(2, 'number')">Match Count ↕</th>
+                    <th class="sortable" onclick="sortImbalanceTable(3, 'number')">Avg Wick ↕</th>
+                    <th class="sortable" onclick="sortImbalanceTable(4, 'number')">Max Wick ↕</th>
+                    <th class="sortable" onclick="sortImbalanceTable(5, 'number')">Avg End $ ↕</th>
+                    <th class="sortable" onclick="sortImbalanceTable(6, 'number')">Avg Max $ ↕</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</section>
 
-                        <!-- Recovery Window Module -->
-                        <div class="intel-module">
-                            <div class="intel-header">
-                                <label>RECOVERY WINDOW</label>
-                                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
-                                    viewBox="0 0 24 24" style="opacity:0.5">
+<!-- Dividend Recovery Results Area -->
+<section id="dividendResultsCard" class="glass-card" style="display:none; animation: slideUp 0.6s ease-out;">
+    <div class="results-header">
+        <div>
+            <h2 class="results-title">Dividend Recovery Analysis</h2>
+            <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:0.3rem;">
+                Recovery timeline tracking for post-dividend price movements.
+            </p>
+        </div>
+        <div>
+            <span id="divMatchCount" class="badge">0 Symbols Analyzed</span>
+            <button class="tv-btn" onclick="copyToClipboard('dividend', this)">Copy Symbols</button>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table id="dividendResultsTable">
+            <thead>
+                <tr>
+                    <th>Ticker</th>
+                    <th>Div #1</th>
+                    <th>Div #2</th>
+                    <th>Div #3</th>
+                    <th>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            STATS
+                            <div onclick="document.getElementById('divSort').value='next_div'; renderDividendResults(dataStore.dividend); event.stopPropagation();"
+                                title="Sort by Next Dividend Date"
+                                style="cursor:pointer; background:rgba(255,255,255,0.1); border-radius:4px; padding:2px 4px; display:flex; align-items:center; transition:0.2s;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
                                     <path
                                         d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
                                     </path>
                                 </svg>
                             </div>
-                            <div class="unit-wrapper">
-                                <input type="number" id="divRecWindow" value="5" min="1" max="30">
-                                <span class="unit-tag">Days</span>
-                            </div>
                         </div>
+                    </th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</section>
 
-                        <!-- Recovery Range Module -->
-                        <div class="intel-module">
-                            <div class="intel-header">
-                                <label>RECOVERY RANGE</label>
-                                <div style="display:flex; align-items:center; gap:6px;">
-                                    <label class="switch-pro" style="transform: scale(0.8);">
-                                        <input type="checkbox" id="divStrictFilter">
-                                        <span class="slider-pro"></span>
-                                    </label>
-                                    <span style="font-size:0.6rem; font-weight:800; opacity:0.6;">STRICT</span>
-                                </div>
-                            </div>
-                            <div class="range-wrapper" style="margin-top: 5px;">
-                                <div style="flex:1; position:relative;">
-                                    <div class="unit-wrapper">
-                                        <input type="number" id="divTargetPct" value="90" min="0" max="100">
-                                        <span class="unit-tag">%</span>
-                                    </div>
-                                    <label class="mini-label">
-                                        <input type="checkbox" id="chkMin" class="cyber-check" checked
-                                            onchange="toggleInput('divTargetPct', this)">
-                                        <span>MIN</span>
-                                    </label>
-                                </div>
-                                <div style="flex:1; position:relative;">
-                                    <div class="unit-wrapper">
-                                        <input type="number" id="divMaxTargetPct" value="100" min="0" max="100">
-                                        <span class="unit-tag">%</span>
-                                    </div>
-                                    <label class="mini-label">
-                                        <input type="checkbox" id="chkMax" class="cyber-check" checked
-                                            onchange="toggleInput('divMaxTargetPct', this)">
-                                        <span>MAX</span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- UPCOMING FILTER SUB-TERMINAL -->
-                    <div class="sub-terminal">
-                        <div
-                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
-                            <div style="display:flex; align-items:center; gap:0.75rem;">
-                                <div
-                                    style="width:8px; height:8px; border-radius:50%; background:var(--accent-primary); box-shadow:0 0 10px var(--accent-primary);">
-                                </div>
-                                <h3
-                                    style="margin:0; font-size:0.9rem; letter-spacing:1px; text-transform:uppercase; font-weight:800;">
-                                    Upcoming Ex-Date Radar</h3>
-                            </div>
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <label class="switch-pro">
-                                    <input type="checkbox" id="divUpcomingFilter">
-                                    <span class="slider-pro"></span>
-                                </label>
-                                <span style="font-size:0.65rem; font-weight:800; color:var(--text-secondary);">ACTIVE
-                                    RADAR</span>
-                            </div>
-                        </div>
-
-                        <div
-                            style="display:flex; align-items:center; gap:1.5rem; background:rgba(0,0,0,0.5); padding:1rem; border-radius:8px;">
-                            <div style="flex:1;">
-                                <div
-                                    style="font-size:0.65rem; font-weight:800; color:var(--text-secondary); margin-bottom:0.5rem; text-transform:uppercase;">
-                                    Scan Horizon</div>
-                                <div class="unit-wrapper">
-                                    <input type="number" id="divUpcomingDays" value="14" min="1" max="90"
-                                        style="background:transparent; border:none; padding-left:0 !important; font-size:1.2rem;">
-                                    <span class="unit-tag">Days</span>
-                                </div>
-                                <div style="margin-top: 8px;">
-                                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
-                                        <input type="checkbox" id="divIncludeToday" class="cyber-check">
-                                        <span
-                                            style="font-size:0.65rem; font-weight:800; color:var(--text-secondary); opacity:0.8;">INCLUDE
-                                            TODAY</span>
-                                    </label>
-                                </div>
-                            </div>
-                            <div style="width:1px; height:40px; background:rgba(255,255,255,0.05);"></div>
-                            <div style="flex:2; font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">
-                                Filters results to only show tickers with an ex-dividend date within the specified
-                                horizon.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <button class="btn-primary" id="analyzeDividendBtn" onclick="startDividendAnalysis()"
-                style="margin-top: 1rem; position: relative; z-index: 10;">
-                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                    <path
-                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
-                    </path>
-                </svg>
-                Analyze Dividend Recovery
-            </button>
-
-            <div id="divProgressContainer" class="progress-area" style="display:none; margin-top:2rem;">
-                <div class="progress-header">
-                    <span id="divProgressText">Analyzing Dividends...</span>
-                    <span id="divProgressPercent">0%</span>
-                </div>
-                <div class="progress-track">
-                    <div id="divProgressFill" class="progress-fill"></div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Rebalance Patterns Section -->
-        <section id="rebalanceSection" class="glass-card" style="display:none; animation: slideIn 0.6s ease-out;">
-            <div style="margin-bottom: 2rem;">
-                <div
-                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap: wrap; gap: 1rem;">
-                    <h2 style="margin:0; font-family:'Outfit'; font-weight:800; font-size:1.4rem;">Rebalance Pattern
-                        Terminal</h2>
-                    <div class="master-list-control">
-                        <div style="display:flex; align-items:center; gap:0.5rem;">
-                            <label class="switch">
-                                <input type="checkbox" id="rebMasterList" onchange="updateControlColors()">
-                                <span class="slider"></span>
-                            </label>
-                            <span id="rebLabelMasterList" onclick="openMasterListModal()"
-                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
-                                Master List</span>
-                        </div>
-                        <div style="display:flex; align-items:center; gap:0.5rem; margin-left:1rem;">
-                            <label class="switch">
-                                <input type="checkbox" id="rebCefList" onchange="updateControlColors()">
-                                <span class="slider"></span>
-                            </label>
-                            <span id="rebLabelCefList" onclick="openCEFListModal()"
-                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
-                                CEF List</span>
-                        </div>
-                        <div style="display:flex; align-items:center; gap:0.5rem; margin-left:1rem;">
-                            <label class="switch">
-                                <input type="checkbox" id="rebPffList" onchange="updateControlColors()">
-                                <span class="slider"></span>
-                            </label>
-                            <span id="rebLabelPffList" onclick="openPFFModal()"
-                                style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); cursor:pointer;">Analyze
-                                PFF Holdings</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="intel-grid">
-                <div class="input-group">
-                    <div class="intel-header">
-                        <label>TARGET NODES</label>
-                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
-                            viewBox="0 0 24 24" style="opacity:0.5">
-                            <path d="M4 6h16M4 12h16M4 18h7"></path>
-                        </svg>
-                    </div>
-                    <textarea id="rebalanceTickers" class="textarea-premium" placeholder="AAPL&#10;MSFT..."></textarea>
-                </div>
-
-                <div class="config-terminal">
-                    <div class="intel-module">
-                        <div class="intel-header">
-                            <label>LOOKBACK PERIOD</label>
-                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
-                                viewBox="0 0 24 24" style="opacity:0.5">
-                                <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                        </div>
-                        <select id="rebMonths"
-                            style="width:100%; background:rgba(0,0,0,0.5); border:1px solid var(--glass-border); border-radius:4px; padding:0.8rem; color:white;">
-                            <option value="1">Last 1 Month</option>
-                            <option value="2">Last 2 Months</option>
-                            <option value="3" selected>Last 3 Months</option>
-                            <option value="4">Last 4 Months</option>
-                            <option value="5">Last 5 Months</option>
-                            <option value="6">Last 6 Months</option>
-                        </select>
-                    </div>
-                    <div style="margin-top:1rem; color:var(--text-secondary); font-size:0.85rem; line-height: 1.5;">
-                        <p>Analyzes price performance in the 3 trading days before and after each month-end rebalance
-                            day (last business day).</p>
-                    </div>
-                </div>
-            </div>
-
-            <button class="btn-primary" id="analyzeRebalanceBtn" onclick="startRebalanceAnalysis()"
-                style="margin-top: 1rem;">
-                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                    <path
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-                    </path>
-                </svg>
-                Analyze Rebalance Patterns
-            </button>
-
-            <div id="rebProgressContainer" class="progress-area" style="display:none; margin-top:2rem;">
-                <div class="progress-header">
-                    <span id="rebProgressText">Analyzing Patterns...</span>
-                    <span id="rebProgressPercent">0%</span>
-                </div>
-                <div class="progress-track">
-                    <div id="rebProgressFill" class="progress-fill"></div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Range AI Results Area -->
-        <section id="customResultsCard" class="glass-card" style="display:none; animation: slideUp 0.6s ease-out;">
-            <div class="results-header">
-                <div>
-                    <h2 class="results-title">Range Stability Output</h2>
-                    <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:0.3rem;">
-                        High-probability stability nodes identified by Range AI filters.
-                    </p>
-                </div>
-                <div>
-                    <span class="badge" id="rangeMatchCount">0 Symbols Found</span>
-                    <button class="tv-btn" onclick="copyToClipboard('custom', this)">Copy Symbols</button>
-                </div>
-            </div>
-            <div class="table-responsive">
-                <table id="customResultsTable">
-                    <thead>
-                        <tr>
-                            <th style="cursor:pointer;" onclick="sortRangeResults('ticker')">Ticker ↕</th>
-                            <th>Current / Range</th>
-                            <th style="cursor:pointer;" onclick="sortRangeResults('percent_range')">% Range ↕</th>
-                            <th>Touch (L/H)</th>
-                            <th style="cursor:pointer;" onclick="sortRangeResults('cycle')">Cycle ↕</th>
-                            <th style="cursor:pointer; background:rgba(67, 97, 238, 0.1);"
-                                onclick="sortRangeResults('score')">Score ↕</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </section>
-
-        <!-- Smart Watchlist results removed -->
-
-        <!-- Imbalance AI Results Area -->
-        <section id="imbalanceResultsCard" class="glass-card" style="display:none; animation: slideUp 0.6s ease-out;">
-            <div class="results-header">
-                <div>
-                    <h2 class="results-title">Imbalance Pattern Output</h2>
-                    <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:0.3rem;">
-                        Directional liquidity imbalances detected in recent sessions.
-                    </p>
-                </div>
-                <div>
-                    <span id="imbMatchCount" class="badge">0 Symbols Found</span>
-                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end;">
-                        <button class="tv-btn" onclick="copyToClipboard('imbalance', this)">Copy All</button>
-                        <button class="tv-btn" style="background: rgba(16,185,129,0.2); border-color: var(--success);"
-                            onclick="copyToClipboard('imbalance', this, 'Green')">Copy Green</button>
-                        <button class="tv-btn" style="background: rgba(239,68,68,0.2); border-color: var(--error);"
-                            onclick="copyToClipboard('imbalance', this, 'Red')">Copy Red</button>
-                    </div>
-                </div>
-            </div>
-            <div class="table-responsive">
-                <table id="imbalanceResultsTable">
-                    <thead>
-                        <tr>
-                            <th class="sortable" onclick="sortImbalanceTable(0, 'string')">Ticker ↕</th>
-                            <th>
-                                <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
-                                    <span class="sortable" onclick="sortImbalanceTable(1, 'string')">Pattern ↕</span>
-                                    <div style="display:flex; gap:4px;">
-                                        <button id="btnFilterGreen" class="filter-btn green-filter active"
-                                            onclick="toggleImbFilter('Green')">Green</button>
-                                        <button id="btnFilterRed" class="filter-btn red-filter active"
-                                            onclick="toggleImbFilter('Red')">Red</button>
-                                    </div>
-                                </div>
-                            </th>
-                            <th class="sortable" onclick="sortImbalanceTable(2, 'number')">Match Count ↕</th>
-                            <th class="sortable" onclick="sortImbalanceTable(3, 'number')">Avg Wick ↕</th>
-                            <th class="sortable" onclick="sortImbalanceTable(4, 'number')">Max Wick ↕</th>
-                            <th class="sortable" onclick="sortImbalanceTable(5, 'number')">Avg End $ ↕</th>
-                            <th class="sortable" onclick="sortImbalanceTable(6, 'number')">Avg Max $ ↕</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </section>
-
-        <!-- Dividend Recovery Results Area -->
-        <section id="dividendResultsCard" class="glass-card" style="display:none; animation: slideUp 0.6s ease-out;">
-            <div class="results-header">
-                <div>
-                    <h2 class="results-title">Dividend Recovery Analysis</h2>
-                    <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:0.3rem;">
-                        Recovery timeline tracking for post-dividend price movements.
-                    </p>
-                </div>
-                <div>
-                    <span id="divMatchCount" class="badge">0 Symbols Analyzed</span>
-                    <button class="tv-btn" onclick="copyToClipboard('dividend', this)">Copy Symbols</button>
-                </div>
-            </div>
-            <div class="table-responsive">
-                <table id="dividendResultsTable">
-                    <thead>
-                        <tr>
-                            <th>Ticker</th>
-                            <th>Div #1</th>
-                            <th>Div #2</th>
-                            <th>Div #3</th>
-                            <th>
-                                <div style="display:flex; align-items:center; gap:6px;">
-                                    STATS
-                                    <div onclick="document.getElementById('divSort').value='next_div'; renderDividendResults(dataStore.dividend); event.stopPropagation();"
-                                        title="Sort by Next Dividend Date"
-                                        style="cursor:pointer; background:rgba(255,255,255,0.1); border-radius:4px; padding:2px 4px; display:flex; align-items:center; transition:0.2s;">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="2">
-                                            <path
-                                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
-                                            </path>
-                                        </svg>
-                                    </div>
-                                </div>
-                            </th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </section>
-
-        <!-- Rebalance Patterns Results Area -->
-        <section id="rebalanceResultsCard" class="glass-card" style="display:none; animation: slideUp 0.6s ease-out;">
-            <div class="results-header">
-                <div>
-                    <h2 class="results-title">Rebalance Pattern Analysis</h2>
-                    <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:0.3rem;">
-                        Average performance and win rates around month-end rebalancing windows.
-                    </p>
-                </div>
-                <div>
-                    <span id="rebMatchCount" class="badge">0 Symbols Analyzed</span>
-                    <button class="tv-btn" onclick="copyToClipboard('rebalance', this)">Copy Symbols</button>
-                </div>
-            </div>
-            <div class="table-responsive">
-                <table id="rebalanceResultsTable">
-                    <thead>
-                        <tr>
-                            <th onclick="sortRebalance('ticker')" style="cursor:pointer;">Ticker ↕</th>
-                            <th onclick="sortRebalance('avg_pre_3_diff')" style="cursor:pointer;">Pre-3 ($) ↕</th>
-                            <th onclick="sortRebalance('avg_reba_body_diff')" style="cursor:pointer;">Reba ($) ↕</th>
-                            <th onclick="sortRebalance('avg_post_3_diff')" style="cursor:pointer;">Post-3 ($) ↕</th>
-                            <th onclick="sortRebalance('pre_3_std_pct')" style="cursor:pointer;"
-                                title="Pre-3 Standard Deviation (%)">Pre SD ↕</th>
-                            <th onclick="sortRebalance('reba_body_std_pct')" style="cursor:pointer;"
-                                title="Rebalance Day Standard Deviation (%)">Reb SD ↕</th>
-                            <th onclick="sortRebalance('post_3_std_pct')" style="cursor:pointer;"
-                                title="Post-3 Standard Deviation (%)">Post SD ↕</th>
-                            <th onclick="sortRebalance('volume')" style="cursor:pointer;"
-                                title="90d Avg | Pre Avg | Reb Day | Post Avg">Volume Detailed ↕</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </section>
-
-        <!-- No Results Message -->
-        <div id="noResults"
-            style="display:none; text-align:center; padding:3rem 0; color:var(--text-secondary); font-style:italic;">
-            No datasets matched the defined intelligence parameters.
+<!-- Rebalance Patterns Results Area -->
+<section id="rebalanceResultsCard" class="glass-card" style="display:none; animation: slideUp 0.6s ease-out;">
+    <div class="results-header">
+        <div>
+            <h2 class="results-title">Rebalance Pattern Analysis</h2>
+            <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:0.3rem;">
+                Average performance and win rates around month-end rebalancing windows.
+            </p>
         </div>
-    </main>
+        <div>
+            <span id="rebMatchCount" class="badge">0 Symbols Analyzed</span>
+            <button class="tv-btn" onclick="copyToClipboard('rebalance', this)">Copy Symbols</button>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table id="rebalanceResultsTable">
+            <thead>
+                <tr>
+                    <th onclick="sortRebalance('ticker')" style="cursor:pointer;">Ticker ↕</th>
+                    <th onclick="sortRebalance('avg_pre_3_diff')" style="cursor:pointer;">Pre-3 ($) ↕</th>
+                    <th onclick="sortRebalance('avg_reba_body_diff')" style="cursor:pointer;">Reba ($) ↕</th>
+                    <th onclick="sortRebalance('avg_post_3_diff')" style="cursor:pointer;">Post-3 ($) ↕</th>
+                    <th onclick="sortRebalance('pre_3_std_pct')" style="cursor:pointer;"
+                        title="Pre-3 Standard Deviation (%)">Pre SD ↕</th>
+                    <th onclick="sortRebalance('reba_body_std_pct')" style="cursor:pointer;"
+                        title="Rebalance Day Standard Deviation (%)">Reb SD ↕</th>
+                    <th onclick="sortRebalance('post_3_std_pct')" style="cursor:pointer;"
+                        title="Post-3 Standard Deviation (%)">Post SD ↕</th>
+                    <th onclick="sortRebalance('volume')" style="cursor:pointer;"
+                        title="90d Avg | Pre Avg | Reb Day | Post Avg">Volume Detailed ↕</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</section>
+
+<!-- No Results Message -->
+<div id="noResults"
+    style="display:none; text-align:center; padding:3rem 0; color:var(--text-secondary); font-style:italic;">
+    No datasets matched the defined intelligence parameters.
+</div>
+</main>
 </div>
 
 <script>
@@ -2277,16 +2322,11 @@
         const cefToggle = document.getElementById('rangeCefList');
         const pffToggle = document.getElementById('rangePffList');
         let tickers = [];
+
         if (cefToggle.checked) {
-            document.getElementById('analyzeBtn').disabled = true;
-            document.getElementById('analyzeBtn').innerText = "Loading CEF List...";
-            try {
-                const tRes = await fetch('/get_cef_tickers');
-                const tData = await tRes.json();
-                tickers = tData.tickers || [];
-            } catch (e) {
-                alert("Failed to load CEF list: " + e.message);
-                resetUI();
+            tickers = getSelectedCefTickers('custom');
+            if (tickers.length === 0) {
+                alert("Please select at least one sector to analyze.");
                 return;
             }
         } else if (pffToggle.checked) {
@@ -2337,7 +2377,7 @@
             const tickersElement = document.getElementById('tickers');
             const rawTickers = tickersElement.value;
             if (!rawTickers.trim()) {
-                alert("Please enter tickers or select a list");
+                alert("Please enter tickers or select a list to analyze.");
                 return;
             }
             tickers = rawTickers.replace(/\n/g, ',').split(',').map(t => t.trim()).filter(t => t);
@@ -2456,15 +2496,9 @@
         let tickers = [];
 
         if (cefToggle.checked) {
-            document.getElementById('analyzeImbalanceBtn').disabled = true;
-            document.getElementById('analyzeImbalanceBtn').innerText = "Loading CEF List...";
-            try {
-                const tRes = await fetch('/get_cef_tickers');
-                const tData = await tRes.json();
-                tickers = tData.tickers || [];
-            } catch (e) {
-                alert("Failed to load CEF list: " + e.message);
-                resetUI();
+            tickers = getSelectedCefTickers('imbalance');
+            if (tickers.length === 0) {
+                alert("Please select at least one sector to analyze.");
                 return;
             }
         } else if (pffToggle.checked) {
@@ -2495,7 +2529,7 @@
             const tickersElement = document.getElementById('imbalanceTickers');
             const rawTickers = tickersElement.value;
             if (!rawTickers.trim()) {
-                alert("Please enter tickers or select a list");
+                alert("Please enter tickers or select a list to analyze.");
                 return;
             }
             tickers = rawTickers.replace(/\n/g, ',').split(',').map(t => t.trim()).filter(t => t);
@@ -2966,6 +3000,70 @@
         setTimeout(() => btn.innerText = oldText, 2000);
     }
 
+    // --- CEF Sector Grouping Logic ---
+    let cefSectors = {}; // { SectorName: [Ticker1, Ticker2, ...] }
+
+    async function loadSectors() {
+        if (Object.keys(cefSectors).length > 0) return;
+        try {
+            const res = await fetch('/get_cef_sectors');
+            const data = await res.json();
+            cefSectors = data.sectors || {};
+            renderSectorCheckboxes();
+        } catch (e) {
+            console.error("Failed to load CEF sectors:", e);
+        }
+    }
+
+    function renderSectorCheckboxes() {
+        ['custom', 'imbalance', 'dividend'].forEach(type => {
+            const container = document.getElementById(`${type}SectorCheckboxes`);
+            if (!container) return;
+            container.innerHTML = '';
+
+            const sortedSectors = Object.keys(cefSectors).sort();
+            sortedSectors.forEach(sector => {
+                const div = document.createElement('div');
+                div.style.display = 'flex';
+                div.style.alignItems = 'center';
+                div.style.gap = '8px';
+                div.innerHTML = `
+                    <input type="checkbox" class="${type}-sector-checkbox" value="${sector}" id="${type}-sector-${sector.replace(/\s+/g, '-')}">
+                    <label for="${type}-sector-${sector.replace(/\s+/g, '-')}" style="font-size:0.8rem; color:var(--text-primary); cursor:pointer;">
+                        ${sector} <span style="font-size:0.65rem; color:var(--text-secondary);">(${cefSectors[sector].length})</span>
+                    </label>
+                `;
+                container.appendChild(div);
+            });
+        });
+    }
+
+    function toggleCefSectors(type) {
+        const isChecked = document.getElementById(type === 'custom' ? 'rangeCefList' : (type === 'imbalance' ? 'imbCefList' : 'divCefList')).checked;
+        const container = document.getElementById(type === 'custom' ? 'customCefSectors' : (type === 'imbalance' ? 'imbalanceCefSectors' : 'dividendCefSectors'));
+        if (container) {
+            container.style.display = isChecked ? 'block' : 'none';
+            if (isChecked) loadSectors();
+        }
+    }
+
+    function selectAllSectors(type) {
+        const checkboxes = document.querySelectorAll(`.${type}-sector-checkbox`);
+        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+        checkboxes.forEach(cb => cb.checked = !allChecked);
+        const btn = event.target;
+        btn.innerText = allChecked ? "Select All" : "Deselect All";
+    }
+
+    function getSelectedCefTickers(type) {
+        const selectedSectors = Array.from(document.querySelectorAll(`.${type}-sector-checkbox:checked`)).map(cb => cb.value);
+        let tickers = [];
+        selectedSectors.forEach(sector => {
+            tickers.push(...cefSectors[sector]);
+        });
+        return [...new Set(tickers)]; // Unique tickers
+    }
+
     function resetUI() {
         document.getElementById('analyzeBtn').disabled = false;
         document.getElementById('analyzeBtn').innerText = "Run Intelligence Report";
@@ -2988,15 +3086,9 @@
         let tickers = [];
 
         if (cefToggle.checked) {
-            document.getElementById('analyzeDividendBtn').disabled = true;
-            document.getElementById('analyzeDividendBtn').innerText = "Loading CEF List...";
-            try {
-                const tRes = await fetch('/get_cef_tickers');
-                const tData = await tRes.json();
-                tickers = tData.tickers || [];
-            } catch (e) {
-                alert("Failed to load CEF list: " + e.message);
-                resetUI();
+            tickers = getSelectedCefTickers('dividend');
+            if (tickers.length === 0) {
+                alert("Please select at least one sector to analyze.");
                 return;
             }
         } else if (pffToggle.checked) {
@@ -3027,7 +3119,7 @@
             const tickersElement = document.getElementById('dividendTickers');
             const rawTickers = tickersElement.value;
             if (!rawTickers.trim()) {
-                alert("Please enter tickers or select a list");
+                alert("Please enter tickers or select a list to analyze.");
                 return;
             }
             tickers = rawTickers.replace(/\n/g, ',').split(',').map(t => t.trim()).filter(t => t);

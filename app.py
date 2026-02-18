@@ -368,6 +368,25 @@ def get_tickers():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/get_cef_sectors', methods=['GET'])
+def get_cef_sectors():
+    try:
+        if os.path.exists('cefs.json'):
+            with open('cefs.json', 'r') as f:
+                cef_data = json.load(f)
+            
+            # Group by sector
+            sectors = {}
+            for ticker, sector in cef_data.items():
+                if sector not in sectors:
+                    sectors[sector] = []
+                sectors[sector].append(ticker)
+            
+            return jsonify({'sectors': sectors})
+        return jsonify({'sectors': {}})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/refresh_prefs', methods=['POST'])
 def refresh_prefs():
     if prefs_cache['status'] == 'processing':
