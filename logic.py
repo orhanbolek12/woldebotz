@@ -72,6 +72,18 @@ TICKER_MAPPINGS = {
     'GL-D': 'GL-PD'
 }
 
+# HARDCODED DIVIDENDS for broken Yahoo Tickers
+# Key: Raw Ticker, Value: List of (Date, Amount)
+MANUAL_DIVIDEND_HISTORY = {
+    'F-C': [('2025-05-15', 0.375), ('2025-08-14', 0.375), ('2025-11-14', 0.375), ('2026-02-13', 0.375)],
+    'F-B': [('2025-05-15', 0.3875), ('2025-08-14', 0.3875), ('2025-11-14', 0.3875), ('2026-02-13', 0.3875)],
+    'F-D': [('2025-04-30', 0.40625), ('2025-07-31', 0.40625), ('2025-10-31', 0.40625), ('2026-01-30', 0.40625)],
+    # Map to YF variants too
+    'F-PC': [('2025-05-15', 0.375), ('2025-08-14', 0.375), ('2025-11-14', 0.375), ('2026-02-13', 0.375)],
+    'F-PB': [('2025-05-15', 0.3875), ('2025-08-14', 0.3875), ('2025-11-14', 0.3875), ('2026-02-13', 0.3875)],
+    'F-PD': [('2025-04-30', 0.40625), ('2025-07-31', 0.40625), ('2025-10-31', 0.40625), ('2026-01-30', 0.40625)]
+}
+
 logging.basicConfig(filename='debug.log', level=logging.DEBUG)
 
 def parse_ticker_yf(raw_ticker):
@@ -145,8 +157,25 @@ def fetch_dividends_fallback(raw_ticker):
     
     # Try StockAnalysis first
     # Many preferreds like BUSEP, CCIA, MFICL are here
-    formats = [raw_ticker.lower(), raw_ticker.lower().replace('-', '')]
-    for fmt in formats:
+    # Try different formats: f-c, fc, F-PC, FPC
+    formats = [
+        raw_ticker.lower(), 
+        raw_ticker.lower().replace('-', ''),
+        raw_ticker.upper(),
+        raw_ticker.upper().replace('-', '')
+    ]
+    
+    # If ticker ends with -P[A-Z], also try -[A-Z]
+    if '-P' in raw_ticker.upper():
+         base, suffix = raw_ticker.upper().split('-P')
+         formats.append(f"{base}-{suffix}".lower())
+         formats.append(f"{base}{suffix}".lower())
+    
+    unique_formats = []
+    for f in formats:
+        if f not in unique_formats: unique_formats.append(f)
+
+    for fmt in unique_formats:
         url = f"https://stockanalysis.com/stocks/{fmt}/dividend/"
         try:
             r = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
@@ -753,6 +782,19 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
             ticker = yf.Ticker(yf_ticker)
             dividends = ticker.dividends
             
+            # Manual Override Check
+            raw_upper = raw_ticker.upper()
+            yf_upper = yf_ticker.upper()
+            if raw_upper in MANUAL_DIVIDEND_HISTORY:
+                manual_data = {pd.to_datetime(d): a for d, a in MANUAL_DIVIDEND_HISTORY[raw_upper]}
+                manual_series = pd.Series(manual_data).sort_index()
+                # Merge or replace? For these notes, replace is safer as YF is broken
+                dividends = manual_series
+            elif yf_upper in MANUAL_DIVIDEND_HISTORY:
+                manual_data = {pd.to_datetime(d): a for d, a in MANUAL_DIVIDEND_HISTORY[yf_upper]}
+                manual_series = pd.Series(manual_data).sort_index()
+                dividends = manual_series
+            
             # If dividends found, we break the retry loop and proceed
             # If strictly empty, it might just be empty, not an error.
             # But if it crashes, we retry.
@@ -774,13 +816,13 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
         
         # FINAL FALLBACK: Scraping
         if dividends.empty:
-            dividends = fetch_dividends_fallback(raw_ticker)
-
-        if dividends.empty:
-            tv_symbol = parse_ticker_tv(raw_ticker)
-            return {'ticker': raw_ticker, 'tv_symbol': tv_symbol, 'error': 'No dividend history found', 'dividends': [], 'current_price': None, 'days_since_last_div': None}
+            # Try with yf_ticker (e.g. F-PC) as it's more likely to match scraping sites than raw user input
+            dividends = fetch_dividends_fallback(yf_ticker)
         
-        recent_divs = dividends.tail(lookback)
+        if dividends.empty:
+            logging.warning(f"No dividend history found for {raw_ticker}")
+
+        recent_divs = dividends.tail(lookback) if not dividends.empty else pd.Series(dtype=float)
         
         # Fetch History with Retry
         hist = pd.DataFrame()
@@ -1111,6 +1153,14 @@ def fetch_rebalance_patterns(tickers, months_back=12, progress_callback=None):
             
             # Get dividends
             dividends = ticker_obj.dividends
+            raw_upper = raw_ticker.upper()
+            yf_upper = yf_ticker.upper()
+            if raw_upper in MANUAL_DIVIDEND_HISTORY:
+                manual_data = {pd.to_datetime(d): a for d, a in MANUAL_DIVIDEND_HISTORY[raw_upper]}
+                dividends = pd.Series(manual_data).sort_index()
+            elif yf_upper in MANUAL_DIVIDEND_HISTORY:
+                manual_data = {pd.to_datetime(d): a for d, a in MANUAL_DIVIDEND_HISTORY[yf_upper]}
+                dividends = pd.Series(manual_data).sort_index()
             
             # Identify month-end rebalance days
             df['Month'] = df.index.month
