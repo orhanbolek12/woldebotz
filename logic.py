@@ -97,6 +97,45 @@ def parse_ticker_yf(raw_ticker):
     # These often work directly in YF. If they fail, resolve_ticker_yf will try variations.
     return raw_ticker
 
+def fetch_history_with_fallback(ticker_obj, period="3mo", interval="1d", auto_adjust=True):
+    """
+    Fetches history from yfinance with a fallback to hourly data if daily data is missing.
+    Daily data for some tickers (like Ford Notes F-PC, F-PB, F-PD) is broken on Yahoo Finance.
+    """
+    df = ticker_obj.history(period=period, interval=interval, auto_adjust=auto_adjust)
+    
+    # If we requested daily and got almost nothing, try hourly fallback
+    if interval == "1d" and len(df) <= 1:
+        logging.info(f"Daily history failed for {ticker_obj.ticker} (rows={len(df)}). Trying hourly fallback...")
+        df_h = ticker_obj.history(period=period, interval="1h", auto_adjust=auto_adjust)
+        
+        if not df_h.empty:
+            logging.info(f"Hourly fallback success for {ticker_obj.ticker} (rows={len(df_h)}). Resampling to daily...")
+            # Resample hourly to daily
+            # Open: first 'Open' of the day
+            # High: max 'High' of the day
+            # Low: min 'Low' of the day
+            # Close: last 'Close' of the day
+            # Volume: sum 'Volume' of the day
+            
+            resampled = df_h.resample('D').agg({
+                'Open': 'first',
+                'High': 'max',
+                'Low': 'min',
+                'Close': 'last',
+                'Volume': 'sum'
+            }).dropna()
+            
+            # Ensure it has Dividends and Stock Splits columns if original had them
+            if 'Dividends' in df_h.columns:
+                resampled['Dividends'] = df_h['Dividends'].resample('D').sum().reindex(resampled.index).fillna(0)
+            if 'Stock Splits' in df_h.columns:
+                resampled['Stock Splits'] = df_h['Stock Splits'].resample('D').sum().reindex(resampled.index).fillna(0)
+                
+            return resampled
+            
+    return df
+
 def fetch_dividends_fallback(raw_ticker):
     """
     Scrapes dividend history from StockAnalysis.com or DividendInvestor.com
@@ -227,7 +266,7 @@ def resolve_ticker_yf(raw_ticker):
     for cand in candidates:
         try:
             t = yf.Ticker(cand)
-            hist = t.history(period="5d")
+            hist = fetch_history_with_fallback(t, period="5d")
             if not hist.empty:
                 return cand
         except:
@@ -244,13 +283,13 @@ def fetch_and_process(tickers, progress_callback=None):
         
         try:
             ticker = yf.Ticker(yf_ticker)
-            df = ticker.history(period="3mo", auto_adjust=True)
+            df = fetch_history_with_fallback(ticker, period="3mo", auto_adjust=True)
             
             if df.empty:
                 resolved = resolve_ticker_yf(raw_ticker)
                 if resolved:
                      yf_ticker = resolved
-                     df = yf.Ticker(resolved).history(period="3mo", auto_adjust=True)
+                     df = fetch_history_with_fallback(yf.Ticker(resolved), period="3mo", auto_adjust=True)
                 
             if df.empty:
                 logging.error(f"Failed to fetch {yf_ticker} (Empty)")
@@ -305,12 +344,12 @@ def fetch_imbalance(tickers, days=30, min_count=20, max_wick=0.12, min_profit=0.
         tv_symbol = parse_ticker_tv(raw_ticker)
         try:
             ticker_obj = yf.Ticker(yf_ticker)
-            df = ticker_obj.history(period="6mo", interval="1d", auto_adjust=True)
+            df = fetch_history_with_fallback(ticker_obj, period="6mo", interval="1d", auto_adjust=True)
             if df.empty:
                  resolved = resolve_ticker_yf(raw_ticker)
                  if resolved:
                      yf_ticker = resolved
-                     df = yf.Ticker(resolved).history(period="6mo", interval="1d", auto_adjust=True)
+                     df = fetch_history_with_fallback(yf.Ticker(resolved), period="6mo", interval="1d", auto_adjust=True)
             df = df.dropna(how='all')
             if df.empty or len(df) < days: continue
             df_slice = df.tail(days).copy()
@@ -450,13 +489,13 @@ def fetch_range_ai(tickers, days=90,
         try:
             ticker_obj = yf.Ticker(yf_ticker)
             # Fetch 6 months to ensure enough buffer for 90 days + indicators
-            df = ticker_obj.history(period="6mo", interval="1d", auto_adjust=True)
+            df = fetch_history_with_fallback(ticker_obj, period="6mo", interval="1d", auto_adjust=True)
             
             if df.empty:
                  resolved = resolve_ticker_yf(raw_ticker)
                  if resolved:
                      yf_ticker = resolved
-                     df = yf.Ticker(resolved).history(period="6mo", interval="1d", auto_adjust=True)
+                     df = fetch_history_with_fallback(yf.Ticker(resolved), period="6mo", interval="1d", auto_adjust=True)
             
             if df.empty or len(df) < days: continue
             
@@ -747,7 +786,7 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
         hist = pd.DataFrame()
         for attempt in range(max_retries):
             try:
-                hist = ticker.history(period="2y", auto_adjust=False)
+                hist = fetch_history_with_fallback(ticker, period="2y", auto_adjust=False)
                 if not hist.empty: break
             except:
                 time.sleep(1)
@@ -756,7 +795,7 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
             # If price history failed too, try the resolved ticker
             resolved = resolve_ticker_yf(raw_ticker)
             if resolved:
-                 hist = yf.Ticker(resolved).history(period="2y", auto_adjust=False)
+                 hist = fetch_history_with_fallback(yf.Ticker(resolved), period="2y", auto_adjust=False)
         
         if hist.empty:
             tv_symbol = parse_ticker_tv(raw_ticker)
@@ -1056,13 +1095,13 @@ def fetch_rebalance_patterns(tickers, months_back=12, progress_callback=None):
         try:
             ticker_obj = yf.Ticker(yf_ticker)
             # Fetch 2 years for context and rolling averages
-            df = ticker_obj.history(period="2y", interval="1d", auto_adjust=True)
+            df = fetch_history_with_fallback(ticker_obj, period="2y", interval="1d", auto_adjust=True)
             if df.empty:
                 resolved = resolve_ticker_yf(raw_ticker)
                 if resolved:
                     yf_ticker = resolved
                     ticker_obj = yf.Ticker(resolved)
-                    df = ticker_obj.history(period="2y", interval="1d", auto_adjust=True)
+                    df = fetch_history_with_fallback(ticker_obj, period="2y", interval="1d", auto_adjust=True)
             
             df = df.dropna(how='all')
             if df.empty or len(df) < 100: continue # Need enough for 90d avg
