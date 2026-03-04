@@ -121,8 +121,6 @@ def fetch_pre_exdiv_momentum(
             group_by="ticker",
             actions=False,
             threads=True,
-            show_errors=False,
-            progress=False,
         )
         logging.info(f"[PRE-EXDIV] Phase 1 complete. Shape: {batch_data.shape}")
     except Exception as e:
