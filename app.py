@@ -16,9 +16,28 @@ import json
 import os
 import glob
 import pandas as pd
+import numpy as np
 import logging
 
 app = Flask(__name__)
+
+# -----------------------------------------------------------------
+# Custom JSON encoder: converts numpy int64 / float64 → native types
+# so jsonify() never throws "Object of type int64 is not JSON serializable"
+# -----------------------------------------------------------------
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, (np.integer,)):
+            return int(obj)
+        if isinstance(obj, (np.floating,)):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+        return super().default(obj)
+
+app.json_encoder = NumpyEncoder
 
 # Caching for sector map to avoid repeated disk reads
 _sector_map_cache = None
