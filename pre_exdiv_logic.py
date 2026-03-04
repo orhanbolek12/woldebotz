@@ -70,8 +70,8 @@ def fetch_pre_exdiv_momentum(
     now = datetime.now()
     cutoff_date = (now + timedelta(days=lookahead_days)).date()
 
-    # 1. Prepare benchmark and ETF data first (Chunked to be safe)
-    logging.info("[PRE-EXDIV] Fetching benchmarks and sector ETFs...")
+    # 1. Prepare benchmark and ETF data first
+    yield {"type": "progress", "pct": 5, "msg": "Fetching benchmarks and sector ETFs..."}
     benchmark_symbols = list(set(BENCHMARKS))
     for etf_list in SECTOR_ETFS.values():
         benchmark_symbols.extend(etf_list)
@@ -93,22 +93,12 @@ def fetch_pre_exdiv_momentum(
     def _extract_df(data, sym):
         try:
             if data is None or data.empty: return pd.DataFrame()
-            # If sym is exactly one of the columns (single ticker case)
             if sym in data.columns and not isinstance(data.columns, pd.MultiIndex):
                 return data[[sym]].dropna(how="all")
-            
             if isinstance(data.columns, pd.MultiIndex):
-                # Level 0 is usually Ticker if group_by='ticker'
-                if sym in data.columns.get_level_values(0):
-                    return data[sym].dropna(how="all")
-                # Level 1 fallback
-                if sym in data.columns.get_level_values(1):
-                    return data.xs(sym, axis=1, level=1).dropna(how="all")
-            
-            # Direct access if it's not MultiIndex but columns are [Open, Close, ...]
-            if "Close" in data.columns:
-                return data.dropna(how="all")
-                
+                if sym in data.columns.get_level_values(0): return data[sym].dropna(how="all")
+                if sym in data.columns.get_level_values(1): return data.xs(sym, axis=1, level=1).dropna(how="all")
+            if "Close" in data.columns: return data.dropna(how="all")
             return pd.DataFrame()
         except: return pd.DataFrame()
 
@@ -136,9 +126,10 @@ def fetch_pre_exdiv_momentum(
         chunk_yf = [yf_target_map[t] for t in chunk]
         
         logging.info(f"[PRE-EXDIV] Fetching chunk {i//FETCH_CHUNK_SIZE + 1}: {chunk}")
+        pct = 10 + int((i / total_tickers) * 85)
+        yield {"type": "progress", "pct": pct, "msg": f"Analyzing chunk {i//FETCH_CHUNK_SIZE + 1}: {', '.join(chunk[:3])}..."}
         
         try:
-            # We use actions=True to get Dividends, but if it fails for some tickers, we'll try Ticker().dividends
             chunk_data = yf.download(chunk_yf, period="2y", interval="1d", group_by="ticker", actions=True, progress=False)
         except Exception as e:
             logging.warning(f"[PRE-EXDIV] Chunk download failed: {e}")
@@ -146,84 +137,59 @@ def fetch_pre_exdiv_momentum(
 
         for raw_ticker in chunk:
             processed_count += 1
-            if progress_callback and progress_callback(processed_count, total_tickers) == "STOP":
-                return _finalize_results(results, etf_summary, spy_ret_21d, total_tickers)
-
             yf_sym = yf_target_map[raw_ticker]
             sector_key = sector_map.get(raw_ticker.upper(), "sector_equity")
 
             try:
                 df = _extract_df(chunk_data, yf_sym)
-                
-                # Check if we have price data
                 if df.empty or len(df) < 60:
-                    # Fallback for empty data
                     try:
                         t = yf.Ticker(yf_sym)
                         df = fetch_history_with_fallback(t, period="2y")
                     except: pass
                 
-                if df.empty or len(df) < 60:
-                    logging.warning(f"[PRE-EXDIV DEBUG] {raw_ticker} dropped: No price data.")
-                    continue
+                if df.empty or len(df) < 60: continue
 
-                # Get Dividends
                 divs = pd.Series(dtype="float64")
-                if 'Dividends' in df.columns:
-                    divs = df['Dividends'][df['Dividends'] > 0]
-                
+                if 'Dividends' in df.columns: divs = df['Dividends'][df['Dividends'] > 0]
                 if divs.empty:
-                    try:
-                        divs = yf.Ticker(yf_sym).dividends
+                    try: divs = yf.Ticker(yf_sym).dividends
                     except: pass
 
-                # Normalise timezone for dividends
                 if not divs.empty:
                     divs.index = divs.index.tz_localize(None) if divs.index.tz is None else divs.index.tz_convert(None)
                     divs = divs.sort_index()
 
-                # Manual override
                 for key in (raw_ticker.upper(), yf_sym.upper()):
                     if key in MANUAL_DIVIDEND_HISTORY:
                         manual_data = {pd.to_datetime(d): a for d, a in MANUAL_DIVIDEND_HISTORY[key]}
                         divs = pd.Series(manual_data).sort_index()
                         break
 
-                if divs.empty:
-                    logging.warning(f"[PRE-EXDIV DEBUG] {raw_ticker} dropped: No dividends.")
-                    continue
+                if divs.empty: continue
 
-                # Find ex-date
                 future_divs = divs[divs.index.date >= now.date()]
-                target_ex_date = None
-                is_declared = False
-                div_amount = 0.0
+                target_ex_date, is_declared, div_amount = None, False, 0.0
 
                 if not future_divs.empty:
                     target_ex_date = future_divs.index[0].date()
                     div_amount = future_divs.iloc[0]
                     is_declared = True
                 elif show_estimated:
-                    last_div_ts = divs.index[-1]
-                    last_amount = divs.iloc[-1]
+                    last_div_ts, last_amount = divs.index[-1], divs.iloc[-1]
                     if len(divs) >= 2:
                         diff = (last_div_ts - divs.index[-2]).days
                         if 20 <= diff <= 45: est = last_div_ts + relativedelta(months=1)
                         elif 70 <= diff <= 110: est = last_div_ts + relativedelta(months=3)
                         else: est = last_div_ts + timedelta(days=int((divs.index[-1]-divs.index[0]).days/(len(divs)-1)))
-                        
                         if est.date() >= now.date():
                             target_ex_date = est.date()
                             div_amount = last_amount
                             is_declared = False
 
-                if not target_ex_date or target_ex_date > cutoff_date:
-                    logging.warning(f"[PRE-EXDIV DEBUG] {raw_ticker} dropped: No ex-date in range.")
-                    continue
+                if not target_ex_date or target_ex_date > cutoff_date: continue
 
                 days_to_ex = (target_ex_date - now.date()).days
-                
-                # Scoring
                 current_price = df["Close"].iloc[-1]
                 price_ma200 = df["Close"].rolling(200).mean().iloc[-1]
                 discount_score = max(0, min(100, 50 + (((price_ma200 - current_price) / price_ma200 * 500) if price_ma200 else 0)))
@@ -235,12 +201,9 @@ def fetch_pre_exdiv_momentum(
                     elif vals[2] < vals[1]: dist_score = 40
 
                 yield_score = max(0, min(100, (div_amount * 12 / current_price * 1000) if current_price else 0))
-                
                 avg_vol = df["Volume"].tail(20).mean()
                 dollar_vol = (avg_vol * current_price) / 1000
-                if dollar_vol < min_volume_daily / 1000:
-                    logging.warning(f"[PRE-EXDIV DEBUG] {raw_ticker} dropped: Low volume.")
-                    continue
+                if dollar_vol < min_volume_daily / 1000: continue
                 liq_score = min(100, (dollar_vol / 2000) * 100)
 
                 sec_etf = SECTOR_ETFS.get(sector_key, ["SPY"])[0]
@@ -249,25 +212,19 @@ def fetch_pre_exdiv_momentum(
 
                 fund_score = discount_score*0.25 + dist_score*0.25 + yield_score*0.15 + liq_score*0.20 + sec_score*0.15
 
-                # Technicals
                 p21 = df["Close"].iloc[-21] if len(df) >= 21 else df["Close"].iloc[0]
                 mom_score = max(0, min(100, 50 + ((current_price - p21) / p21 * 500)))
-                
                 sma20 = df["Close"].rolling(20).mean().iloc[-1]
                 sma50 = df["Close"].rolling(50).mean().iloc[-1]
                 trend_score = 50 + (25 if current_price > sma20 else 0) + (25 if current_price > sma50 else 0)
-                
                 atr_14 = (df["High"] - df["Low"]).tail(14).mean()
                 atr_pct = atr_14 / current_price if current_price else 0
                 vol_score = max(0, min(100, 100 - (atr_pct * 2000)))
-                
                 is_accumulating = (df["Volume"].tail(5).mean() > df["Volume"].tail(20).mean()) and (current_price > sma20)
                 vol_pattern_score = 80 if is_accumulating else 40
-                
                 h52, l52 = df["High"].tail(252).max(), df["Low"].tail(252).min()
                 pos_score = ((current_price - l52) / (h52 - l52) * 100) if (h52 - l52) else 50
 
-                # Pre-ExDiv Backtest
                 hist_ex = divs[divs.index.date < now.date()].index
                 rets = []
                 for ex in hist_ex:
@@ -291,11 +248,8 @@ def fetch_pre_exdiv_momentum(
                     hist_avg_alpha = opt_vals.mean() - 0.0005
                     pre_exdiv_score = max(0, min(100, 50 + (hist_avg_alpha * 2000)))
 
-                if hist_win_rate < min_win_rate or hist_avg_alpha < min_hist_alpha:
-                    logging.warning(f"[PRE-EXDIV DEBUG] {raw_ticker} dropped: Backtest failed.")
-                    continue
+                if hist_win_rate < min_win_rate or hist_avg_alpha < min_hist_alpha: continue
 
-                # RSI
                 d = df["Close"].diff()
                 g, l = (d.where(d > 0, 0)).rolling(14).mean(), (-d.where(d < 0, 0)).rolling(14).mean()
                 rs = g / l
@@ -306,15 +260,13 @@ def fetch_pre_exdiv_momentum(
                 tech_score = mom_score*0.20 + trend_score*0.15 + vol_score*0.15 + vol_pattern_score*0.10 + pos_score*0.10 + pre_exdiv_score*0.20 + rsi_score*0.10
                 comp_score = fund_score * 0.45 + tech_score * 0.55
 
-                if comp_score < min_score:
-                    logging.warning(f"[PRE-EXDIV DEBUG] {raw_ticker} dropped: Score {comp_score:.1f} < {min_score}.")
-                    continue
+                if comp_score < min_score: continue
 
                 stars = "★★★" if comp_score >= 75 else ("★★☆" if comp_score >= 60 else "★☆☆")
                 label = "STRONG" if comp_score >= 75 else ("DECENT" if comp_score >= 60 else "WEAK")
                 s_entry = max(optimal_n, 8 if comp_score >= 75 else (5 if comp_score >= 60 else 3))
                 
-                results.append({
+                ticker_res = {
                     "ticker": raw_ticker, "sector": sector_key, "composite_score": sanitize_val(comp_score, 1),
                     "fundamental_score": sanitize_val(fund_score, 1), "technical_score": sanitize_val(tech_score, 1),
                     "stars": stars, "label": label, "ex_date": target_ex_date.strftime("%Y-%m-%d"),
@@ -331,7 +283,9 @@ def fetch_pre_exdiv_momentum(
                         "trend_score": to_py(int(trend_score)), "volatility_score": to_py(int(vol_score)), "volume_pattern_score": to_py(int(vol_pattern_score)),
                         "price_position_score": to_py(int(pos_score)), "pre_exdiv_score": to_py(int(pre_exdiv_score)), "rsi_score": to_py(int(rsi_score))
                     }
-                })
+                }
+                results.append(ticker_res)
+                yield {"type": "result", "data": ticker_res}
 
             except Exception as e:
                 logging.error(f"[PRE-EXDIV] Error processing {raw_ticker}: {e}")
@@ -340,7 +294,10 @@ def fetch_pre_exdiv_momentum(
         if i + FETCH_CHUNK_SIZE < total_tickers:
             time.sleep(FETCH_CHUNK_SLEEP)
 
-    return _finalize_results(results, etf_summary, spy_ret_21d, total_tickers)
+    # 3. Finalize
+    yield {"type": "progress", "pct": 100, "msg": "Finalizing analysis..."}
+    final_data = _finalize_results(results, etf_summary, spy_ret_21d, total_tickers)
+    yield {"type": "final", "data": final_data}
 
 
 def _finalize_results(results, etf_summary, spy_ret_21d, total_tickers):

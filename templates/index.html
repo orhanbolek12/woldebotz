@@ -4985,25 +4985,21 @@
     // ============================================================
     // PRE EX-DIV MOMENTUM LOGIC
     // ============================================================
-    async function startPreExDivScan() {
-        const tickersText = document.getElementById('pxdTickers').value.trim();
-        if (!tickersText) {
-            alert("No tickers provided.");
-            return;
-        }
-
-        const tickers = tickersText.split(/\r?\n|,/).map(t => t.trim().toUpperCase()).filter(t => t);
+    async function pxdAnalyze() {
+        const tickers = document.getElementById('pxdTickers').value.split(/[\n,]+/).map(t => t.trim()).filter(t => t);
         const lookahead = document.getElementById('pxdLookahead').value;
         const entryMin = document.getElementById('pxdEntryMin').value;
         const entryMax = document.getElementById('pxdEntryMax').value;
         const minScore = document.getElementById('pxdMinScore').value;
-        const minWinRate = document.getElementById('pxdMinWinRate').value / 100;
-        const minAlpha = document.getElementById('pxdMinAlpha').value / 100;
-        const minVol = document.getElementById('pxdMinVol').value * 1000;
+        const minWinRate = document.getElementById('pxdMinWinRate').value;
+        const minAlpha = document.getElementById('pxdMinAlpha').value;
+        const minVol = document.getElementById('pxdMinVol').value;
         const showEstimated = document.getElementById('pxdShowEstimated').checked;
 
-        const btn = document.getElementById('pxdAnalyzeBtn');
-        const progressContainer = document.getElementById('pxdProgressContainer');
+        if (tickers.length === 0) { alert("Please enter at least one ticker."); return; }
+
+        const btn = document.getElementById('pxdSearchBtn');
+        const progressContainer = document.getElementById('pxdProgressWrapper');
         const progressFill = document.getElementById('pxdProgressFill');
         const progressPct = document.getElementById('pxdProgressPct');
         const progressText = document.getElementById('pxdProgressText');
@@ -5012,52 +5008,90 @@
         btn.disabled = true;
         progressContainer.style.display = 'block';
         pipelineSteps.innerHTML = "<div>Initializing secure pipeline...</div>";
-        progressFill.style.width = '5%';
-        progressPct.innerText = '5%';
+        progressFill.style.width = '0%';
+        progressPct.innerText = '0%';
+        progressText.innerText = 'Scanning...';
+
+        // Reset results area
+        pxdRawResults = [];
+        dataStore.preexdiv = [];
+        document.getElementById('pxdResultsBody').innerHTML = '';
+        document.getElementById('pxdResultsWrapper').style.display = 'block';
+        document.getElementById('pxdEmptyState').style.display = 'none';
+        document.getElementById('pxdResultCount').innerText = '0 Found';
 
         try {
-            pipelineSteps.innerHTML += "<div>Fetching historical data & benchmarking sector ETFs...</div>";
-            const res = await fetch('/api/pre-exdiv-scan', {
+            const response = await fetch('/api/pre-exdiv-scan', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    tickers,
-                    lookahead_days: lookahead,
-                    min_entry_day: entryMin,
-                    max_entry_day: entryMax,
-                    min_score: minScore,
-                    min_win_rate: minWinRate,
-                    min_hist_alpha: minAlpha,
-                    min_volume_daily: minVol,
+                    tickers, lookahead_days: lookahead,
+                    min_entry_day: entryMin, max_entry_day: entryMax,
+                    min_score: minScore, min_win_rate: minWinRate,
+                    min_hist_alpha: minAlpha, min_volume_daily: minVol,
                     show_estimated: showEstimated
                 })
             });
 
-            const data = await res.json();
-            if (data.error) throw new Error(data.error);
+            if (!response.ok) throw new Error("Server responded with error status");
 
-            progressFill.style.width = '100%';
-            progressPct.innerText = '100%';
-            progressText.innerText = 'Scan Complete';
-            pipelineSteps.innerHTML += "<div style='color:var(--success)'>Success: Analysis finalized.</div>";
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
 
-            pxdRawResults = data.results || [];
-            dataStore.preexdiv = pxdRawResults;
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
 
-            // Populate Sectors for filter
-            pxdSectors = new Set();
-            pxdRawResults.forEach(r => pxdSectors.add(r.sector));
-            const secFilter = document.getElementById('pxdSectorFilter');
-            secFilter.innerHTML = '<option value="">ALL SECTORS</option>';
-            Array.from(pxdSectors).sort().forEach(s => {
-                secFilter.innerHTML += `<option value="${s}">${s}</option>`;
-            });
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split("\n");
+                buffer = lines.pop(); // Keep partial line
 
-            renderPreExDivResults(pxdRawResults);
-            renderPxdSectorSnapshot(data.sector_snapshot);
-            renderPxdActions(data.todays_actions, data.entering_soon || []);
+                for (const line of lines) {
+                    if (!line.trim()) continue;
+                    try {
+                        const event = JSON.parse(line);
+                        if (event.type === 'progress') {
+                            progressFill.style.width = `${event.pct}%`;
+                            progressPct.innerText = `${event.pct}%`;
+                            pipelineSteps.innerHTML += `<div>${event.msg}</div>`;
+                            // Auto-scroll pipeline steps
+                            pipelineSteps.scrollTop = pipelineSteps.scrollHeight;
+                        } else if (event.type === 'result') {
+                            pxdRawResults.push(event.data);
+                            dataStore.preexdiv.push(event.data);
+                            appendSinglePreExDivResult(event.data, pxdRawResults.length - 1);
+                            document.getElementById('pxdResultCount').innerText = `${pxdRawResults.length} Found`;
+                        } else if (event.type === 'final') {
+                            const data = event.data;
+                            // Populate Sectors for filter
+                            const sectors = new Set();
+                            pxdRawResults.forEach(r => sectors.add(r.sector));
+                            const secFilter = document.getElementById('pxdSectorFilter');
+                            secFilter.innerHTML = '<option value="">ALL SECTORS</option>';
+                            Array.from(sectors).sort().forEach(s => {
+                                secFilter.innerHTML += `<option value="${s}">${s}</option>`;
+                            });
 
-            document.getElementById('pxdResultsWrapper').style.display = 'block';
+                            renderPxdSectorSnapshot(data.sector_snapshot);
+                            renderPxdActions(data.todays_actions, data.entering_soon || []);
+
+                            progressFill.style.width = '100%';
+                            progressPct.innerText = '100%';
+                            progressText.innerText = 'Scan Complete';
+                            pipelineSteps.innerHTML += "<div style='color:var(--success)'>Success: Analysis finalized.</div>";
+                        } else if (event.type === 'error') {
+                            throw new Error(event.message);
+                        }
+                    } catch (e) {
+                        console.error("Error parsing NDJSON line:", e);
+                    }
+                }
+            }
+
+            if (pxdRawResults.length === 0) {
+                document.getElementById('pxdEmptyState').style.display = 'block';
+            }
             document.getElementById('pxdFilterBar').style.display = 'flex';
             document.getElementById('pxdSectorSnapshotWrapper').style.display = 'block';
 
@@ -5068,6 +5102,48 @@
         } finally {
             btn.disabled = false;
         }
+    }
+
+    function appendSinglePreExDivResult(r, idx) {
+        const body = document.getElementById('pxdResultsBody');
+        const row = document.createElement('tr');
+        row.style.animation = `fadeSlideIn 0.3s ease-out 0s forwards`;
+        row.style.opacity = '0';
+
+        const gradeColor = r.label === 'STRONG' ? '#f0b429' : (r.label === 'DECENT' ? '#00ffcc' : 'var(--text-secondary)');
+        const alphaColor = parseFloat(r.hist_avg_alpha) > 0 ? 'var(--success)' : 'var(--error)';
+        const winColor = parseFloat(r.hist_win_rate) >= 60 ? 'var(--success)' : 'var(--text-secondary)';
+        const isNearEntry = Math.abs(r.days_to_ex - r.suggested_entry_day) <= 1;
+        const entryHighlightClass = isNearEntry ? 'entry-window-highlight' : '';
+
+        row.innerHTML = `
+            <td style="font-size:0.7rem; color:var(--text-secondary);">${idx + 1}</td>
+            <td><div class="ticker-name">${r.ticker}</div></td>
+            <td style="font-size:0.75rem;">${r.sector}</td>
+            <td><div class="spread-val" style="${r.label === 'STRONG' ? 'background:rgba(240,180,41,0.2);color:#f0b429;border:1px solid #f0b429;' : ''}">${r.composite_score}</div></td>
+            <td style="font-size:0.75rem; font-weight:800; color:${gradeColor};">${r.stars} ${r.label}</td>
+            <td>${r.declared ? '✅' : '⏳'}</td>
+            <td style="font-size:0.8rem; font-weight:600;">${r.ex_date}</td>
+            <td class="${entryHighlightClass}" style="font-size:0.85rem; font-weight:700;">T-${r.days_to_ex}</td>
+            <td class="${entryHighlightClass}" style="font-size:0.75rem;">${r.suggested_entry_day}d <span style="font-size:0.6rem; color:inherit; opacity:0.7;">(T-${r.suggested_entry_day})</span></td>
+            <td style="color:${alphaColor}; font-weight:700;">${r.hist_avg_alpha}%</td>
+            <td style="color:${winColor}; font-weight:700;">${r.hist_win_rate}%</td>
+            <td style="color:var(--error); font-size:0.75rem;">-${r.stop_loss_pct}%</td>
+            <td style="color:var(--success); font-size:0.75rem;">+${r.reward_target_pct}%</td>
+            <td style="font-size:0.8rem; font-weight:700;">${r.risk_reward}x</td>
+            <td style="font-size:0.7rem; color:var(--text-secondary);">${Math.round(r.avg_dollar_vol / 1000)}K</td>
+            <td>
+                <div style="display:flex; gap:4px;">
+                    ${r.golden_cross ? '<span title="Golden Cross" style="color:#f0b429;">⚜️</span>' : ''}
+                    ${r.is_accumulating ? '<span title="Accumulation" style="color:#00ffcc;">📊</span>' : ''}
+                    ${r.above_sma20 ? '<span title="Above SMA20" style="color:#3b82f6;">↗️</span>' : ''}
+                </div>
+            </td>
+            <td>
+                <button class="tv-btn" style="padding:2px 8px; font-size:0.65rem;" onclick="showPxdDetails('${r.ticker}')">DETAILS</button>
+            </td>
+        `;
+        body.appendChild(row);
     }
 
     function renderPreExDivResults(results) {
@@ -5093,6 +5169,7 @@
 
             const gradeColor = r.label === 'STRONG' ? '#f0b429' : (r.label === 'DECENT' ? '#00ffcc' : 'var(--text-secondary)');
             const alphaColor = parseFloat(r.hist_avg_alpha) > 0 ? 'var(--success)' : 'var(--error)';
+            const winColor = parseFloat(r.hist_win_rate) >= 60 ? 'var(--success)' : 'var(--text-secondary)';
             const isNearEntry = Math.abs(r.days_to_ex - r.suggested_entry_day) <= 1;
             const entryHighlightClass = isNearEntry ? 'entry-window-highlight' : '';
 

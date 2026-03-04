@@ -927,7 +927,7 @@ def get_pff_holdings():
 @app.route('/api/pre-exdiv-scan', methods=['POST'])
 def analyze_pre_exdiv_scan():
     """
-    Endpoint for Pre Ex-Div Momentum analysis.
+    Endpoint for Pre Ex-Div Momentum analysis with streaming support.
     """
     data = request.get_json()
     if not data:
@@ -943,32 +943,35 @@ def analyze_pre_exdiv_scan():
     min_volume_daily = int(data.get('min_volume_daily', 100000))
     show_estimated = bool(data.get('show_estimated', False))
     
-    # If tickers list is empty, we don't have enough context if list_type is missing,
-    # but the frontend will usually supply the specific tickers directly.
     if not tickers:
         return jsonify({"results": []})
         
-    try:
-        # Get sector map for proper scoring
-        sector_map = get_sector_map()
-        
-        results = fetch_pre_exdiv_momentum(
-            tickers=tickers,
-            lookahead_days=lookahead_days,
-            min_entry_day=min_entry_day,
-            max_entry_day=max_entry_day,
-            min_score=min_score,
-            min_win_rate=min_win_rate,
-            min_hist_alpha=min_hist_alpha,
-            min_volume_daily=min_volume_daily,
-            show_estimated=show_estimated,
-            sector_map=sector_map
-        )
-        return jsonify(results)
-    except Exception as e:
-        import traceback
-        logging.error(f"Pre-ExDiv API Error: {e}\n{traceback.format_exc()}")
-        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+    def generate():
+        import json
+        try:
+            sector_map = get_sector_map()
+            for event in fetch_pre_exdiv_momentum(
+                tickers=tickers,
+                lookahead_days=lookahead_days,
+                min_entry_day=min_entry_day,
+                max_entry_day=max_entry_day,
+                min_score=min_score,
+                min_win_rate=min_win_rate,
+                min_hist_alpha=min_hist_alpha,
+                min_volume_daily=min_volume_daily,
+                show_estimated=show_estimated,
+                sector_map=sector_map
+            ):
+                # Use json.dumps with our NumpyEncoder for safety
+                yield json.dumps(event, cls=NumpyEncoder) + "\n"
+        except Exception as e:
+            import traceback
+            err_msg = f"Pre-ExDiv Stream Error: {str(e)}"
+            logging.error(f"{err_msg}\n{traceback.format_exc()}")
+            yield json.dumps({"type": "error", "message": err_msg}) + "\n"
+
+    from flask import Response
+    return Response(generate(), mimetype='application/x-ndjson')
 
 if __name__ == '__main__':
     # Railway uses PORT environment variable
