@@ -133,6 +133,7 @@ def fetch_pre_exdiv_momentum(
                     df = batch_data.dropna(how='all')
                 
             if df.empty or len(df) < 60:
+                logging.warning(f"[PRE-EXDIV DEBUG] {raw_ticker} dropped: df is {'empty' if df.empty else 'too short (' + str(len(df)) + ')'}")
                 continue # Need at least some history
             
             ticker_obj = ticker_objects[yf_ticker]
@@ -155,6 +156,7 @@ def fetch_pre_exdiv_momentum(
                 dividends = pd.Series(manual_data).sort_index()
                 
             if dividends.empty:
+                logging.warning(f"[PRE-EXDIV DEBUG] {raw_ticker} dropped: No dividend history found in dataframe columns or manual history.")
                 continue
             
             # Find next ex-date
@@ -187,8 +189,10 @@ def fetch_pre_exdiv_momentum(
                             is_declared = False
             
             if not target_ex_date:
+                logging.warning(f"[PRE-EXDIV DEBUG] {raw_ticker} dropped: Could not find or estimate an upcoming ex-date.")
                 continue
             if target_ex_date > cutoff_date:
+                logging.warning(f"[PRE-EXDIV DEBUG] {raw_ticker} dropped: Target ex-date {target_ex_date} is beyond lookahead cutoff {cutoff_date}.")
                 continue
             
             days_to_ex = (target_ex_date - now.date()).days
@@ -220,6 +224,7 @@ def fetch_pre_exdiv_momentum(
             avg_vol = df['Volume'].tail(20).mean()
             dollar_vol = (avg_vol * df['Close'].iloc[-1]) / 1000 # in thousands
             if dollar_vol < min_volume_daily / 1000:
+                logging.warning(f"[PRE-EXDIV DEBUG] {raw_ticker} dropped: Dollar vol {dollar_vol}k < required {min_volume_daily/1000}k.")
                 continue
             liq_score = min(100, (dollar_vol / 2000) * 100) # 2M = 100 score
             
@@ -322,8 +327,10 @@ def fetch_pre_exdiv_momentum(
                 
             # Skip if doesn't meet historical requirements
             if hist_win_rate < min_win_rate:
+                logging.warning(f"[PRE-EXDIV DEBUG] {raw_ticker} dropped: Win rate {hist_win_rate} < min {min_win_rate}.")
                 continue
             if hist_avg_alpha < min_hist_alpha:
+                logging.warning(f"[PRE-EXDIV DEBUG] {raw_ticker} dropped: Hist Alpha {hist_avg_alpha} < min {min_hist_alpha}.")
                 continue
             
             # 5.7 RSI
@@ -346,6 +353,7 @@ def fetch_pre_exdiv_momentum(
             composite_score = (fund_score * 0.45) + (tech_score * 0.55)
             
             if composite_score < min_score:
+                logging.warning(f"[PRE-EXDIV DEBUG] {raw_ticker} dropped: Composite score {composite_score} < min {min_score}.")
                 continue
             
             if composite_score >= 75:
