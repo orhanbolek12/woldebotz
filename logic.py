@@ -1238,11 +1238,13 @@ def fetch_rebalance_patterns(tickers, months_back=12, strict_color=True, progres
                     post_vol_avg = post_vols.mean()
                     
                     # 3. Dividend Intersection
-                    start_date = df.index[idx-3]
-                    end_date = df.index[idx+3]
+                    start_date = df.index[idx-3].date()
+                    end_date = df.index[idx+3].date()
                     window_divs = []
                     for div_date, amount in dividends.items():
-                        if start_date <= div_date <= end_date:
+                        # Make div_date tz-naive date for safe comparison
+                        d_date = div_date.date() if hasattr(div_date, 'date') else pd.to_datetime(div_date).date()
+                        if start_date <= d_date <= end_date:
                             try:
                                 d_idx = df.index.get_loc(div_date)
                                 d_vol = df.iloc[d_idx]['Volume']
