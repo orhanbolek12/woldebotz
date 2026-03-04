@@ -713,6 +713,7 @@ def analyze_rebalance_batch():
     """
     tickers_str = request.form.get('tickers', '')
     months_back = int(request.form.get('months_back', 12))
+    strict_color = request.form.get('strict_color', 'true').lower() == 'true'
     
     if not tickers_str.strip():
         return jsonify({'results': []})
@@ -720,7 +721,7 @@ def analyze_rebalance_batch():
     tickers = [t.strip().upper() for t in tickers_str.replace('\n', ',').split(',') if t.strip()]
     
     try:
-        results = fetch_rebalance_patterns(tickers, months_back=months_back)
+        results = fetch_rebalance_patterns(tickers, months_back=months_back, strict_color=strict_color)
     except Exception as e:
         import traceback
         trace = traceback.format_exc()

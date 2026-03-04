@@ -2010,6 +2010,14 @@
                             <option value="5">Last 5 Months</option>
                             <option value="6">Last 6 Months</option>
                         </select>
+                        <div style="margin-top:1rem; display:flex; align-items:center; gap:8px;">
+                            <label class="custom-checkbox">
+                                <input type="checkbox" id="rebStrictColor" checked>
+                                <span class="checkmark"></span>
+                            </label>
+                            <span style="font-size:0.8rem; font-weight:600; color:var(--text-secondary);">Strict 3/4 Bar
+                                Color Consistency</span>
+                        </div>
                     </div>
                     <div style="margin-top:1rem; color:var(--text-secondary); font-size:0.85rem; line-height: 1.5;">
                         <p>Analyzes price performance in the 3 trading days before and after each month-end rebalance
@@ -3718,6 +3726,7 @@
                 const formData = new FormData();
                 formData.append('tickers', batchStr);
                 formData.append('months_back', months);
+                formData.append('strict_color', document.getElementById('rebStrictColor').checked);
 
                 const res = await fetch('/analyze_rebalance_batch', { method: 'POST', body: formData });
                 const data = await res.json();

@@ -1164,7 +1164,7 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
         tv_symbol = parse_ticker_tv(raw_ticker)
         return {'ticker': raw_ticker, 'tv_symbol': tv_symbol, 'error': str(e), 'dividends': [], 'current_price': None, 'days_since_last_div': None}
 
-def fetch_rebalance_patterns(tickers, months_back=12, progress_callback=None):
+def fetch_rebalance_patterns(tickers, months_back=12, strict_color=True, progress_callback=None):
     results = []
     total = len(tickers)
     for i, raw_ticker in enumerate(tickers):
@@ -1226,7 +1226,7 @@ def fetch_rebalance_patterns(tickers, months_back=12, progress_callback=None):
                     green_count = colors.count('G')
                     red_count = colors.count('R')
                     
-                    if max(green_count, red_count) < 3:
+                    if strict_color and max(green_count, red_count) < 3:
                         continue # Skip if 3/4 rule not met
                     
                     # 2. Volume Breakdown
