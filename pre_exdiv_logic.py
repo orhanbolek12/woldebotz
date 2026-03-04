@@ -178,15 +178,26 @@ def fetch_pre_exdiv_momentum(
                 last_div_ts = dividends.index[-1]
                 last_amount = dividends.iloc[-1]
                 
-                # Check frequency (e.g. monthly)
+                # Check frequency
                 if len(dividends) >= 2:
                     diff_days = (last_div_ts - dividends.index[-2]).days
-                    if 20 <= diff_days <= 40: # Monthly
+                    
+                    est_date = None
+                    if 20 <= diff_days <= 45: # Monthly
                         est_date = last_div_ts + relativedelta(months=1)
-                        if est_date.date() >= now.date():
-                            target_ex_date = est_date.date()
-                            div_amount = last_amount
-                            is_declared = False
+                    elif 70 <= diff_days <= 110: # Quarterly
+                        est_date = last_div_ts + relativedelta(months=3)
+                    elif 10 <= diff_days <= 20: # Bi-weekly
+                        est_date = last_div_ts + timedelta(days=14)
+                    else:
+                        # Fallback: just use average spacing
+                        avg_diff = (dividends.index[-1] - dividends.index[0]).days / (len(dividends) - 1)
+                        est_date = last_div_ts + timedelta(days=int(avg_diff))
+
+                    if est_date and est_date.date() >= now.date():
+                        target_ex_date = est_date.date()
+                        div_amount = last_amount
+                        is_declared = False
             
             if not target_ex_date:
                 logging.warning(f"[PRE-EXDIV DEBUG] {raw_ticker} dropped: Could not find or estimate an upcoming ex-date.")
