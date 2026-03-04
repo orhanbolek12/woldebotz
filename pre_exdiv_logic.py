@@ -52,40 +52,65 @@ def fetch_pre_exdiv_momentum(
     results = []
     total_tickers = len(tickers)
     
-    # --- 1. Fetch Benchmarks and Sector ETFs ---
-    logging.info("Fetching Benchmarks and Sector ETFs for Pre-ExDiv...")
-    etf_data = {}
+    # --- 1. Fetch All Data (Benchmarks, Sector ETFs, and Target Tickers) in Batch ---
+    logging.info("Batch fetching all data for Pre-ExDiv...")
     
-    all_etfs = set(BENCHMARKS)
+    # Collect all unique symbols needed
+    all_symbols = set(BENCHMARKS)
     for etf_list in SECTOR_ETFS.values():
-        all_etfs.update(etf_list)
+        all_symbols.update(etf_list)
         
-    for etf_sym in all_etfs:
-        try:
-            t = yf.Ticker(etf_sym)
-            df = fetch_history_with_fallback(t, period="3mo", interval="1d", auto_adjust=True)
-            if not df.empty:
-                # Calculate 10d and 21d returns
-                current_price = df['Close'].iloc[-1]
-                price_10d = df['Close'].iloc[-10] if len(df) >= 10 else df['Close'].iloc[0]
-                price_21d = df['Close'].iloc[-21] if len(df) >= 21 else df['Close'].iloc[0]
-                
-                etf_data[etf_sym] = {
-                    'ret_10d': (current_price - price_10d) / price_10d,
-                    'ret_21d': (current_price - price_21d) / price_21d,
-                    'df': df
-                }
-        except Exception as e:
-            logging.error(f"Failed to fetch ETF {etf_sym}: {e}")
-
-    spy_ret_21d = etf_data.get('SPY', {}).get('ret_21d', 0)
+    yf_target_map = {t: parse_ticker_yf(t) for t in tickers}
+    all_symbols.update(yf_target_map.values())
     
+    symbol_list = list(all_symbols)
+    
+    # Download 2 years of daily data for all symbols at once
+    try:
+        # actions=True for dividends
+        batch_data = yf.download(symbol_list, period="2y", interval="1d", group_by='ticker', actions=True, threads=True, show_errors=False)
+    except Exception as e:
+        logging.error(f"Batch download failed: {e}")
+        batch_data = pd.DataFrame()
     sector_snapshot = {}
     
-    # --- 2. Iterate over CEF Tickers ---
+    # Process Benchmarks and Sector ETFs from batch_data
+    etf_data = {}
+    
+    if not batch_data.empty:
+        # Check if MultiIndex (common for multiple tickers)
+        is_multi = hasattr(batch_data.columns, 'levels')
+        
+        for sym in all_symbols:
+            try:
+                if is_multi:
+                    if sym in batch_data.columns.levels[0]:
+                        df_sym = batch_data[sym].dropna(how='all')
+                    else: continue
+                else:
+                    # Single ticker case or unexpected single index
+                    df_sym = batch_data.dropna(how='all')
+                
+                if not df_sym.empty:
+                    current_price = df_sym['Close'].iloc[-1]
+                    price_10d = df_sym['Close'].iloc[-10] if len(df_sym) >= 10 else df_sym['Close'].iloc[0]
+                    price_21d = df_sym['Close'].iloc[-21] if len(df_sym) >= 21 else df_sym['Close'].iloc[0]
+                    
+                    etf_data[sym] = {
+                        'ret_10d': (current_price - price_10d) / price_10d,
+                        'ret_21d': (current_price - price_21d) / price_21d,
+                        'df': df_sym
+                    }
+            except Exception as e:
+                logging.error(f"Error processing {sym} from batch: {e}")
+
+    spy_ret_21d = etf_data.get('SPY', {}).get('ret_21d', 0)
+    ticker_objects = {t: yf.Ticker(t) for t in yf_target_map.values()}
+    
     now = datetime.now()
     cutoff_date = (now + timedelta(days=lookahead_days)).date()
     
+    # --- 3. Iterate over CEF Tickers ---
     for i, raw_ticker in enumerate(tickers):
         if progress_callback:
             if progress_callback(i, total_tickers) == 'STOP': break
@@ -95,16 +120,33 @@ def fetch_pre_exdiv_momentum(
         sector_key = sector_map.get(raw_ticker.upper(), 'sector_equity') # Default to broad equity
         
         try:
-            ticker_obj = yf.Ticker(yf_ticker)
-            # Fetch 2y to ensure enough history for historical ex-div backtesting
-            df = fetch_history_with_fallback(ticker_obj, period="2y", interval="1d", auto_adjust=True)
-            if df.empty: continue
+            # Extract data for this specific ticker from the batch downloaded dataframe
+            yf_ticker = yf_target_map[raw_ticker]
+            df = pd.DataFrame()
             
-            df = df.dropna(how='all')
-            if len(df) < 60: continue # Need at least some history
+            if not batch_data.empty:
+                is_multi = hasattr(batch_data.columns, 'levels')
+                if is_multi:
+                    if yf_ticker in batch_data.columns.levels[0]:
+                        df = batch_data[yf_ticker].dropna(how='all')
+                elif yf_ticker == batch_data.columns.name or len(yf_target_map) == 1:
+                    df = batch_data.dropna(how='all')
+                
+            if df.empty or len(df) < 60:
+                continue # Need at least some history
             
-            # --- 3. Pull Dividends & Find Upcoming Ex-Date ---
-            dividends = ticker_obj.dividends
+            ticker_obj = ticker_objects[yf_ticker]
+            
+            # --- 3.1 Pull Dividends & Find Upcoming Ex-Date ---
+            try:
+                if 'Dividends' in df.columns:
+                    # Filter only rows where a dividend actually occurred (value > 0)
+                    dividends = df['Dividends'][df['Dividends'] > 0]
+                else:
+                    dividends = pd.Series(dtype='float64')
+            except:
+                dividends = pd.Series(dtype='float64')
+                
             if raw_ticker.upper() in MANUAL_DIVIDEND_HISTORY:
                 manual_data = {pd.to_datetime(d): a for d, a in MANUAL_DIVIDEND_HISTORY[raw_ticker.upper()]}
                 dividends = pd.Series(manual_data).sort_index()
@@ -112,7 +154,8 @@ def fetch_pre_exdiv_momentum(
                 manual_data = {pd.to_datetime(d): a for d, a in MANUAL_DIVIDEND_HISTORY[yf_ticker.upper()]}
                 dividends = pd.Series(manual_data).sort_index()
                 
-            if dividends.empty: continue
+            if dividends.empty:
+                continue
             
             # Find next ex-date
             # Check if there's a declared dividend in the future
@@ -143,8 +186,10 @@ def fetch_pre_exdiv_momentum(
                             div_amount = last_amount
                             is_declared = False
             
-            if not target_ex_date: continue
-            if target_ex_date > cutoff_date: continue
+            if not target_ex_date:
+                continue
+            if target_ex_date > cutoff_date:
+                continue
             
             days_to_ex = (target_ex_date - now.date()).days
             
@@ -174,7 +219,8 @@ def fetch_pre_exdiv_momentum(
             # 4.4 Liquidity (Daily $ Vol)
             avg_vol = df['Volume'].tail(20).mean()
             dollar_vol = (avg_vol * df['Close'].iloc[-1]) / 1000 # in thousands
-            if dollar_vol < min_volume_daily / 1000: continue
+            if dollar_vol < min_volume_daily / 1000:
+                continue
             liq_score = min(100, (dollar_vol / 2000) * 100) # 2M = 100 score
             
             # 4.5 Sector Momentum
@@ -275,8 +321,10 @@ def fetch_pre_exdiv_momentum(
                 pre_exdiv_score = max(0, min(100, 50 + (hist_avg_alpha * 2000)))
                 
             # Skip if doesn't meet historical requirements
-            if hist_win_rate < min_win_rate: continue
-            if hist_avg_alpha < min_hist_alpha: continue
+            if hist_win_rate < min_win_rate:
+                continue
+            if hist_avg_alpha < min_hist_alpha:
+                continue
             
             # 5.7 RSI
             delta = df['Close'].diff()
@@ -297,7 +345,8 @@ def fetch_pre_exdiv_momentum(
             # --- 6. Composite & Grade ---
             composite_score = (fund_score * 0.45) + (tech_score * 0.55)
             
-            if composite_score < min_score: continue
+            if composite_score < min_score:
+                continue
             
             if composite_score >= 75:
                 stars = "★★★"
