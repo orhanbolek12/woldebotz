@@ -148,7 +148,9 @@ def fetch_pre_exdiv_momentum(
                         df = fetch_history_with_fallback(t, period="2y")
                     except: pass
                 
-                if df.empty or len(df) < 60: continue
+                if df.empty or len(df) < 60:
+                    yield {"type": "progress", "pct": pct, "msg": f"Skipped {raw_ticker}: No price data"}
+                    continue
 
                 divs = pd.Series(dtype="float64")
                 if 'Dividends' in df.columns: divs = df['Dividends'][df['Dividends'] > 0]
@@ -166,7 +168,9 @@ def fetch_pre_exdiv_momentum(
                         divs = pd.Series(manual_data).sort_index()
                         break
 
-                if divs.empty: continue
+                if divs.empty:
+                    yield {"type": "progress", "pct": pct, "msg": f"Skipped {raw_ticker}: No dividends found"}
+                    continue
 
                 future_divs = divs[divs.index.date >= now.date()]
                 target_ex_date, is_declared, div_amount = None, False, 0.0
@@ -187,7 +191,9 @@ def fetch_pre_exdiv_momentum(
                             div_amount = last_amount
                             is_declared = False
 
-                if not target_ex_date or target_ex_date > cutoff_date: continue
+                if not target_ex_date or target_ex_date > cutoff_date:
+                    # yield {"type": "progress", "pct": pct, "msg": f"Skipped {raw_ticker}: Ex-date {target_ex_date} range"}
+                    continue
 
                 days_to_ex = (target_ex_date - now.date()).days
                 current_price = df["Close"].iloc[-1]
@@ -203,7 +209,9 @@ def fetch_pre_exdiv_momentum(
                 yield_score = max(0, min(100, (div_amount * 12 / current_price * 1000) if current_price else 0))
                 avg_vol = df["Volume"].tail(20).mean()
                 dollar_vol = (avg_vol * current_price) / 1000
-                if dollar_vol < min_volume_daily / 1000: continue
+                if dollar_vol < min_volume_daily / 1000:
+                    yield {"type": "progress", "pct": pct, "msg": f"Skipped {raw_ticker}: Vol low (${dollar_vol:.0f}K)"}
+                    continue
                 liq_score = min(100, (dollar_vol / 2000) * 100)
 
                 sec_etf = SECTOR_ETFS.get(sector_key, ["SPY"])[0]
@@ -248,7 +256,9 @@ def fetch_pre_exdiv_momentum(
                     hist_avg_alpha = opt_vals.mean() - 0.0005
                     pre_exdiv_score = max(0, min(100, 50 + (hist_avg_alpha * 2000)))
 
-                if hist_win_rate < min_win_rate or hist_avg_alpha < min_hist_alpha: continue
+                if hist_win_rate < min_win_rate or hist_avg_alpha < min_hist_alpha:
+                    # yield {"type": "progress", "pct": pct, "msg": f"Skipped {raw_ticker}: Backtest (WR:{hist_win_rate*100:.0f}%, Alpha:{hist_avg_alpha*100:.2f}%)"}
+                    continue
 
                 d = df["Close"].diff()
                 g, l = (d.where(d > 0, 0)).rolling(14).mean(), (-d.where(d < 0, 0)).rolling(14).mean()
