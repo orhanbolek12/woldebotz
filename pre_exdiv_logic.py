@@ -38,6 +38,17 @@ def sanitize_val(val, decimals=2):
     return round(float(val), decimals)
 
 
+def to_py(val):
+    """Convert any numpy scalar to a native Python type (int/float/bool)."""
+    if isinstance(val, (np.integer,)):
+        return int(val)
+    if isinstance(val, (np.floating,)):
+        return float(val)
+    if isinstance(val, (np.bool_,)):
+        return bool(val)
+    return val
+
+
 def _fetch_dividends_batched(ticker_list):
     """
     Fetch dividend history for a list of tickers in small batches via
@@ -437,39 +448,40 @@ def fetch_pre_exdiv_momentum(
                 "stars":            stars,
                 "label":            label,
                 "ex_date":          target_ex_date.strftime("%Y-%m-%d"),
-                "days_to_ex":       days_to_ex,
-                "declared":         is_declared,
+                "days_to_ex":       to_py(days_to_ex),
+                "declared":         bool(is_declared),
                 "div_amount":       sanitize_val(div_amount, 4),
                 "current_price":    sanitize_val(current_price, 2),
-                "suggested_entry_day": suggested_entry_day,
-                "days_to_entry":    days_to_ex - suggested_entry_day,
+                "suggested_entry_day": to_py(int(suggested_entry_day)),
+                "days_to_entry":    to_py(int(days_to_ex) - int(suggested_entry_day)),
                 "stop_loss_pct":    sanitize_val(stop_loss_pct * 100, 2),
                 "reward_target_pct":sanitize_val(reward_target_pct * 100, 2),
                 "risk_reward":      sanitize_val(risk_reward, 2),
                 "hist_avg_alpha":   sanitize_val(hist_avg_alpha * 100, 2),
                 "hist_win_rate":    sanitize_val(hist_win_rate * 100, 1),
-                "avg_dollar_vol":   int(dollar_vol * 1000),
-                "optimal_n":        int(optimal_n),
-                "rsi_14":           int(rsi_14),
+                "avg_dollar_vol":   to_py(int(dollar_vol * 1000)),
+                "optimal_n":        to_py(int(optimal_n)),
+                "rsi_14":           to_py(int(rsi_14)),
                 "is_accumulating":  bool(is_accumulating),
                 "golden_cross":     bool(sma20 > sma50),
                 "above_sma20":      bool(current_price > sma20),
                 "atr_pct":          sanitize_val(atr_pct, 4),
                 "score_components": {
-                    "discount_score":       int(discount_score),
-                    "distribution_score":   int(dist_score),
-                    "yield_score":          int(yield_score),
-                    "liquidity_score":      int(liq_score),
-                    "sector_score":         int(sec_score),
-                    "momentum_score":       int(mom_score),
-                    "trend_score":          int(trend_score),
-                    "volatility_score":     int(vol_score),
-                    "volume_pattern_score": int(vol_pattern_score),
-                    "price_position_score": int(pos_score),
-                    "pre_exdiv_score":      int(pre_exdiv_score),
-                    "rsi_score":            int(rsi_score),
+                    "discount_score":       to_py(int(discount_score)),
+                    "distribution_score":   to_py(int(dist_score)),
+                    "yield_score":          to_py(int(yield_score)),
+                    "liquidity_score":      to_py(int(liq_score)),
+                    "sector_score":         to_py(int(sec_score)),
+                    "momentum_score":       to_py(int(mom_score)),
+                    "trend_score":          to_py(int(trend_score)),
+                    "volatility_score":     to_py(int(vol_score)),
+                    "volume_pattern_score": to_py(int(vol_pattern_score)),
+                    "price_position_score": to_py(int(pos_score)),
+                    "pre_exdiv_score":      to_py(int(pre_exdiv_score)),
+                    "rsi_score":            to_py(int(rsi_score)),
                 },
             })
+
 
         except Exception as e:
             logging.error(f"[PRE-EXDIV] Error processing {raw_ticker}: {e}")
