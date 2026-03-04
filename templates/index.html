@@ -753,6 +753,18 @@
             }
         }
 
+        @keyframes fadeSlideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
         @keyframes slideIn {
             from {
                 opacity: 0;
@@ -1150,6 +1162,12 @@
                 </path>
             </svg>
             Rebalance Patterns
+        </button>
+        <button class="tab-trigger" onclick="switchTab('preexdiv', this)" data-tab="preexdiv">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+            </svg>
+            Pre Ex-Div
         </button>
     </nav>
 
@@ -2047,6 +2065,230 @@
             </div>
         </section>
 
+        <!-- ============================================================ -->
+        <!-- PRE EX-DIV MOMENTUM TERMINAL                                 -->
+        <!-- ============================================================ -->
+        <section id="preexdivSection" class="glass-card" style="display:none; animation: slideIn 0.6s ease-out;">
+            <div style="margin-bottom:2rem;">
+                <div
+                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+                    <h2 style="margin:0; font-family:'Outfit'; font-weight:800; font-size:1.4rem;">⚡ Pre Ex-Div Momentum
+                        Terminal</h2>
+                    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+                        <button onclick="loadPreExDivList('master')" class="tv-btn" id="pxdMasterBtn">Master
+                            List</button>
+                        <button onclick="loadPreExDivList('cef')" class="tv-btn" id="pxdCefBtn">CEF List</button>
+                        <button onclick="loadPreExDivList('pff')" class="tv-btn" id="pxdPffBtn">PFF Holdings</button>
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 2fr; gap:2rem;">
+                    <!-- Left: Ticker Input -->
+                    <div>
+                        <label
+                            style="font-size:0.75rem; font-weight:800; color:var(--text-secondary); text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:0.6rem;">Target
+                            Nodes</label>
+                        <textarea id="pxdTickers"
+                            style="height:140px; width:100%; background:rgba(0,0,0,0.5); border:1px solid var(--glass-border); border-radius:8px; padding:1rem; color:white; font-family:monospace; font-size:0.85rem; resize:none; outline:none;"
+                            placeholder="ARDC&#10;DSU&#10;ECC&#10;..."></textarea>
+                    </div>
+                    <!-- Right: Controls -->
+                    <div
+                        style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:1rem; align-content:start;">
+                        <div class="control-item">
+                            <label>LOOKAHEAD (days)</label>
+                            <div class="unit-wrapper"><input type="number" id="pxdLookahead" value="30" min="7"
+                                    max="90"><span class="unit-tag">d</span></div>
+                        </div>
+                        <div class="control-item">
+                            <label>ENTRY WINDOW MIN (T-N)</label>
+                            <div class="unit-wrapper"><input type="number" id="pxdEntryMin" value="2" min="1"
+                                    max="20"><span class="unit-tag">days</span></div>
+                        </div>
+                        <div class="control-item">
+                            <label>ENTRY WINDOW MAX (T-N)</label>
+                            <div class="unit-wrapper"><input type="number" id="pxdEntryMax" value="10" min="2"
+                                    max="30"><span class="unit-tag">days</span></div>
+                        </div>
+                        <div class="control-item">
+                            <label>MIN SCORE</label>
+                            <div class="unit-wrapper"><input type="number" id="pxdMinScore" value="60" min="0"
+                                    max="100"><span class="unit-tag">/100</span></div>
+                        </div>
+                        <div class="control-item">
+                            <label>MIN WIN RATE %</label>
+                            <div class="unit-wrapper"><input type="number" id="pxdMinWinRate" value="40" min="0"
+                                    max="100"><span class="unit-tag">%</span></div>
+                        </div>
+                        <div class="control-item">
+                            <label>MIN HIST ALPHA %</label>
+                            <div class="unit-wrapper"><input type="number" id="pxdMinAlpha" value="0.1" step="0.1"
+                                    min="0" max="10"><span class="unit-tag">%</span></div>
+                        </div>
+                        <div class="control-item">
+                            <label>MIN VOLUME ($K/day)</label>
+                            <div class="unit-wrapper"><input type="number" id="pxdMinVol" value="100" min="0"
+                                    max="5000"><span class="unit-tag">K</span></div>
+                        </div>
+                        <div class="control-item"
+                            style="display:flex; align-items:center; gap:0.6rem; padding-top:1.4rem;">
+                            <label class="switch"><input type="checkbox" id="pxdShowEstimated"><span
+                                    class="slider"></span></label>
+                            <label style="font-size:0.75rem; font-weight:700; color:var(--text-secondary);">SHOW
+                                ESTIMATED</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:0.8rem; margin-top:1.5rem; flex-wrap:wrap;">
+                    <button class="btn-primary" onclick="startPreExDivScan()" id="pxdAnalyzeBtn"
+                        style="flex:1; min-width:200px;">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+                        </svg>
+                        Analyze Pre Ex-Div
+                    </button>
+                    <button class="tv-btn" onclick="pxdWoldeSuggests()" style="padding:0.8rem 1.4rem;">⭐ Wolde
+                        Suggests</button>
+                </div>
+
+                <!-- Pipeline Progress -->
+                <div id="pxdProgressContainer"
+                    style="display:none; margin-top:1.5rem; background:rgba(0,0,0,0.3); border:1px solid var(--glass-border); border-radius:8px; padding:1.5rem;">
+                    <div id="pxdPipelineSteps"
+                        style="font-family:monospace; font-size:0.78rem; color:var(--text-secondary); line-height:1.8;">
+                    </div>
+                    <div class="progress-track" style="margin-top:1rem;">
+                        <div id="pxdProgressFill" class="progress-fill"
+                            style="background:linear-gradient(90deg,#00ffcc,#3b82f6);"></div>
+                    </div>
+                    <div
+                        style="display:flex; justify-content:space-between; margin-top:0.5rem; font-size:0.75rem; color:var(--text-secondary);">
+                        <span id="pxdProgressText">Initializing...</span>
+                        <span id="pxdProgressPct">0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TODAY'S ACTIONS Box -->
+            <div id="pxdActionsBox"
+                style="display:none; margin-bottom:1.5rem; border:1px solid #f0b429; border-radius:10px; padding:1.2rem; background:rgba(240,180,41,0.07); box-shadow:0 0 20px rgba(240,180,41,0.12);">
+                <div
+                    style="font-size:0.75rem; font-weight:800; color:#f0b429; letter-spacing:1.5px; margin-bottom:0.8rem;">
+                    🎯 TODAY'S ACTIONS</div>
+                <div id="pxdEnterNow" style="margin-bottom:0.6rem;"></div>
+                <div id="pxdEnteringSoon"></div>
+            </div>
+
+            <!-- Filter Bar -->
+            <div id="pxdFilterBar"
+                style="display:none; display:flex; gap:0.8rem; align-items:center; flex-wrap:wrap; margin-bottom:1rem; padding:0.8rem; background:rgba(0,0,0,0.2); border-radius:6px; border:1px solid var(--glass-border);">
+                <span style="font-size:0.7rem; font-weight:800; color:var(--text-secondary);">FILTER:</span>
+                <select id="pxdGradeFilter" onchange="filterPreExDivResults()"
+                    style="background:rgba(0,0,0,0.4); border:1px solid var(--glass-border); border-radius:4px; padding:0.3rem 0.6rem; color:white; font-size:0.75rem;">
+                    <option value="">ALL GRADES</option>
+                    <option value="STRONG">★★★ STRONG</option>
+                    <option value="DECENT">★★☆ DECENT</option>
+                    <option value="WEAK">★☆☆ WEAK</option>
+                </select>
+                <select id="pxdSectorFilter" onchange="filterPreExDivResults()"
+                    style="background:rgba(0,0,0,0.4); border:1px solid var(--glass-border); border-radius:4px; padding:0.3rem 0.6rem; color:white; font-size:0.75rem;">
+                    <option value="">ALL SECTORS</option>
+                </select>
+                <span style="margin-left:auto; display:flex; gap:0.5rem;">
+                    <button class="tv-btn" onclick="pxdCopyAll()">Copy All</button>
+                    <button class="tv-btn" onclick="pxdCopyGrade('STRONG')" style="color:#f0b429;">Copy STRONG</button>
+                    <button class="tv-btn" onclick="pxdCopyGrade('DECENT')" style="color:#00ffcc;">Copy DECENT</button>
+                </span>
+            </div>
+
+            <!-- Results Table -->
+            <div id="pxdResultsWrapper" style="display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.8rem;">
+                    <h3 style="margin:0; font-size:1rem; font-weight:800;">Pre Ex-Div Momentum Output</h3>
+                    <span id="pxdResultCount" class="badge-count">0 Found</span>
+                </div>
+                <div class="table-responsive">
+                    <table id="pxdResultsTable" style="border-spacing:0 0.4rem;">
+                        <thead>
+                            <tr>
+                                <th style="font-size:0.65rem;">#</th>
+                                <th onclick="pxdSort('ticker')" class="sortable" style="font-size:0.65rem;">TICKER ↕
+                                </th>
+                                <th style="font-size:0.65rem;">SECTOR</th>
+                                <th onclick="pxdSort('composite_score')" class="sortable" style="font-size:0.65rem;">
+                                    SCORE ↕</th>
+                                <th style="font-size:0.65rem;">GRADE</th>
+                                <th style="font-size:0.65rem;">DCL</th>
+                                <th onclick="pxdSort('ex_date')" class="sortable" style="font-size:0.65rem;">EX-DATE ↕
+                                </th>
+                                <th onclick="pxdSort('days_to_ex')" class="sortable" style="font-size:0.65rem;">DTE ↕
+                                </th>
+                                <th style="font-size:0.65rem;">ENTRY</th>
+                                <th onclick="pxdSort('hist_avg_alpha')" class="sortable" style="font-size:0.65rem;">E[α]
+                                    ↕</th>
+                                <th onclick="pxdSort('hist_win_rate')" class="sortable" style="font-size:0.65rem;">WR% ↕
+                                </th>
+                                <th style="font-size:0.65rem;">STOP</th>
+                                <th style="font-size:0.65rem;">TARGET</th>
+                                <th onclick="pxdSort('risk_reward')" class="sortable" style="font-size:0.65rem;">R/R ↕
+                                </th>
+                                <th style="font-size:0.65rem;">$VOL K</th>
+                                <th style="font-size:0.65rem;">SIGNALS</th>
+                                <th style="font-size:0.65rem;">ACTION</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pxdResultsBody"></tbody>
+                    </table>
+                </div>
+                <!-- Empty State -->
+                <div id="pxdEmptyState"
+                    style="display:none; text-align:center; padding:3rem; color:var(--text-secondary);">
+                    No pre-ex-div setups matched the defined parameters.<br>
+                    <small>Try: lowering MIN SCORE, widening LOOKAHEAD, or enabling SHOW ESTIMATED.</small>
+                </div>
+            </div>
+
+            <!-- Sector Snapshot (collapsible) -->
+            <div id="pxdSectorSnapshotWrapper" style="display:none; margin-top:1.5rem;">
+                <div onclick="togglePxdSector()"
+                    style="display:flex; justify-content:space-between; align-items:center; cursor:pointer; padding:0.8rem; background:rgba(0,0,0,0.2); border:1px solid var(--glass-border); border-radius:6px;">
+                    <span
+                        style="font-size:0.75rem; font-weight:800; color:var(--text-secondary); letter-spacing:1px;">SECTOR
+                        SNAPSHOT</span>
+                    <span id="pxdSectorToggleIcon" style="font-size:0.75rem;">▼</span>
+                </div>
+                <div id="pxdSectorContent" style="display:none; overflow-x:auto; margin-top:0.5rem;">
+                    <table style="width:100%; border-spacing:0 0.3rem;">
+                        <thead>
+                            <tr>
+                                <th style="font-size:0.65rem;">SECTOR</th>
+                                <th style="font-size:0.65rem;">10d%</th>
+                                <th style="font-size:0.65rem;">21d%</th>
+                                <th style="font-size:0.65rem;">vs SPY</th>
+                                <th style="font-size:0.65rem;">MOMENTUM</th>
+                                <th style="font-size:0.65rem;">UPCOMING</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pxdSectorBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Score Breakdown Drawer -->
+        <div id="pxdDrawer"
+            style="display:none; position:fixed; top:0; right:0; width:380px; max-width:95vw; height:100vh; background:rgba(10,12,20,0.98); border-left:1px solid var(--glass-border); z-index:1000; overflow-y:auto; padding:2rem; box-shadow:-10px 0 40px rgba(0,0,0,0.6);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                <div style="font-size:1rem; font-weight:800; color:white;" id="pxdDrawerTitle">Score Breakdown</div>
+                <button onclick="closePxdDrawer()"
+                    style="background:transparent; border:1px solid var(--glass-border); border-radius:4px; color:white; padding:0.3rem 0.7rem; cursor:pointer;">✕</button>
+            </div>
+            <div id="pxdDrawerContent" style="font-size:0.82rem; color:var(--text-secondary);"></div>
+        </div>
+
+
         <!-- Range AI Results Area -->
         <section id="customResultsCard" class="glass-card" style="display:none; animation: slideUp 0.6s ease-out;">
             <div class="results-header">
@@ -2241,8 +2483,13 @@
     let dataStore = {
         custom: [], // This will now store Range AI results
         imbalance: [],
-        rebalance: []
+        rebalance: [],
+        preexdiv: []
     };
+
+    let preExDivSortState = { column: 'composite_score', direction: 'desc' };
+    let pxdSectors = new Set();
+    let pxdRawResults = [];
 
     let currentTab = 'custom';
 
@@ -2262,9 +2509,11 @@
         }
 
         // Hide sections and result cards
-        ['custom', 'imbalance', 'dividend', 'rebalance'].forEach(t => {
-            document.getElementById(`${t}Section`).style.display = 'none';
-            document.getElementById(`${t}ResultsCard`).style.display = 'none';
+        ['custom', 'imbalance', 'dividend', 'rebalance', 'preexdiv'].forEach(t => {
+            const sec = document.getElementById(`${t}Section`);
+            if (sec) sec.style.display = 'none';
+            const res = document.getElementById(`${t}ResultsCard`);
+            if (res) res.style.display = 'none';
         });
         document.getElementById('noResults').style.display = 'none';
 
@@ -2288,6 +2537,8 @@
             if (dataStore.rebalance && dataStore.rebalance.length > 0) {
                 renderRebalanceResults(dataStore.rebalance);
             }
+        } else if (tab === 'preexdiv') {
+            document.getElementById('preexdivSection').style.display = 'block';
         }
     }
 
@@ -4719,6 +4970,323 @@
                 el.innerText = translations[key][lang];
             }
         });
+    }
+
+    // ============================================================
+    // PRE EX-DIV MOMENTUM LOGIC
+    // ============================================================
+    async function startPreExDivScan() {
+        const tickersText = document.getElementById('pxdTickers').value.trim();
+        if (!tickersText) {
+            alert("No tickers provided.");
+            return;
+        }
+
+        const tickers = tickersText.split(/\r?\n|,/).map(t => t.trim().toUpperCase()).filter(t => t);
+        const lookahead = document.getElementById('pxdLookahead').value;
+        const entryMin = document.getElementById('pxdEntryMin').value;
+        const entryMax = document.getElementById('pxdEntryMax').value;
+        const minScore = document.getElementById('pxdMinScore').value;
+        const minWinRate = document.getElementById('pxdMinWinRate').value / 100;
+        const minAlpha = document.getElementById('pxdMinAlpha').value / 100;
+        const minVol = document.getElementById('pxdMinVol').value * 1000;
+        const showEstimated = document.getElementById('pxdShowEstimated').checked;
+
+        const btn = document.getElementById('pxdAnalyzeBtn');
+        const progressContainer = document.getElementById('pxdProgressContainer');
+        const progressFill = document.getElementById('pxdProgressFill');
+        const progressPct = document.getElementById('pxdProgressPct');
+        const progressText = document.getElementById('pxdProgressText');
+        const pipelineSteps = document.getElementById('pxdPipelineSteps');
+
+        btn.disabled = true;
+        progressContainer.style.display = 'block';
+        pipelineSteps.innerHTML = "<div>Initializing secure pipeline...</div>";
+        progressFill.style.width = '5%';
+        progressPct.innerText = '5%';
+
+        try {
+            pipelineSteps.innerHTML += "<div>Fetching historical data & benchmarking sector ETFs...</div>";
+            const res = await fetch('/api/pre-exdiv-scan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tickers,
+                    lookahead_days: lookahead,
+                    min_entry_day: entryMin,
+                    max_entry_day: entryMax,
+                    min_score: minScore,
+                    min_win_rate: minWinRate,
+                    min_hist_alpha: minAlpha,
+                    min_volume_daily: minVol,
+                    show_estimated: showEstimated
+                })
+            });
+
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+
+            progressFill.style.width = '100%';
+            progressPct.innerText = '100%';
+            progressText.innerText = 'Scan Complete';
+            pipelineSteps.innerHTML += "<div style='color:var(--success)'>Success: Analysis finalized.</div>";
+
+            pxdRawResults = data.results || [];
+            dataStore.preexdiv = pxdRawResults;
+
+            // Populate Sectors for filter
+            pxdSectors = new Set();
+            pxdRawResults.forEach(r => pxdSectors.add(r.sector));
+            const secFilter = document.getElementById('pxdSectorFilter');
+            secFilter.innerHTML = '<option value="">ALL SECTORS</option>';
+            Array.from(pxdSectors).sort().forEach(s => {
+                secFilter.innerHTML += `<option value="${s}">${s}</option>`;
+            });
+
+            renderPreExDivResults(pxdRawResults);
+            renderPxdSectorSnapshot(data.sector_snapshot);
+            renderPxdActions(data.todays_actions, data.entering_soon || []);
+
+            document.getElementById('pxdResultsWrapper').style.display = 'block';
+            document.getElementById('pxdFilterBar').style.display = 'flex';
+            document.getElementById('pxdSectorSnapshotWrapper').style.display = 'block';
+
+        } catch (e) {
+            console.error(e);
+            pipelineSteps.innerHTML += `<div style='color:var(--error)'>Error: ${e.message}</div>`;
+            progressText.innerText = 'Scan Failed';
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    function renderPreExDivResults(results) {
+        const body = document.getElementById('pxdResultsBody');
+        const wrapper = document.getElementById('pxdResultsWrapper');
+        const empty = document.getElementById('pxdEmptyState');
+        const count = document.getElementById('pxdResultCount');
+
+        body.innerHTML = '';
+        if (results.length === 0) {
+            empty.style.display = 'block';
+            count.innerText = '0 Found';
+            return;
+        }
+
+        empty.style.display = 'none';
+        count.innerText = `${results.length} Found`;
+
+        results.forEach((r, idx) => {
+            const row = document.createElement('tr');
+            row.style.animation = `fadeSlideIn 0.3s ease-out ${idx * 0.05}s forwards`;
+            row.style.opacity = '0';
+
+            const gradeColor = r.label === 'STRONG' ? '#f0b429' : (r.label === 'DECENT' ? '#00ffcc' : 'var(--text-secondary)');
+            const alphaColor = parseFloat(r.hist_avg_alpha) > 0 ? 'var(--success)' : 'var(--error)';
+            const winColor = parseFloat(r.hist_win_rate) >= 60 ? 'var(--success)' : 'var(--text-secondary)';
+
+            row.innerHTML = `
+                <td style="font-size:0.7rem; color:var(--text-secondary);">${idx + 1}</td>
+                <td><div class="ticker-name">${r.ticker}</div></td>
+                <td style="font-size:0.75rem;">${r.sector}</td>
+                <td><div class="spread-val" style="${r.label === 'STRONG' ? 'background:rgba(240,180,41,0.2);color:#f0b429;border:1px solid #f0b429;' : ''}">${r.composite_score}</div></td>
+                <td style="font-size:0.75rem; font-weight:800; color:${gradeColor};">${r.stars} ${r.label}</td>
+                <td>${r.declared ? '✅' : '⏳'}</td>
+                <td style="font-size:0.8rem; font-weight:600;">${r.ex_date}</td>
+                <td style="font-size:0.8rem; font-weight:700; color:white;">T-${r.days_to_ex}</td>
+                <td style="font-size:0.75rem;">${r.suggested_entry_day}d <span style="font-size:0.6rem; color:var(--text-secondary);">(T-${r.suggested_entry_day})</span></td>
+                <td style="color:${alphaColor}; font-weight:700;">${r.hist_avg_alpha}%</td>
+                <td style="color:${winColor}; font-weight:700;">${r.hist_win_rate}%</td>
+                <td style="color:var(--error); font-size:0.75rem;">-${r.stop_loss_pct}%</td>
+                <td style="color:var(--success); font-size:0.75rem;">+${r.reward_target_pct}%</td>
+                <td style="font-size:0.8rem; font-weight:700;">${r.risk_reward}x</td>
+                <td style="font-size:0.7rem; color:var(--text-secondary);">${Math.round(r.avg_dollar_vol / 1000)}K</td>
+                <td>
+                    <div style="display:flex; gap:4px;">
+                        ${r.golden_cross ? '<span title="Golden Cross" style="color:#f0b429;">⚜️</span>' : ''}
+                        ${r.is_accumulating ? '<span title="Accumulation" style="color:#00ffcc;">📊</span>' : ''}
+                        ${r.above_sma20 ? '<span title="Above SMA20" style="color:#3b82f6;">↗️</span>' : ''}
+                    </div>
+                </td>
+                <td>
+                    <button class="tv-btn" style="padding:2px 8px; font-size:0.65rem;" onclick="showPxdDetails('${r.ticker}')">DETAILS</button>
+                </td>
+            `;
+            body.appendChild(row);
+        });
+    }
+
+    function renderPxdSectorSnapshot(snapshot) {
+        const body = document.getElementById('pxdSectorBody');
+        body.innerHTML = '';
+        if (!snapshot) return;
+
+        Object.values(snapshot).sort((a, b) => b.ret_21d - a.ret_21d).forEach(s => {
+            const row = document.createElement('tr');
+            const momLabel = s.ret_21d > 1 ? '🔥 BULL' : (s.ret_21d < -1 ? '❄️ BEAR' : '↔ NEUTRAL');
+            const momColor = s.ret_21d > 1 ? '#00ffcc' : (s.ret_21d < -1 ? '#ef4444' : 'var(--text-secondary)');
+
+            row.innerHTML = `
+                <td style="font-size:0.75rem; font-weight:700;">${s.sector}</td>
+                <td style="font-family:monospace; color:${s.ret_10d > 0 ? 'var(--success)' : 'var(--error)'}">${s.ret_10d}%</td>
+                <td style="font-family:monospace; font-weight:800; color:${s.ret_21d > 0 ? '#00ffcc' : '#ef4444'}">${s.ret_21d}%</td>
+                <td style="font-family:monospace; opacity:0.8;">${s.vs_spy_21d}%</td>
+                <td style="font-size:0.7rem; color:${momColor}; font-weight:800;">${momLabel}</td>
+                <td style="font-size:0.75rem;"><span style="color:#f0b429;">${s.n_strong}S</span> / <span style="color:#00ffcc;">${s.n_decent}D</span> / ${s.n_upcoming}U</td>
+            `;
+            body.appendChild(row);
+        });
+    }
+
+    function renderPxdActions(enterNow, soon) {
+        const box = document.getElementById('pxdActionsBox');
+        if (enterNow.length === 0 && soon.length === 0) {
+            box.style.display = 'none';
+            return;
+        }
+        box.style.display = 'block';
+
+        document.getElementById('pxdEnterNow').innerHTML = enterNow.length > 0 ?
+            `<strong style="color:white; font-size:0.8rem;">ENTER NOW:</strong> <span style="color:#00ffcc; font-weight:800; font-size:0.9rem;">${enterNow.join(', ')}</span>` : '';
+
+        document.getElementById('pxdEnteringSoon').innerHTML = soon.length > 0 ?
+            `<strong style="color:white; font-size:0.8rem; opacity:0.8;">ENTERING SOON:</strong> <span style="color:var(--text-secondary); font-size:0.85rem;">${soon.join(', ')}</span>` : '';
+    }
+
+    function pxdSort(col) {
+        if (preExDivSortState.column === col) {
+            preExDivSortState.direction = preExDivSortState.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            preExDivSortState.column = col;
+            preExDivSortState.direction = 'desc';
+        }
+
+        const dir = preExDivSortState.direction === 'asc' ? 1 : -1;
+        dataStore.preexdiv.sort((a, b) => {
+            let valA = a[col];
+            let valB = b[col];
+            if (col === 'ex_date') { valA = new Date(valA); valB = new Date(valB); }
+            return (valA > valB ? 1 : -1) * dir;
+        });
+        renderPreExDivResults(dataStore.preexdiv);
+    }
+
+    function filterPreExDivResults() {
+        const grade = document.getElementById('pxdGradeFilter').value;
+        const sector = document.getElementById('pxdSectorFilter').value;
+
+        const filtered = pxdRawResults.filter(r => {
+            const mGrade = !grade || r.label === grade;
+            const mSector = !sector || r.sector === sector;
+            return mGrade && mSector;
+        });
+
+        dataStore.preexdiv = filtered;
+        renderPreExDivResults(filtered);
+    }
+
+    function showPxdDetails(ticker) {
+        const r = pxdRawResults.find(x => x.ticker === ticker);
+        if (!r) return;
+
+        const drawer = document.getElementById('pxdDrawer');
+        const content = document.getElementById('pxdDrawerContent');
+        document.getElementById('pxdDrawerTitle').innerText = `${ticker} Scoring Breakdown`;
+
+        let html = `
+            <div style="background:rgba(255,255,255,0.03); border-radius:8px; padding:1.2rem; margin-bottom:1.5rem; border:1px solid var(--glass-border);">
+                <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;"><span style="color:white; font-weight:800;">COMPOSITE SCORE</span> <span style="color:#f0b429; font-weight:900; font-size:1.1rem;">${r.composite_score}</span></div>
+                <div style="height:4px; background:rgba(255,255,255,0.1); border-radius:2px;"><div style="height:100%; width:${r.composite_score}%; background:#f0b429; box-shadow:0 0 10px #f0b429;"></div></div>
+            </div>
+
+            <div style="margin-bottom:1.2rem;">
+                <div style="font-size:0.65rem; font-weight:800; color:var(--text-secondary); margin-bottom:0.8rem; letter-spacing:1px;">FUNDAMENTALS (45%) • <span style="color:white;">${r.fundamental_score}</span></div>
+                ${buildDetailRow('Discount Proxy', r.score_components.discount_score)}
+                ${buildDetailRow('Distribution Quality', r.score_components.distribution_score)}
+                ${buildDetailRow('Yield Attractiveness', r.score_components.yield_score)}
+                ${buildDetailRow('Liquidity Score', r.score_components.liquidity_score)}
+                ${buildDetailRow('Sector Relative Str', r.score_components.sector_score)}
+            </div>
+
+            <div style="margin-bottom:1.2rem;">
+                <div style="font-size:0.65rem; font-weight:800; color:var(--text-secondary); margin-bottom:0.8rem; letter-spacing:1px;">TECHNICALS (55%) • <span style="color:white;">${r.technical_score}</span></div>
+                ${buildDetailRow('Momentum (10/21d)', r.score_components.momentum_score)}
+                ${buildDetailRow('Trend Position', r.score_components.trend_score)}
+                ${buildDetailRow('Volatility (ATR)', r.score_components.volatility_score)}
+                ${buildDetailRow('Vol Pattern (ACC)', r.score_components.volume_pattern_score)}
+                ${buildDetailRow('52-Week Range Pos', r.score_components.price_position_score)}
+                ${buildDetailRow('Pre-Ex History (α)', r.score_components.pre_exdiv_score)}
+                ${buildDetailRow('RSI Neutrality', r.score_components.rsi_score)}
+            </div>
+
+            <div style="font-size:0.7rem; line-height:1.6; border-top:1px solid var(--glass-border); padding-top:1rem; margin-top:1rem;">
+                <strong>Wolde Intelligence Note:</strong><br>
+                Optimal entry identified at <strong>T-${r.optimal_n}</strong> days. Average historical alpha of <strong>${r.hist_avg_alpha}%</strong> vs SPY benchmarks. RSI is at <strong>${r.rsi_14}</strong>. ${r.is_accumulating ? 'Institutional accumulation detected via volume footprint.' : ''}
+            </div>
+        `;
+
+        content.innerHTML = html;
+        drawer.style.display = 'block';
+    }
+
+    function buildDetailRow(label, score) {
+        return `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem; font-size:0.75rem;">
+                <span>${label}</span>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="width:60px; height:3px; background:rgba(255,255,255,0.05); border-radius:1px;"><div style="height:100%; width:${score}%; background:var(--accent-primary);"></div></div>
+                    <span style="width:20px; text-align:right; font-weight:800; color:white;">${score}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    function closePxdDrawer() { document.getElementById('pxdDrawer').style.display = 'none'; }
+    function togglePxdSector() {
+        const content = document.getElementById('pxdSectorContent');
+        const icon = document.getElementById('pxdSectorToggleIcon');
+        if (content.style.display === 'none') {
+            content.style.display = 'block';
+            icon.innerText = '▲';
+        } else {
+            content.style.display = 'none';
+            icon.innerText = '▼';
+        }
+    }
+
+    async function loadPreExDivList(type) {
+        let endpoint = type === 'cef' ? '/get_cef_list_tickers' : (type === 'pff' ? '/get_pff_holdings' : '/get_master_list_tickers');
+        try {
+            const res = await fetch(endpoint);
+            const data = await res.json();
+            const tickersArr = type === 'pff' ? data.holdings.map(h => h.ticker) : data.tickers.map(t => typeof t === 'string' ? t : t.ticker);
+            document.getElementById('pxdTickers').value = tickersArr.join('\n');
+            alert(`Loaded ${tickersArr.length} tickers from ${type.toUpperCase()} list.`);
+        } catch (e) {
+            alert("Error loading list: " + e.message);
+        }
+    }
+
+    function pxdCopyAll() {
+        const text = dataStore.preexdiv.map(r => r.ticker).join(', ');
+        navigator.clipboard.writeText(text);
+        alert("Copied all tickers to clipboard.");
+    }
+
+    function pxdCopyGrade(grade) {
+        const text = pxdRawResults.filter(r => r.label === grade).map(r => r.ticker).join(', ');
+        navigator.clipboard.writeText(text);
+        alert(`Copied ${grade} tickers to clipboard.`);
+    }
+
+    function pxdWoldeSuggests() {
+        const strong = pxdRawResults.filter(r => r.label === 'STRONG');
+        if (strong.length === 0) {
+            alert("Wolde Suggests: No Strong Momentum nodes found in current sample.");
+            return;
+        }
+        const text = strong.sort((a, b) => b.composite_score - a.composite_score).slice(0, 3).map(r => `${r.ticker} (${r.composite_score})`).join(', ');
+        alert("🔥 WOLDE TOP 3 SUGGESTIONS:\n" + text);
     }
 
     function initLanguage() {

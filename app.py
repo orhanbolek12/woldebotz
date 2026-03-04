@@ -6,6 +6,7 @@ os.environ['XDG_CACHE_HOME'] = '/tmp'
 
 from flask import Flask, render_template, request, jsonify
 from logic import fetch_and_process, fetch_imbalance, fetch_range_ai, analyze_dividend_recovery, fetch_rebalance_patterns
+from pre_exdiv_logic import fetch_pre_exdiv_momentum
 import threading
 import uuid
 import time
@@ -903,6 +904,52 @@ def get_pff_holdings():
         import traceback
         return jsonify({'error': str(e), 'trace': traceback.format_exc()}), 500
 
+
+@app.route('/api/pre-exdiv-scan', methods=['POST'])
+def analyze_pre_exdiv_scan():
+    """
+    Endpoint for Pre Ex-Div Momentum analysis.
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No JSON payload provided"}), 400
+        
+    tickers = data.get('tickers', [])
+    lookahead_days = int(data.get('lookahead_days', 30))
+    min_entry_day = int(data.get('min_entry_day', 2))
+    max_entry_day = int(data.get('max_entry_day', 10))
+    min_score = int(data.get('min_score', 60))
+    min_win_rate = float(data.get('min_win_rate', 0.40))
+    min_hist_alpha = float(data.get('min_hist_alpha', 0.001))
+    min_volume_daily = int(data.get('min_volume_daily', 100000))
+    show_estimated = bool(data.get('show_estimated', False))
+    
+    # If tickers list is empty, we don't have enough context if list_type is missing,
+    # but the frontend will usually supply the specific tickers directly.
+    if not tickers:
+        return jsonify({"results": []})
+        
+    try:
+        # Get sector map for proper scoring
+        sector_map = get_sector_map()
+        
+        results = fetch_pre_exdiv_momentum(
+            tickers=tickers,
+            lookahead_days=lookahead_days,
+            min_entry_day=min_entry_day,
+            max_entry_day=max_entry_day,
+            min_score=min_score,
+            min_win_rate=min_win_rate,
+            min_hist_alpha=min_hist_alpha,
+            min_volume_daily=min_volume_daily,
+            show_estimated=show_estimated,
+            sector_map=sector_map
+        )
+        return jsonify(results)
+    except Exception as e:
+        import traceback
+        logging.error(f"Pre-ExDiv API Error: {e}\n{traceback.format_exc()}")
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
 
 if __name__ == '__main__':
     # Railway uses PORT environment variable
