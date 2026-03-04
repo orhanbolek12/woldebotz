@@ -2151,7 +2151,7 @@
                 </div>
 
                 <div style="display:flex; gap:0.8rem; margin-top:1.5rem; flex-wrap:wrap;">
-                    <button class="btn-primary" onclick="startPreExDivScan()" id="pxdAnalyzeBtn"
+                    <button class="btn-primary" onclick="pxdAnalyze()" id="pxdSearchBtn"
                         style="flex:1; min-width:200px;">
                         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
                             viewBox="0 0 24 24">
@@ -2164,7 +2164,7 @@
                 </div>
 
                 <!-- Pipeline Progress -->
-                <div id="pxdProgressContainer"
+                <div id="pxdProgressWrapper"
                     style="display:none; margin-top:1.5rem; background:rgba(0,0,0,0.3); border:1px solid var(--glass-border); border-radius:8px; padding:1.5rem;">
                     <div id="pxdPipelineSteps"
                         style="font-family:monospace; font-size:0.78rem; color:var(--text-secondary); line-height:1.8;">
