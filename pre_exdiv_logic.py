@@ -192,7 +192,7 @@ def fetch_pre_exdiv_momentum(
                             is_declared = False
 
                 if not target_ex_date or target_ex_date > cutoff_date:
-                    # yield {"type": "progress", "pct": pct, "msg": f"Skipped {raw_ticker}: Ex-date {target_ex_date} range"}
+                    yield {"type": "progress", "pct": pct, "msg": f"Skipped {raw_ticker}: No ex-date in range (Found: {target_ex_date})"}
                     continue
 
                 days_to_ex = (target_ex_date - now.date()).days
@@ -257,7 +257,7 @@ def fetch_pre_exdiv_momentum(
                     pre_exdiv_score = max(0, min(100, 50 + (hist_avg_alpha * 2000)))
 
                 if hist_win_rate < min_win_rate or hist_avg_alpha < min_hist_alpha:
-                    # yield {"type": "progress", "pct": pct, "msg": f"Skipped {raw_ticker}: Backtest (WR:{hist_win_rate*100:.0f}%, Alpha:{hist_avg_alpha*100:.2f}%)"}
+                    yield {"type": "progress", "pct": pct, "msg": f"Skipped {raw_ticker}: Backtest (WR:{hist_win_rate*100:.0f}% < {min_win_rate*100:.0f}%, Alpha:{hist_avg_alpha*100:.2f}% < {min_hist_alpha*100:.2f}%)"}
                     continue
 
                 d = df["Close"].diff()
@@ -270,7 +270,9 @@ def fetch_pre_exdiv_momentum(
                 tech_score = mom_score*0.20 + trend_score*0.15 + vol_score*0.15 + vol_pattern_score*0.10 + pos_score*0.10 + pre_exdiv_score*0.20 + rsi_score*0.10
                 comp_score = fund_score * 0.45 + tech_score * 0.55
 
-                if comp_score < min_score: continue
+                if comp_score < min_score:
+                    yield {"type": "progress", "pct": pct, "msg": f"Skipped {raw_ticker}: Low score ({comp_score:.1f} < {min_score})"}
+                    continue
 
                 stars = "★★★" if comp_score >= 75 else ("★★☆" if comp_score >= 60 else "★☆☆")
                 label = "STRONG" if comp_score >= 75 else ("DECENT" if comp_score >= 60 else "WEAK")

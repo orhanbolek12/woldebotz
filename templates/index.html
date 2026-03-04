@@ -4991,9 +4991,9 @@
         const entryMin = document.getElementById('pxdEntryMin').value;
         const entryMax = document.getElementById('pxdEntryMax').value;
         const minScore = document.getElementById('pxdMinScore').value;
-        const minWinRate = document.getElementById('pxdMinWinRate').value;
-        const minAlpha = document.getElementById('pxdMinAlpha').value;
-        const minVol = document.getElementById('pxdMinVol').value;
+        const minWinRate = document.getElementById('pxdMinWinRate').value / 100;
+        const minAlpha = document.getElementById('pxdMinAlpha').value / 100;
+        const minVol = document.getElementById('pxdMinVol').value * 1000;
         const showEstimated = document.getElementById('pxdShowEstimated').checked;
 
         if (tickers.length === 0) { alert("Please enter at least one ticker."); return; }
