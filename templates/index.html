@@ -4951,13 +4951,13 @@
     async function pxdAnalyze() {
         const tickers = document.getElementById('pxdTickers').value.split(/[\n,]+/).map(t => t.trim()).filter(t => t);
         const lookahead = document.getElementById('pxdLookahead').value;
-        const minScore = 60;
+        const minScore = 50;
         const entryMin = 2;
         const entryMax = 10;
         const minWinRate = 0.40;
-        const minAlpha = 0.001;
+        const minAlpha = 0.0005;
         const minVol = 100000;
-        const showEstimated = false;
+        const showEstimated = true;
 
         if (tickers.length === 0) { alert("Please enter at least one ticker."); return; }
 
