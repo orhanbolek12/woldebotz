@@ -28,8 +28,9 @@ BENCHMARKS = ["SPY", "TLT", "HYG", "^VIX"]
 # -----------------------------------------------------------------------
 # Download settings to avoid yfinance RateLimitError
 # -----------------------------------------------------------------------
-FETCH_CHUNK_SIZE = 15       # lowered from 20 to be safer
-FETCH_CHUNK_SLEEP = 3.0      # increased from 2.0 to be safer
+FETCH_CHUNK_SIZE = 10       # further lowered for maximum safety
+FETCH_CHUNK_SLEEP = 4.0      # increased for maximum safety
+MAX_RETRIES = 2
 
 
 def sanitize_val(val, decimals=2):
@@ -129,11 +130,19 @@ def fetch_pre_exdiv_momentum(
         pct = 10 + int((i / total_tickers) * 85)
         yield {"type": "progress", "pct": pct, "msg": f"Analyzing chunk {i//FETCH_CHUNK_SIZE + 1}: {', '.join(chunk[:3])}..."}
         
-        try:
-            chunk_data = yf.download(chunk_yf, period="2y", interval="1d", group_by="ticker", actions=True, progress=False)
-        except Exception as e:
-            logging.warning(f"[PRE-EXDIV] Chunk download failed: {e}")
-            chunk_data = pd.DataFrame()
+        attempt = 0
+        chunk_data = pd.DataFrame()
+        while attempt <= MAX_RETRIES:
+            try:
+                chunk_data = yf.download(chunk_yf, period="2y", interval="1d", group_by="ticker", actions=True, progress=False, threads=False)
+                if not chunk_data.empty:
+                    break
+            except Exception as e:
+                logging.warning(f"[PRE-EXDIV] Chunk download failed (Attempt {attempt+1}/{MAX_RETRIES+1}): {e}")
+            
+            attempt += 1
+            if attempt <= MAX_RETRIES:
+                time.sleep(FETCH_CHUNK_SLEEP * 2) 
 
         for raw_ticker in chunk:
             processed_count += 1

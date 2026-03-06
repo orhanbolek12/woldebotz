@@ -2084,11 +2084,31 @@
                     style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
                     <h2 style="margin:0; font-family:'Outfit'; font-weight:800; font-size:1.4rem;">⚡ Pre Ex-Div Momentum
                         Terminal</h2>
-                    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
-                        <button onclick="loadPreExDivList('master')" class="tv-btn" id="pxdMasterBtn">Master
-                            List</button>
-                        <button onclick="loadPreExDivList('cef')" class="tv-btn" id="pxdCefBtn">CEF List</button>
-                        <button onclick="loadPreExDivList('pff')" class="tv-btn" id="pxdPffBtn">PFF Holdings</button>
+                    <div style="display:flex; gap:1.5rem; flex-wrap:wrap; align-items:center;">
+                        <div style="display:flex; align-items:center; gap:0.6rem;">
+                            <label class="switch">
+                                <input type="checkbox" id="pxdToggleMaster">
+                                <span class="slider"></span>
+                            </label>
+                            <span style="font-size:0.85rem; font-weight:700; color:var(--text-secondary);">Analyze
+                                Master List</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:0.6rem;">
+                            <label class="switch">
+                                <input type="checkbox" id="pxdToggleCef">
+                                <span class="slider"></span>
+                            </label>
+                            <span style="font-size:0.85rem; font-weight:700; color:var(--text-secondary);">Analyze CEF
+                                List</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:0.6rem;">
+                            <label class="switch">
+                                <input type="checkbox" id="pxdTogglePff">
+                                <span class="slider"></span>
+                            </label>
+                            <span style="font-size:0.85rem; font-weight:700; color:var(--text-secondary);">Analyze PFF
+                                Holdings</span>
+                        </div>
                     </div>
                 </div>
 
@@ -4949,7 +4969,45 @@
     // PRE EX-DIV MOMENTUM LOGIC
     // ============================================================
     async function pxdAnalyze() {
-        const tickers = document.getElementById('pxdTickers').value.split(/[\n,]+/).map(t => t.trim()).filter(t => t);
+        let tickers = document.getElementById('pxdTickers').value.split(/[\n,]+/).map(t => t.trim()).filter(t => t);
+
+        // Check Toggles
+        const toggleMaster = document.getElementById('pxdToggleMaster').checked;
+        const toggleCef = document.getElementById('pxdToggleCef').checked;
+        const togglePff = document.getElementById('pxdTogglePff').checked;
+
+        if (toggleMaster || toggleCef || togglePff) {
+            const btn = document.getElementById('pxdSearchBtn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loader"></span> Fetching Lists...';
+
+            try {
+                const fetchPromises = [];
+                if (toggleMaster) fetchPromises.push(fetch('/get_master_list_tickers').then(r => r.json()));
+                if (toggleCef) fetchPromises.push(fetch('/get_cef_list_tickers').then(r => r.json()));
+                if (togglePff) fetchPromises.push(fetch('/get_pff_holdings').then(r => r.json()));
+
+                const results = await Promise.all(fetchPromises);
+                results.forEach((data, idx) => {
+                    let listTickers = [];
+                    // PFF has .holdings, others have .tickers
+                    if (data.holdings) listTickers = data.holdings.map(h => h.ticker);
+                    else if (data.tickers) listTickers = data.tickers.map(t => typeof t === 'string' ? t : t.ticker);
+
+                    tickers = tickers.concat(listTickers);
+                });
+
+                // Deduplicate
+                tickers = [...new Set(tickers)];
+            } catch (err) {
+                console.error("Error fetching list tickers:", err);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
         const lookahead = document.getElementById('pxdLookahead').value;
         const minScore = 50;
         const entryMin = 2;
@@ -5300,18 +5358,7 @@
         }
     }
 
-    async function loadPreExDivList(type) {
-        let endpoint = type === 'cef' ? '/get_cef_list_tickers' : (type === 'pff' ? '/get_pff_holdings' : '/get_master_list_tickers');
-        try {
-            const res = await fetch(endpoint);
-            const data = await res.json();
-            const tickersArr = type === 'pff' ? data.holdings.map(h => h.ticker) : data.tickers.map(t => typeof t === 'string' ? t : t.ticker);
-            document.getElementById('pxdTickers').value = tickersArr.join('\n');
-            alert(`Loaded ${tickersArr.length} tickers from ${type.toUpperCase()} list.`);
-        } catch (e) {
-            alert("Error loading list: " + e.message);
-        }
-    }
+
 
     function pxdCopyAll() {
         const text = dataStore.preexdiv.map(r => r.ticker).join(', ');
