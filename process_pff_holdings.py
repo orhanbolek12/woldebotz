@@ -74,10 +74,7 @@ def find_best_ticker_match(name, price, base_ticker, master_df, used_tickers):
     # 3. Match by price among remaining candidates
     candidates['diff'] = (candidates['CleanPrice'] - price).abs()
     
-    # Filter by a reasonable price tolerance (e.g., $1.50) 
-    # except for very high prices where tolerance is larger
-    tolerance = 1.50 if price < 100 else price * 0.05
-    
+    tolerance = max(4.0, price * 0.15) if price < 100 else price * 0.10
     candidates = candidates[candidates['diff'] <= tolerance]
     
     if candidates.empty:
@@ -130,16 +127,28 @@ def process():
         raw_ticker = str(row.get('Ticker', '-')).strip()
         name = str(row.get('Name', 'N/A'))
         
+        # 1. Filter out non-holding rows (e.g., disclaimer text)
         if raw_ticker == '-' or pd.isna(raw_ticker) or "Ticker" in raw_ticker:
             continue
-            
+        
+        # Stricter check for legal text in ticker or name
+        if "CONTENT CONTAINED HEREIN" in name.upper() or "IS OWNED OR LICENSED" in name.upper():
+            print(f"[*] Skipping disclaimer row found at: {name[:50]}...")
+            continue
+        
+        if len(raw_ticker) > 20 or len(name) > 300: # Typical disclaimer or corrupted row
+            print(f"[*] Skipping suspicious long row: {raw_ticker[:10]}... | {name[:50]}...")
+            continue
+
         try:
-            price = float(str(row.get('Price', '0')).replace(',', ''))
+            price_str = str(row.get('Price', '0')).replace(',', '')
+            price = float(price_str)
             weight = float(str(row.get('Weight (%)', '0')).replace(',', ''))
             market_value = float(str(row.get('Market Value', '0')).replace(',', ''))
             quantity = float(str(row.get('Quantity', '0')).replace(',', ''))
         except:
             price, weight, market_value, quantity = 0.0, 0.0, 0.0, 0.0
+            continue
 
         base_ticker = raw_ticker.split('-')[0].strip().upper()
         
