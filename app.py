@@ -30,12 +30,34 @@ class NumpyEncoder(json.JSONEncoder):
         if isinstance(obj, (np.integer,)):
             return int(obj)
         if isinstance(obj, (np.floating,)):
+            if np.isnan(obj) or np.isinf(obj):
+                return None
+            return float(obj)
+        if isinstance(obj, float):
+            if np.isnan(obj) or np.isinf(obj):
+                return None
             return float(obj)
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         if isinstance(obj, np.bool_):
             return bool(obj)
         return super().default(obj)
+
+    def encode(self, obj):
+        def clean_nans(item):
+            if isinstance(item, dict):
+                return {k: clean_nans(v) for k, v in item.items()}
+            elif isinstance(item, (list, tuple)):
+                return [clean_nans(x) for x in item]
+            elif isinstance(item, float):
+                if np.isnan(item) or np.isinf(item):
+                    return None
+            elif isinstance(item, (np.floating, np.complexfloating)):
+                if np.isnan(item) or np.isinf(item):
+                    return None
+            return item
+        
+        return super().encode(clean_nans(obj))
 
 app.json_encoder = NumpyEncoder
 
