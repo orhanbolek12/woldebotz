@@ -869,7 +869,17 @@ def get_pff_holdings():
         analysis_path = os.path.join(BASE_DIR, 'pff_holdings_tickers.csv')
         if os.path.exists(analysis_path):
             try:
-                # Format: Base Ticker,Company Name,Preferred Stock,Last Price,Full Name
+                def safe_float(val):
+                    if pd.isna(val) or val == '':
+                        return 0.0
+                    if isinstance(val, str):
+                        # Remove commas and $ symbols
+                        val = val.replace(',', '').replace('$', '').strip()
+                    try:
+                        return float(val)
+                    except:
+                        return 0.0
+
                 df = pd.read_csv(analysis_path)
                 holdings = []
                 for _, row in df.iterrows():
@@ -884,10 +894,10 @@ def get_pff_holdings():
                         holdings.append({
                             'ticker': ticker,
                             'name': name if pd.notna(name) else '',
-                            'price': float(last_price) if pd.notna(last_price) else 0.0,
-                            'weight': float(weight) if pd.notna(weight) else 0.0,
-                            'market_value': float(market_value) if pd.notna(market_value) else 0.0,
-                            'quantity': float(quantity) if pd.notna(quantity) else 0.0,
+                            'price': safe_float(last_price),
+                            'weight': safe_float(weight),
+                            'market_value': safe_float(market_value),
+                            'quantity': safe_float(quantity),
                             'is_analyzed': True 
                         })
                 # Map sectors to analyzed holdings
@@ -998,30 +1008,6 @@ def analyze_pre_exdiv_scan():
 
     from flask import Response
     return Response(generate(), mimetype='application/x-ndjson')
-
-@app.route('/debug_files')
-def debug_files():
-    import os
-    try:
-        path = os.path.join(BASE_DIR, 'pff_holdings_tickers.csv')
-        exists = os.path.exists(path)
-        size = os.path.getsize(path) if exists else 0
-        content_head = ""
-        if exists:
-            with open(path, 'r') as f:
-                content_head = f.read(200)
-        
-        files = os.listdir(BASE_DIR)
-        return jsonify({
-            'base_dir': BASE_DIR,
-            'cwd': os.getcwd(),
-            'exists_pff': exists,
-            'size': size,
-            'content_head': content_head,
-            'files': files
-        })
-    except Exception as e:
-        return str(e)
 
 if __name__ == '__main__':
     # Railway uses PORT environment variable
