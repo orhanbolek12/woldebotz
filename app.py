@@ -999,6 +999,20 @@ def analyze_pre_exdiv_scan():
     from flask import Response
     return Response(generate(), mimetype='application/x-ndjson')
 
+@app.route('/debug_files')
+def debug_files():
+    import os
+    try:
+        files = os.listdir(BASE_DIR)
+        return jsonify({
+            'base_dir': BASE_DIR,
+            'cwd': os.getcwd(),
+            'files': files,
+            'exists_pff': os.path.exists(os.path.join(BASE_DIR, 'pff_holdings_tickers.csv'))
+        })
+    except Exception as e:
+        return str(e)
+
 if __name__ == '__main__':
     # Railway uses PORT environment variable
     port = int(os.environ.get('PORT', 5000))
