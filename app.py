@@ -64,7 +64,8 @@ app.json_encoder = NumpyEncoder
 # Caching for sector map to avoid repeated disk reads
 _sector_map_cache = None
 
-SECTOR_MAP_FILE = 'sector_map.json'
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+SECTOR_MAP_FILE = os.path.join(BASE_DIR, 'sector_map.json')
 
 def get_sector_map():
     global _sector_map_cache
@@ -90,12 +91,15 @@ def get_sector_map():
         return {}
 
 # Persistence files
-HISTORY_FILE = 'results_history.json'
-IMBALANCE_FILE = 'imbalance_history.json'
+HISTORY_FILE = os.path.join(BASE_DIR, 'results_history.json')
+IMBALANCE_FILE = os.path.join(BASE_DIR, 'imbalance_history.json')
 
 # Helper to get tickers from file
 def get_tickers_from_file(filename):
     try:
+        # Resolve path relative to BASE_DIR if simple filename
+        if not os.path.isabs(filename):
+            filename = os.path.join(BASE_DIR, filename)
         if os.path.exists(filename):
             with open(filename, 'r') as f:
                 content = f.read()
@@ -862,7 +866,7 @@ def get_pff_holdings():
         import pandas as pd
         
         # 1. Try to load the Analyzed Preferred Stocks file first
-        analysis_path = 'pff_holdings_tickers.csv'
+        analysis_path = os.path.join(BASE_DIR, 'pff_holdings_tickers.csv')
         if os.path.exists(analysis_path):
             try:
                 # Format: Base Ticker,Company Name,Preferred Stock,Last Price,Full Name
