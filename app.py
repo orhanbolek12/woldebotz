@@ -1003,12 +1003,22 @@ def analyze_pre_exdiv_scan():
 def debug_files():
     import os
     try:
+        path = os.path.join(BASE_DIR, 'pff_holdings_tickers.csv')
+        exists = os.path.exists(path)
+        size = os.path.getsize(path) if exists else 0
+        content_head = ""
+        if exists:
+            with open(path, 'r') as f:
+                content_head = f.read(200)
+        
         files = os.listdir(BASE_DIR)
         return jsonify({
             'base_dir': BASE_DIR,
             'cwd': os.getcwd(),
-            'files': files,
-            'exists_pff': os.path.exists(os.path.join(BASE_DIR, 'pff_holdings_tickers.csv'))
+            'exists_pff': exists,
+            'size': size,
+            'content_head': content_head,
+            'files': files
         })
     except Exception as e:
         return str(e)
