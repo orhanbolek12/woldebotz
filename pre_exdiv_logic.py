@@ -82,7 +82,7 @@ def fetch_pre_exdiv_momentum(
     for i in range(0, len(benchmark_symbols), FETCH_CHUNK_SIZE):
         chunk = benchmark_symbols[i:i + FETCH_CHUNK_SIZE]
         try:
-            chunk_df = yf.download(chunk, period="2y", interval="1d", group_by="ticker", actions=False, progress=False)
+            chunk_df = yf.download(chunk, period="2y", interval="1d", group_by="ticker", actions=False, progress=False, auto_adjust=False)
             if not chunk_df.empty:
                 if bench_data.empty: bench_data = chunk_df
                 else: bench_data = pd.concat([bench_data, chunk_df], axis=1)
@@ -134,7 +134,7 @@ def fetch_pre_exdiv_momentum(
         chunk_data = pd.DataFrame()
         while attempt <= MAX_RETRIES:
             try:
-                chunk_data = yf.download(chunk_yf, period="2y", interval="1d", group_by="ticker", actions=True, progress=False, threads=False)
+                chunk_data = yf.download(chunk_yf, period="2y", interval="1d", group_by="ticker", actions=True, progress=False, threads=False, auto_adjust=False)
                 if not chunk_data.empty:
                     break
             except Exception as e:

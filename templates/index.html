@@ -1251,13 +1251,13 @@
                             </span>
                         </label>
                         <div class="unit-wrapper">
-                            <input type="number" id="rangeDays" value="90" min="1" max="365">
+                            <input type="number" id="rangeDays" value="90" min="1" max="500">
                             <span class="unit-tag">Days</span>
                         </div>
                     </div>
 
-                    <!-- Range % -->
-                    <div class="control-item">
+                    <!-- Range % (Hidden) -->
+                    <div class="control-item" style="display: none;">
                         <label style="display:flex; justify-content:space-between; align-items:center;">
                             <span style="display:flex; align-items:center;">
                                 RANGE %
@@ -1282,8 +1282,8 @@
                         </div>
                     </div>
 
-                    <!-- ATR/P -->
-                    <div class="control-item">
+                    <!-- ATR/P (Hidden) -->
+                    <div class="control-item" style="display: none;">
                         <label style="display:flex; justify-content:space-between; align-items:center;">
                             <span style="display:flex; align-items:center;">
                                 ATR/P
@@ -1309,8 +1309,8 @@
                         </div>
                     </div>
 
-                    <!-- ADX -->
-                    <div class="control-item">
+                    <!-- ADX (Hidden) -->
+                    <div class="control-item" style="display: none;">
                         <label style="display:flex; justify-content:space-between; align-items:center;">
                             <span style="display:flex; align-items:center;">
                                 ADX
@@ -1332,8 +1332,8 @@
                             style="opacity:0.5;">
                     </div>
 
-                    <!-- SLOPE -->
-                    <div class="control-item">
+                    <!-- SLOPE (Hidden) -->
+                    <div class="control-item" style="display: none;">
                         <label style="display:flex; justify-content:space-between; align-items:center;">
                             <span style="display:flex; align-items:center;">
                                 SLOPE
@@ -1359,8 +1359,8 @@
                         </div>
                     </div>
 
-                    <!-- TOUCH -->
-                    <div class="control-item">
+                    <!-- TOUCH (Hidden) -->
+                    <div class="control-item" style="display: none;">
                         <label style="display:flex; justify-content:space-between; align-items:center;">
                             <span style="display:flex; align-items:center;">
                                 TOUCH
@@ -1381,8 +1381,8 @@
                         <input type="number" id="rangeTouch" value="5" min="1" disabled style="opacity:0.5;">
                     </div>
 
-                    <!-- MIDZONE -->
-                    <div class="control-item">
+                    <!-- MIDZONE (Hidden) -->
+                    <div class="control-item" style="display: none;">
                         <label style="display:flex; justify-content:space-between; align-items:center;">
                             <span style="display:flex; align-items:center;">
                                 MIDZONE
@@ -1408,8 +1408,8 @@
                         </div>
                     </div>
 
-                    <!-- MAX VOL -->
-                    <div class="control-item">
+                    <!-- MAX VOL (Hidden) -->
+                    <div class="control-item" style="display: none;">
                         <label style="display:flex; justify-content:space-between; align-items:center;">
                             <span style="display:flex; align-items:center;">
                                 MAX VOL
@@ -1435,8 +1435,8 @@
                         </div>
                     </div>
 
-                    <!-- GAP -->
-                    <div class="control-item">
+                    <!-- GAP (Hidden) -->
+                    <div class="control-item" style="display: none;">
                         <label style="display:flex; justify-content:space-between; align-items:center;">
                             <span style="display:flex; align-items:center;">
                                 GAP
@@ -1461,8 +1461,8 @@
                         </div>
                     </div>
 
-                    <!-- EDGE ZONE -->
-                    <div class="control-item">
+                    <!-- EDGE ZONE (Hidden) -->
+                    <div class="control-item" style="display: none;">
                         <label style="display:flex; justify-content:space-between; align-items:center;">
                             <span style="display:flex; align-items:center;">
                                 EDGE %
@@ -1488,8 +1488,8 @@
                         </div>
                     </div>
 
-                    <!-- MEDIAN CROSS -->
-                    <div class="control-item">
+                    <!-- MEDIAN CROSS (Hidden) -->
+                    <div class="control-item" style="display: none;">
                         <label style="display:flex; justify-content:space-between; align-items:center;">
                             <span style="display:flex; align-items:center;">
                                 MED CROSS
@@ -1511,8 +1511,8 @@
                         <input type="number" id="rangeMedCross" value="20" min="1" disabled style="opacity:0.5;">
                     </div>
 
-                    <!-- Trade Days -->
-                    <div class="control-item">
+                    <!-- Trade Days (Hidden) -->
+                    <div class="control-item" style="display: none;">
                         <label style="display:flex; justify-content:space-between; align-items:center;">
                             <span style="display:flex; align-items:center;">
                                 TRADE DAYS
@@ -1538,9 +1538,8 @@
                         </div>
                     </div>
 
-                    <!-- Wolde Suggests Button -->
-                    <div class="control-item"
-                        style="grid-column: 1 / -1; margin-top: 1rem; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 1.5rem;">
+                    <!-- Suggestions Hidden -->
+                    <div class="control-item" style="display: none;">
                         <div style="display: flex; gap: 1rem; align-items: center; justify-content: center;">
                             <label class="switch" style="width: 50px; height: 26px;">
                                 <input type="checkbox" id="woldeSuggestsToggle" onchange="applyWoldeSuggests(this)">

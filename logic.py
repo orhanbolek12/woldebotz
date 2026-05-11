@@ -149,7 +149,7 @@ def parse_ticker_yf(raw_ticker):
     # These often work directly in YF. If they fail, resolve_ticker_yf will try variations.
     return raw_ticker
 
-def fetch_history_with_fallback(ticker_obj, period="3mo", interval="1d", auto_adjust=True):
+def fetch_history_with_fallback(ticker_obj, period="3mo", interval="1d", auto_adjust=False):
     """
     Fetches history from yfinance with a fallback to hourly data if daily data is missing.
     Daily data for some tickers (like Ford Notes F-PC, F-PB, F-PD) is broken on Yahoo Finance.
@@ -352,13 +352,13 @@ def fetch_and_process(tickers, progress_callback=None):
         
         try:
             ticker = yf.Ticker(yf_ticker)
-            df = fetch_history_with_fallback(ticker, period="3mo", auto_adjust=True)
+            df = fetch_history_with_fallback(ticker, period="3mo", auto_adjust=False)
             
             if df.empty:
                 resolved = resolve_ticker_yf(raw_ticker)
                 if resolved:
                      yf_ticker = resolved
-                     df = fetch_history_with_fallback(yf.Ticker(resolved), period="3mo", auto_adjust=True)
+                     df = fetch_history_with_fallback(yf.Ticker(resolved), period="3mo", auto_adjust=False)
                 
             if df.empty:
                 logging.error(f"Failed to fetch {yf_ticker} (Empty)")
@@ -413,12 +413,12 @@ def fetch_imbalance(tickers, days=30, min_count=20, max_wick=0.12, min_profit=0.
         tv_symbol = parse_ticker_tv(raw_ticker)
         try:
             ticker_obj = yf.Ticker(yf_ticker)
-            df = fetch_history_with_fallback(ticker_obj, period="6mo", interval="1d", auto_adjust=True)
+            df = fetch_history_with_fallback(ticker_obj, period="6mo", interval="1d", auto_adjust=False)
             if df.empty:
                  resolved = resolve_ticker_yf(raw_ticker)
                  if resolved:
                      yf_ticker = resolved
-                     df = fetch_history_with_fallback(yf.Ticker(resolved), period="6mo", interval="1d", auto_adjust=True)
+                     df = fetch_history_with_fallback(yf.Ticker(resolved), period="6mo", interval="1d", auto_adjust=False)
             df = df.dropna(how='all')
             if df.empty or len(df) < days: continue
             df_slice = df.tail(days).copy()
@@ -558,13 +558,13 @@ def fetch_range_ai(tickers, days=90,
         try:
             ticker_obj = yf.Ticker(yf_ticker)
             # Fetch 6 months to ensure enough buffer for 90 days + indicators
-            df = fetch_history_with_fallback(ticker_obj, period="6mo", interval="1d", auto_adjust=True)
+            df = fetch_history_with_fallback(ticker_obj, period="6mo", interval="1d", auto_adjust=False)
             
             if df.empty:
                  resolved = resolve_ticker_yf(raw_ticker)
                  if resolved:
                      yf_ticker = resolved
-                     df = fetch_history_with_fallback(yf.Ticker(resolved), period="6mo", interval="1d", auto_adjust=True)
+                     df = fetch_history_with_fallback(yf.Ticker(resolved), period="6mo", interval="1d", auto_adjust=False)
             
             if df.empty or len(df) < days: continue
             
@@ -1177,13 +1177,13 @@ def fetch_rebalance_patterns(tickers, months_back=12, strict_color=True, progres
         try:
             ticker_obj = yf.Ticker(yf_ticker)
             # Fetch 2 years for context and rolling averages
-            df = fetch_history_with_fallback(ticker_obj, period="2y", interval="1d", auto_adjust=True)
+            df = fetch_history_with_fallback(ticker_obj, period="2y", interval="1d", auto_adjust=False)
             if df.empty:
                 resolved = resolve_ticker_yf(raw_ticker)
                 if resolved:
                     yf_ticker = resolved
                     ticker_obj = yf.Ticker(resolved)
-                    df = fetch_history_with_fallback(ticker_obj, period="2y", interval="1d", auto_adjust=True)
+                    df = fetch_history_with_fallback(ticker_obj, period="2y", interval="1d", auto_adjust=False)
             
             df = df.dropna(how='all')
             if df.empty or len(df) < 100: continue # Need enough for 90d avg
