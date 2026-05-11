@@ -556,15 +556,19 @@ def fetch_range_ai(tickers, days=90,
         tv_symbol = parse_ticker_tv(raw_ticker)
         
         try:
+            # Calculate necessary period based on lookback days
+            # 500 days ~ 2 years. 365 days ~ 1.5 years. 
+            period = "2y" if days > 200 else "1y" if days > 100 else "6mo"
+            
             ticker_obj = yf.Ticker(yf_ticker)
-            # Fetch 6 months to ensure enough buffer for 90 days + indicators
-            df = fetch_history_with_fallback(ticker_obj, period="6mo", interval="1d", auto_adjust=False)
+            # Fetch history based on requested days + buffer for indicators
+            df = fetch_history_with_fallback(ticker_obj, period=period, interval="1d", auto_adjust=False)
             
             if df.empty:
-                 resolved = resolve_ticker_yf(raw_ticker)
-                 if resolved:
-                     yf_ticker = resolved
-                     df = fetch_history_with_fallback(yf.Ticker(resolved), period="6mo", interval="1d", auto_adjust=False)
+                resolved = resolve_ticker_yf(raw_ticker)
+                if resolved:
+                    yf_ticker = resolved
+                    df = fetch_history_with_fallback(yf.Ticker(resolved), period=period, interval="1d", auto_adjust=False)
             
             if df.empty or len(df) < 5: continue
             
