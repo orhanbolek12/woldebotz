@@ -532,16 +532,16 @@ def fetch_imbalance(tickers, days=30, min_count=20, max_wick=0.12, min_profit=0.
     return results
 
 def fetch_range_ai(tickers, days=90, 
-                   range_pct=9.0, use_range_pct=True,
-                   atr_price=2.2, use_atr_price=True,
-                   adx=22.0, use_adx=True,
-                   touch_low=5, use_touch_low=True,
-                   touch_high=5, use_touch_high=True,
-                   slope_pct=3.0, use_slope_pct=True,
-                   middle_ratio=60.0, use_middle_ratio=True,
-                   max_daily_move=5.0, use_max_daily_move=True,
-                   avg_gap=1.2, use_avg_gap=True,
-                   trade_days=70.0, use_trade_days=True,
+                   range_pct=9.0, use_range_pct=False,
+                   atr_price=2.2, use_atr_price=False,
+                   adx=22.0, use_adx=False,
+                   touch_low=5, use_touch_low=False,
+                   touch_high=5, use_touch_high=False,
+                   slope_pct=3.0, use_slope_pct=False,
+                   middle_ratio=60.0, use_middle_ratio=False,
+                   max_daily_move=5.0, use_max_daily_move=False,
+                   avg_gap=1.2, use_avg_gap=False,
+                   trade_days=70.0, use_trade_days=False,
                    edge_zone_pct=0.6, use_edge_zone=False,
                    median_cross=20, use_median_cross=False,
                    progress_callback=None):
@@ -563,22 +563,28 @@ def fetch_range_ai(tickers, days=90,
             if df.empty:
                  resolved = resolve_ticker_yf(raw_ticker)
                  if resolved:
+            if df.empty:
+                 resolved = resolve_ticker_yf(raw_ticker)
+                 if resolved:
                      yf_ticker = resolved
                      df = fetch_history_with_fallback(yf.Ticker(resolved), period="6mo", interval="1d", auto_adjust=False)
             
-            if df.empty or len(df) < days: continue
+            if df.empty or len(df) < 5: continue
             
-            # --- INDICATOR CALCULATIONS (Full DF) ---
-            df['ATR'] = calculate_atr(df)
-            df['ADX'] = calculate_adx(df)
-            
-            # --- SLICE DATA (Last 90 Days) ---
-            df_slice = df.tail(days).copy()
+            # Adjust slice if history is shorter than requested days
+            actual_days = min(len(df), days)
+            df_slice = df.tail(actual_days).copy()
             days_with_data = len(df_slice)
             
             # 1. Trade Days Ratio Check
             trade_days_ratio = (days_with_data / days) * 100
             if use_trade_days and trade_days_ratio < trade_days: continue
+            
+            # Recalculate indicators on the full DF first to ensure correctness
+            df['ATR'] = calculate_atr(df)
+            df['ADX'] = calculate_adx(df)
+            # Re-slice to get indicators for the window
+            df_slice = df.tail(actual_days).copy()
 
             # Basic Stats
             low_min = df_slice['Low'].min()

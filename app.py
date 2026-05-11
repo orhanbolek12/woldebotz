@@ -629,34 +629,37 @@ def analyze_range_batch():
     
     # All range filters
     range_pct = float(request.form.get('range_pct', 9.0))
-    use_range_pct = request.form.get('use_range_pct', 'true').lower() == 'true'
+    use_range_pct = request.form.get('use_range_pct', 'false').lower() == 'true'
     
     atr_price = float(request.form.get('atr_price', 2.2))
-    use_atr_price = request.form.get('use_atr_price', 'true').lower() == 'true'
+    use_atr_price = request.form.get('use_atr_price', 'false').lower() == 'true'
     
     adx = float(request.form.get('adx', 22.0))
-    use_adx = request.form.get('use_adx', 'true').lower() == 'true'
+    use_adx = request.form.get('use_adx', 'false').lower() == 'true'
     
     touch_limit = int(request.form.get('touch_limit', 5))
-    use_touch = request.form.get('use_touch', 'true').lower() == 'true'
+    use_touch = request.form.get('use_touch', 'false').lower() == 'true'
     
     slope_pct = float(request.form.get('slope_pct', 3.0))
-    use_slope_pct = request.form.get('use_slope_pct', 'true').lower() == 'true'
+    use_slope_pct = request.form.get('use_slope_pct', 'false').lower() == 'true'
     
     middle_ratio = float(request.form.get('middle_ratio', 60.0))
-    use_middle_ratio = request.form.get('use_middle_ratio', 'true').lower() == 'true'
+    use_middle_ratio = request.form.get('use_middle_ratio', 'false').lower() == 'true'
     
     max_daily_move = float(request.form.get('max_daily_move', 5.0))
-    use_max_daily_move = request.form.get('use_max_daily_move', 'true').lower() == 'true'
+    use_max_daily_move = request.form.get('use_max_daily_move', 'false').lower() == 'true'
     
     avg_gap = float(request.form.get('avg_gap', 1.2))
-    use_avg_gap = request.form.get('use_avg_gap', 'true').lower() == 'true'
+    use_avg_gap = request.form.get('use_avg_gap', 'false').lower() == 'true'
 
     edge_zone_pct = float(request.form.get('edge_zone_pct', 0.6))
     use_edge_zone = request.form.get('use_edge_zone', 'false').lower() == 'true'
     
     median_cross = int(request.form.get('median_cross', 20))
     use_median_cross = request.form.get('use_median_cross', 'false').lower() == 'true'
+
+    trade_days = float(request.form.get('trade_days', 70.0))
+    use_trade_days = request.form.get('use_trade_days', 'false').lower() == 'true'
 
     try:
         results = fetch_range_ai(tickers, 
@@ -670,6 +673,7 @@ def analyze_range_batch():
                                 middle_ratio=middle_ratio, use_middle_ratio=use_middle_ratio,
                                 max_daily_move=max_daily_move, use_max_daily_move=use_max_daily_move,
                                 avg_gap=avg_gap, use_avg_gap=use_avg_gap,
+                                trade_days=trade_days, use_trade_days=use_trade_days,
                                 edge_zone_pct=edge_zone_pct, use_edge_zone=use_edge_zone,
                                 median_cross=median_cross, use_median_cross=use_median_cross)
     except Exception as e:
