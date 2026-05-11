@@ -563,9 +563,6 @@ def fetch_range_ai(tickers, days=90,
             if df.empty:
                  resolved = resolve_ticker_yf(raw_ticker)
                  if resolved:
-            if df.empty:
-                 resolved = resolve_ticker_yf(raw_ticker)
-                 if resolved:
                      yf_ticker = resolved
                      df = fetch_history_with_fallback(yf.Ticker(resolved), period="6mo", interval="1d", auto_adjust=False)
             
