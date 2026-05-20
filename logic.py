@@ -870,9 +870,9 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
         if dividends.empty:
             logging.warning(f"No dividend history found for {raw_ticker}")
 
-        # Standardize dividends index to timezone-naive to avoid timezone/DST mismatch issues
-        if not dividends.empty and dividends.index.tz is not None:
-            dividends.index = dividends.index.tz_localize(None)
+        # Standardize dividends index to timezone-naive date-only to avoid timezone/DST mismatch issues
+        if not dividends.empty:
+            dividends.index = pd.to_datetime(dividends.index.date)
 
         recent_divs = dividends.tail(lookback) if not dividends.empty else pd.Series(dtype=float)
         
@@ -895,9 +895,9 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
             tv_symbol = parse_ticker_tv(raw_ticker)
             return {'ticker': raw_ticker, 'tv_symbol': tv_symbol, 'error': 'No price history found', 'dividends': [], 'current_price': None, 'days_since_last_div': None}
         
-        # Standardize history index to timezone-naive to avoid timezone/DST mismatch issues
-        if not hist.empty and hist.index.tz is not None:
-            hist.index = hist.index.tz_localize(None)
+        # Standardize history index to timezone-naive date-only to avoid timezone/DST mismatch issues
+        if not hist.empty:
+            hist.index = pd.to_datetime(hist.index.date)
         
         current_price = hist['Close'].iloc[-1]
         # Handle NaN values to prevent JSON serialization issues
@@ -905,11 +905,9 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
             current_price = None
         dividend_analysis = []
         for ex_date, amount in recent_divs.items():
-            # Standardize ex_date to be naive if history index is naive, or match timezone
-            if hist.index.tz is not None and ex_date.tzinfo is None:
-                ex_date = ex_date.tz_localize(hist.index.tz)
-            elif hist.index.tz is None and ex_date.tzinfo is not None:
-                ex_date = ex_date.tz_localize(None)
+            # Ensure ex_date is purely a naive date for perfect index matching
+            if hasattr(ex_date, 'date'):
+                ex_date = pd.Timestamp(ex_date.date())
             
             ex_date_str = ex_date.strftime('%Y-%m-%d')
             pre_div_close = None
