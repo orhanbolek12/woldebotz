@@ -869,6 +869,10 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
         if dividends.empty:
             logging.warning(f"No dividend history found for {raw_ticker}")
 
+        # Standardize dividends index to timezone-naive to avoid timezone/DST mismatch issues
+        if not dividends.empty and dividends.index.tz is not None:
+            dividends.index = dividends.index.tz_localize(None)
+
         recent_divs = dividends.tail(lookback) if not dividends.empty else pd.Series(dtype=float)
         
         # Fetch History with Retry
@@ -889,6 +893,10 @@ def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
         if hist.empty:
             tv_symbol = parse_ticker_tv(raw_ticker)
             return {'ticker': raw_ticker, 'tv_symbol': tv_symbol, 'error': 'No price history found', 'dividends': [], 'current_price': None, 'days_since_last_div': None}
+        
+        # Standardize history index to timezone-naive to avoid timezone/DST mismatch issues
+        if not hist.empty and hist.index.tz is not None:
+            hist.index = hist.index.tz_localize(None)
         
         current_price = hist['Close'].iloc[-1]
         # Handle NaN values to prevent JSON serialization issues
