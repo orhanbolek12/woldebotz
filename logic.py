@@ -820,6 +820,7 @@ def fetch_range_ai(tickers, days=90,
     return results
 
 def analyze_dividend_recovery(raw_ticker, lookback=3, recovery_window=5):
+    raw_ticker = raw_ticker.strip().upper()
     yf_ticker = parse_ticker_yf(raw_ticker)
     logging.debug(f"Dividend Recovery: {raw_ticker} -> {yf_ticker}")
     # Retry wrapper for robustness
